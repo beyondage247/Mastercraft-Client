@@ -1,10 +1,35 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import StatCard from '../../components/StatCard';
 import StatusBadge from '../../components/StatusBadge';
 import { PortalIcon } from '../../components/PortalIcon';
 import { activeProjects, homeMetrics, recentActivity } from '../../data/portal';
+import type { DashboardResponse } from '../../services/portalApi';
+import { getDashboard } from '../../services/portalApi';
 
 function Home() {
+  const [dashboard, setDashboard] = useState<DashboardResponse>({
+    activeProjects,
+    homeMetrics,
+    projectMetrics: [],
+    quoteMetrics: [],
+    recentActivity,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getDashboard().then((data) => {
+      if (isMounted) {
+        setDashboard(data);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="page-stack">
       <section className="hero-panel">
@@ -26,7 +51,7 @@ function Home() {
       </section>
 
       <section className="metrics-grid metrics-grid--three" aria-label="Client portal summary">
-        {homeMetrics.map((metric) => (
+        {dashboard.homeMetrics.map((metric) => (
           <StatCard key={metric.label} {...metric} />
         ))}
       </section>
@@ -53,7 +78,7 @@ function Home() {
               <Link to="/projects">View All</Link>
             </div>
             <div className="active-project-list">
-              {activeProjects.map((project) => (
+              {dashboard.activeProjects.map((project) => (
                 <article className="active-project-row" key={project.name}>
                   <PortalIcon name="file" />
                   <div>
@@ -74,7 +99,7 @@ function Home() {
         <section className="panel recent-activity-panel">
           <h2>Recent Activity</h2>
           <div className="timeline" aria-label="Recent activity timeline">
-            {recentActivity.map((activity, index) => (
+            {dashboard.recentActivity.map((activity, index) => (
               <article className={`timeline-item timeline-item--${index % 2 === 0 ? 'right' : 'left'}`} key={activity.title}>
                 <span className="timeline-item__node">
                   <PortalIcon name="tool" />

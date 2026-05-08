@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FilterToolbar from '../../components/FilterToolbar';
 import PageHeader from '../../components/PageHeader';
 import ProjectCard from '../../components/ProjectCard';
 import StatCard from '../../components/StatCard';
 import { projectFilters, projectMetrics, projects } from '../../data/portal';
 import type { ProjectFilter, ProjectListItem } from '../../data/portal';
+import { getProjects } from '../../services/portalApi';
 
 function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
   if (filter === 'All') {
@@ -20,12 +21,29 @@ function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
 
 function Projects() {
   const [activeFilter, setActiveFilter] = useState<ProjectFilter>('All');
+  const [metrics, setMetrics] = useState(projectMetrics);
+  const [projectList, setProjectList] = useState<ProjectListItem[]>(projects);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getProjects().then((data) => {
+      if (isMounted) {
+        setMetrics(data.metrics);
+        setProjectList(data.projects);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return projects.filter((project) => {
+    return projectList.filter((project) => {
       const matchesSearch =
         !normalizedSearch ||
         [project.title, project.location, project.category, project.status]
@@ -35,14 +53,14 @@ function Projects() {
 
       return matchesProjectFilter(project, activeFilter) && matchesSearch;
     });
-  }, [activeFilter, search]);
+  }, [activeFilter, projectList, search]);
 
   return (
     <div className="page-stack">
       <PageHeader actionLabel="New Project" subtitle="Millwork & Fabrication Dashboard" title="Projects" />
 
       <section className="metrics-grid metrics-grid--four" aria-label="Project summary">
-        {projectMetrics.map((metric) => (
+        {metrics.map((metric) => (
           <StatCard key={metric.label} {...metric} />
         ))}
       </section>
@@ -63,7 +81,7 @@ function Projects() {
       </section>
 
       <p className="result-count">
-        Showing {filteredProjects.length} of {projects.length} projects
+        Showing {filteredProjects.length} of {projectList.length} projects
       </p>
     </div>
   );
