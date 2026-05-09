@@ -1,24 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
 import { documents } from '../../data/portal';
-import type { DocumentType } from '../../data/portal';
+import type { DocumentItem, DocumentType } from '../../data/portal';
+import { getDocuments } from '../../services/portalApi';
 
 type DocumentFilter = 'All types' | DocumentType;
 
 const typeFilters: DocumentFilter[] = ['All types', 'Shop drawing', 'CAD File', 'Spec Sheet', 'Photo'];
-const projectFilters = ['All projects', ...Array.from(new Set(documents.map((document) => document.project)))];
-
 function Documents() {
+  const [documentList, setDocumentList] = useState<DocumentItem[]>(documents);
   const [projectFilter, setProjectFilter] = useState('All projects');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<DocumentFilter>('All types');
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getDocuments().then((data) => {
+      if (isMounted) {
+        setDocumentList(data.documents);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const projectFilters = useMemo(
+    () => ['All projects', ...Array.from(new Set(documentList.map((document) => document.project).filter(Boolean)))],
+    [documentList],
+  );
+
   const filteredDocuments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return documents.filter((document) => {
+    return documentList.filter((document) => {
       const matchesType = typeFilter === 'All types' || document.type === typeFilter;
       const matchesProject = projectFilter === 'All projects' || document.project === projectFilter;
       const matchesSearch =
@@ -27,7 +46,7 @@ function Documents() {
 
       return matchesType && matchesProject && matchesSearch;
     });
-  }, [projectFilter, search, typeFilter]);
+  }, [documentList, projectFilter, search, typeFilter]);
 
   return (
     <div className="page-stack">
@@ -103,7 +122,7 @@ function Documents() {
       </section>
 
       <p className="result-count">
-        Showing {filteredDocuments.length} of {documents.length} documents
+        Showing {filteredDocuments.length} of {documentList.length} documents
       </p>
     </div>
   );

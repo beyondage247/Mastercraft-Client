@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import FilterToolbar from '../../components/FilterToolbar';
 import PageHeader from '../../components/PageHeader';
 import ProjectCard from '../../components/ProjectCard';
@@ -24,6 +25,7 @@ function Projects() {
   const [metrics, setMetrics] = useState(projectMetrics);
   const [projectList, setProjectList] = useState<ProjectListItem[]>(projects);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +59,12 @@ function Projects() {
 
   return (
     <div className="page-stack">
-      <PageHeader actionLabel="New Project" subtitle="Millwork & Fabrication Dashboard" title="Projects" />
+      <PageHeader
+        actionLabel="New Project"
+        onAction={() => navigate('/new')}
+        subtitle="Millwork & Fabrication Portal"
+        title="Projects"
+      />
 
       <section className="metrics-grid metrics-grid--four" aria-label="Project summary">
         {metrics.map((metric) => (

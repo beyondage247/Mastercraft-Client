@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
 import { invoiceMetrics, invoices } from '../../data/portal';
-import type { InvoiceStatus } from '../../data/portal';
+import type { InvoiceItem, InvoiceStatus } from '../../data/portal';
+import { getInvoices } from '../../services/portalApi';
 
 type InvoiceFilter = 'All' | InvoiceStatus;
 
 const statusFilters: InvoiceFilter[] = ['All', 'Paid', 'Overdue', 'Draft'];
-const projectFilters = ['All', ...Array.from(new Set(invoices.map((invoice) => invoice.project)))];
 const invoiceStatusTone = {
   Draft: 'neutral',
   Overdue: 'danger',
@@ -16,14 +16,36 @@ const invoiceStatusTone = {
 } as const;
 
 function Invoices() {
+  const [invoiceList, setInvoiceList] = useState<InvoiceItem[]>(invoices);
+  const [metrics, setMetrics] = useState(invoiceMetrics);
   const [projectFilter, setProjectFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceFilter>('All');
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getInvoices().then((data) => {
+      if (isMounted) {
+        setInvoiceList(data.invoices);
+        setMetrics(data.metrics);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const projectFilters = useMemo(
+    () => ['All', ...Array.from(new Set(invoiceList.map((invoice) => invoice.project).filter(Boolean)))],
+    [invoiceList],
+  );
+
   const filteredInvoices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return invoices.filter((invoice) => {
+    return invoiceList.filter((invoice) => {
       const matchesStatus = statusFilter === 'All' || invoice.status === statusFilter;
       const matchesProject = projectFilter === 'All' || invoice.project === projectFilter;
       const matchesSearch =
@@ -32,14 +54,14 @@ function Invoices() {
 
       return matchesStatus && matchesProject && matchesSearch;
     });
-  }, [projectFilter, search, statusFilter]);
+  }, [invoiceList, projectFilter, search, statusFilter]);
 
   return (
     <div className="page-stack">
       <PageHeader actionLabel="New Invoice" subtitle="Track payments and billing history" title="Invoices" />
 
       <section className="billing-metrics" aria-label="Invoice summary">
-        {invoiceMetrics.map((metric, index) => (
+        {metrics.map((metric, index) => (
           <article className={`billing-metric${index === 0 ? ' billing-metric--featured' : ''}`} key={metric.label}>
             <div>
               <span>{metric.label}</span>
@@ -134,7 +156,7 @@ function Invoices() {
       </section>
 
       <p className="result-count">
-        Showing {filteredInvoices.length} of {invoices.length} invoices
+        Showing {filteredInvoices.length} of {invoiceList.length} invoices
       </p>
     </div>
   );

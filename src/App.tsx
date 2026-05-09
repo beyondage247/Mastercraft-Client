@@ -6,6 +6,7 @@ import Documents from './pages/Documents';
 import Invoices from './pages/Invoices';
 import Payments from './pages/Payments';
 import Projects from './pages/Projects';
+import NewProjectRequest from './pages/NewProjectRequest';
 import Quotes from './pages/Quotes';
 
 const router = createBrowserRouter([
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'projects', element: <Projects /> },
+      { path: 'new', element: <NewProjectRequest /> },
       { path: 'quotes', element: <Quotes /> },
       { path: 'documents', element: <Documents /> },
       { path: 'invoices', element: <Invoices /> },

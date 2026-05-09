@@ -33,6 +33,139 @@ export function columnIds(prefix, defaults) {
   );
 }
 
+function normalize(value) {
+  return `${value || ''}`.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function matchesAny(value, candidates) {
+  const normalizedValue = normalize(value);
+
+  return candidates.some((candidate) => {
+    const normalizedCandidate = normalize(candidate);
+
+    return normalizedValue === normalizedCandidate || normalizedValue.includes(normalizedCandidate);
+  });
+}
+
+export async function discoverBoards() {
+  const query = `
+    query DiscoverBoards {
+      boards(limit: 100) {
+        id
+        name
+        state
+        type
+        workspace {
+          id
+          name
+        }
+        columns {
+          id
+          title
+          type
+        }
+      }
+    }
+  `;
+
+  const data = await mondayRequest(query);
+
+  return data.boards || [];
+}
+
+export async function resolveBoard({ candidates, envName, label }) {
+  const configuredBoardId = process.env[envName];
+  const boards = await discoverBoards();
+
+  if (configuredBoardId) {
+    const configuredBoard = boards.find((board) => board.id === configuredBoardId);
+
+    if (configuredBoard) {
+      return configuredBoard;
+    }
+
+    return { id: configuredBoardId, name: label, columns: [] };
+  }
+
+  const activeBoards = boards.filter((board) => {
+    const name = normalize(board.name);
+
+    return board.state !== 'deleted' && !name.startsWith('subitems of') && !name.startsWith('duplicate of');
+  });
+  const scoredBoards = activeBoards
+    .map((candidateBoard) => {
+      const normalizedName = normalize(candidateBoard.name);
+      const score = candidates.reduce((bestScore, candidate, index) => {
+        const normalizedCandidate = normalize(candidate);
+
+        if (normalizedName === normalizedCandidate) {
+          return Math.max(bestScore, 1000 - index);
+        }
+
+        if (normalizedName.includes(normalizedCandidate)) {
+          return Math.max(bestScore, 500 - index);
+        }
+
+        return bestScore;
+      }, 0);
+
+      return { board: candidateBoard, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score);
+  const board = scoredBoards[0]?.board;
+
+  if (!board) {
+    throw new Error(`Could not infer the ${label} board. Set ${envName} in your environment variables.`);
+  }
+
+  return board;
+}
+
+export function inferColumnId({ board, candidates, envName, fallback, types = [] }) {
+  const configuredColumnId = process.env[envName];
+
+  if (configuredColumnId) {
+    return configuredColumnId;
+  }
+
+  const columns = board.columns || [];
+  const exactMatch = candidates
+    .map((candidate) =>
+      columns.find((column) => normalize(column.title) === normalize(candidate) || normalize(column.id) === normalize(candidate)),
+    )
+    .find(Boolean);
+
+  if (exactMatch) {
+    return exactMatch.id;
+  }
+
+  const titleMatch = candidates
+    .map((candidate) => columns.find((column) => matchesAny(column.title, [candidate]) || matchesAny(column.id, [candidate])))
+    .find(Boolean);
+
+  if (titleMatch) {
+    return titleMatch.id;
+  }
+
+  const typeMatch = columns.find((column) => types.includes(column.type));
+
+  return typeMatch?.id || fallback;
+}
+
+export function inferredColumnIds(prefix, board, defaults) {
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, config]) => [
+      key,
+      inferColumnId({
+        board,
+        envName: `${prefix}_${key}_COLUMN`,
+        ...config,
+      }),
+    ]),
+  );
+}
+
 export function columnMap(item) {
   return Object.fromEntries(item.column_values.map((column) => [column.id, column]));
 }

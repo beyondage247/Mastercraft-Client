@@ -1,13 +1,27 @@
 import {
   activeProjects,
+  documents,
   homeMetrics,
+  invoiceMetrics,
+  invoices,
+  paymentMetrics,
+  payments,
   projectMetrics,
   projects,
   quoteMetrics,
   quotes,
   recentActivity,
 } from '../data/portal';
-import type { ActivityItem, HomeProject, Metric, ProjectListItem, QuoteListItem } from '../data/portal';
+import type {
+  ActivityItem,
+  DocumentItem,
+  HomeProject,
+  InvoiceItem,
+  Metric,
+  PaymentItem,
+  ProjectListItem,
+  QuoteListItem,
+} from '../data/portal';
 
 type ProjectResponse = {
   activeProjects: HomeProject[];
@@ -18,6 +32,20 @@ type ProjectResponse = {
 type QuoteResponse = {
   metrics: Metric[];
   quotes: QuoteListItem[];
+};
+
+type DocumentResponse = {
+  documents: DocumentItem[];
+};
+
+type InvoiceResponse = {
+  invoices: InvoiceItem[];
+  metrics: Metric[];
+};
+
+type PaymentResponse = {
+  metrics: Metric[];
+  payments: PaymentItem[];
 };
 
 export type DashboardResponse = {
@@ -90,5 +118,35 @@ export async function acceptQuote(uid: string): Promise<void> {
 
   if (!response.ok) {
     throw new Error(`Unable to accept quote: ${response.status}`);
+  }
+}
+
+export async function getDocuments(): Promise<DocumentResponse> {
+  try {
+    return await fetchJson<DocumentResponse>('/api/documents');
+  } catch {
+    return { documents };
+  }
+}
+
+export async function getInvoices(): Promise<InvoiceResponse> {
+  try {
+    return await fetchJson<InvoiceResponse>('/api/invoices');
+  } catch {
+    return {
+      invoices,
+      metrics: invoiceMetrics,
+    };
+  }
+}
+
+export async function getPayments(): Promise<PaymentResponse> {
+  try {
+    return await fetchJson<PaymentResponse>('/api/payments');
+  } catch {
+    return {
+      metrics: paymentMetrics,
+      payments,
+    };
   }
 }

@@ -1,12 +1,12 @@
 import {
-  columnIds,
   columnMap,
   columnText,
   getBoardItems,
   handleError,
+  inferredColumnIds,
   json,
   numberFromColumn,
-  requiredEnv,
+  resolveBoard,
 } from './_monday.mjs';
 
 const statusTone = {
@@ -71,15 +71,19 @@ export async function handler(event) {
   }
 
   try {
-    const boardId = requiredEnv('MONDAY_PROJECTS_BOARD_ID');
-    const ids = columnIds('MONDAY_PROJECT', {
-      STATUS: 'status',
-      CATEGORY: 'category',
-      LOCATION: 'location',
-      DUE_DATE: 'due_date',
-      PROGRESS: 'progress',
+    const board = await resolveBoard({
+      candidates: ['customer projects', 'production tracker board', 'production tracker', 'projects', 'deals orders board'],
+      envName: 'MONDAY_PROJECTS_BOARD_ID',
+      label: 'Projects',
     });
-    const projects = (await getBoardItems(boardId)).map((item) => mapProject(item, ids));
+    const ids = inferredColumnIds('MONDAY_PROJECT', board, {
+      STATUS: { candidates: ['project status', 'production status', 'deal status', 'status'], fallback: 'status', types: ['status'] },
+      CATEGORY: { candidates: ['project type', 'deal type', 'category', 'type'], fallback: 'category', types: ['dropdown', 'status'] },
+      LOCATION: { candidates: ['project location', 'location', 'address', 'site'], fallback: 'location', types: ['location', 'text'] },
+      DUE_DATE: { candidates: ['delivery date', 'expected close date', 'due date', 'deadline', 'date'], fallback: 'due_date', types: ['date'] },
+      PROGRESS: { candidates: ['progress', 'close probability', 'percentage', 'completion'], fallback: 'progress', types: ['numbers'] },
+    });
+    const projects = (await getBoardItems(board.id)).map((item) => mapProject(item, ids));
     const activeProjects = projects.slice(0, 3).map((project) => ({
       category: project.category,
       estimate: project.dueDate ? `Est: ${project.dueDate}` : 'Est: Pending',

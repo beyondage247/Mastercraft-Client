@@ -1,12 +1,12 @@
 import {
   changeColumnValue,
-  columnIds,
   columnMap,
   columnText,
   getBoardItems,
   handleError,
+  inferredColumnIds,
   json,
-  requiredEnv,
+  resolveBoard,
 } from './_monday.mjs';
 
 function normalizeQuoteStatus(status) {
@@ -57,8 +57,14 @@ function buildMetrics(quotes) {
 }
 
 async function acceptQuote(itemId) {
+  const board = await resolveBoard({
+    candidates: ['quotes invoices board', 'quotes invoices', 'quotes', 'quote', 'estimates', 'estimate'],
+    envName: 'MONDAY_QUOTES_BOARD_ID',
+    label: 'Quotes',
+  });
+
   await changeColumnValue({
-    boardId: requiredEnv('MONDAY_QUOTES_BOARD_ID'),
+    boardId: board.id,
     columnId: process.env.MONDAY_QUOTE_STATUS_COLUMN || 'status',
     itemId,
     value: { label: 'Accepted' },
@@ -88,14 +94,18 @@ export async function handler(event) {
       return json(405, { error: 'Method not allowed' });
     }
 
-    const boardId = requiredEnv('MONDAY_QUOTES_BOARD_ID');
-    const ids = columnIds('MONDAY_QUOTE', {
-      STATUS: 'status',
-      AMOUNT: 'amount',
-      VALID_UNTIL: 'valid_until',
-      DESCRIPTION: 'description',
+    const board = await resolveBoard({
+      candidates: ['quotes invoices board', 'quotes invoices', 'quotes', 'quote', 'estimates', 'estimate'],
+      envName: 'MONDAY_QUOTES_BOARD_ID',
+      label: 'Quotes',
     });
-    const quotes = (await getBoardItems(boardId)).map((item) => mapQuote(item, ids));
+    const ids = inferredColumnIds('MONDAY_QUOTE', board, {
+      STATUS: { candidates: ['quote status', 'status'], fallback: 'status', types: ['status'] },
+      AMOUNT: { candidates: ['total value', 'sub total', 'amount', 'value', 'total', 'price'], fallback: 'amount', types: ['numbers', 'formula'] },
+      VALID_UNTIL: { candidates: ['valid until', 'valid', 'expiry', 'expiration', 'due date'], fallback: 'valid_until', types: ['date'] },
+      DESCRIPTION: { candidates: ['custom notes', 'description', 'scope', 'details', 'notes'], fallback: 'description', types: ['long_text', 'text', 'mirror'] },
+    });
+    const quotes = (await getBoardItems(board.id)).map((item) => mapQuote(item, ids));
 
     return json(200, {
       metrics: buildMetrics(quotes),

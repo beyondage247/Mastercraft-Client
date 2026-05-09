@@ -1,3 +1,21 @@
 {
-	"siteId": "22b325cb-1fab-496e-b399-403b8283e09b"
+	"siteId": "22b325cb-1fab-496e-b399-403b8283e09b",
+	"dbConnectionString": "postgres://localhost:49199/postgres",
+	"geolocation": {
+		"data": {
+			"city": "Lagos",
+			"country": {
+				"code": "NG",
+				"name": "Nigeria"
+			},
+			"subdivision": {
+				"code": "LA",
+				"name": "Lagos"
+			},
+			"timezone": "Africa/Lagos",
+			"latitude": 6.4474,
+			"longitude": 3.3903
+		},
+		"timestamp": 1778270176790
+	}
 }

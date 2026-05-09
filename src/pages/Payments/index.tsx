@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FilterToolbar from '../../components/FilterToolbar';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
 import { paymentFilters, paymentMetrics, payments } from '../../data/portal';
-import type { PaymentMethod } from '../../data/portal';
+import type { PaymentItem, PaymentMethod } from '../../data/portal';
+import { getPayments } from '../../services/portalApi';
 
 type PaymentFilter = 'All' | PaymentMethod;
 
@@ -17,12 +18,29 @@ const methodTone = {
 
 function Payments() {
   const [activeFilter, setActiveFilter] = useState<PaymentFilter>('All');
+  const [metrics, setMetrics] = useState(paymentMetrics);
+  const [paymentList, setPaymentList] = useState<PaymentItem[]>(payments);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getPayments().then((data) => {
+      if (isMounted) {
+        setMetrics(data.metrics);
+        setPaymentList(data.payments);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredPayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return payments.filter((payment) => {
+    return paymentList.filter((payment) => {
       const matchesMethod = activeFilter === 'All' || payment.method === activeFilter;
       const matchesSearch =
         !normalizedSearch ||
@@ -33,14 +51,14 @@ function Payments() {
 
       return matchesMethod && matchesSearch;
     });
-  }, [activeFilter, search]);
+  }, [activeFilter, paymentList, search]);
 
   return (
     <div className="page-stack">
       <PageHeader actionLabel="New Invoice" subtitle="Transaction history and payment records" title="Payments" />
 
       <section className="billing-metrics" aria-label="Payment summary">
-        {paymentMetrics.map((metric) => (
+        {metrics.map((metric) => (
           <article className="billing-metric" key={metric.label}>
             <div>
               <span>{metric.label}</span>
@@ -88,7 +106,7 @@ function Payments() {
           ))}
         </div>
         <p className="result-count">
-          Showing {filteredPayments.length} of {payments.length} payments
+          Showing {filteredPayments.length} of {paymentList.length} payments
         </p>
       </section>
     </div>
