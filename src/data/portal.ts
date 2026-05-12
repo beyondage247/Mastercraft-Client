@@ -32,6 +32,7 @@ export type ProjectStatus = 'Pending' | 'In Design' | 'In Fabrication' | 'Comple
 export type ProjectFilter = 'All' | 'Pending' | 'In Progress' | 'Completed';
 
 export type ProjectListItem = {
+  id: string;
   category: string;
   dueDate: string;
   location: string;
@@ -173,6 +174,7 @@ export const projectFilters: Array<{ label: string; value: ProjectFilter }> = [
 
 export const projects: ProjectListItem[] = [
   {
+    id: 'proj-1',
     category: 'Commercial',
     dueDate: '2024-02-20',
     location: 'Austin, TX',
@@ -181,6 +183,7 @@ export const projects: ProjectListItem[] = [
     title: 'Downtown Office Complex Fit-out',
   },
   {
+    id: 'proj-2',
     category: 'Residential',
     dueDate: '2024-06-15',
     location: 'New York, TX',
@@ -189,6 +192,7 @@ export const projects: ProjectListItem[] = [
     title: 'Highland Residence Custom Cabinetry',
   },
   {
+    id: 'proj-3',
     category: 'Commercial',
     dueDate: '2024-03-10',
     location: 'Chicago, Illinois',
@@ -197,6 +201,62 @@ export const projects: ProjectListItem[] = [
     title: 'Riverside Hotel Lobby Renovation',
   },
 ];
+
+export type ProjectTeamMember = {
+  initials: string;
+  name: string;
+  role: string;
+};
+
+export type ProjectTimelineEvent = {
+  date: string;
+  description: string;
+  title: string;
+};
+
+export type ProjectDetailInfo = {
+  estimatedCompletion: string;
+  notes: string;
+  siteAddress: string;
+  startDate: string;
+  team: ProjectTeamMember[];
+  timeline: ProjectTimelineEvent[];
+};
+
+export const projectDetails: Record<string, ProjectDetailInfo> = {
+  'proj-2': {
+    estimatedCompletion: '4/30/2024',
+    notes: 'Client requested custom walnut shelving with integrated LED lighting. All dimensions must be verified on-site due to ceiling irregularities.',
+    siteAddress: '420 West 42nd Street, Penthouse B',
+    startDate: '1/15/2024',
+    team: [
+      { initials: 'PM', name: 'Sarah Miller', role: 'Project Manager' },
+      { initials: 'PM', name: 'John Doe', role: 'Lead Fabricator' },
+    ],
+    timeline: [
+      {
+        date: 'Feb 20, 2024',
+        description: 'Site visit completed and initial measurements taken.',
+        title: 'Project initiated',
+      },
+      {
+        date: 'Feb 20, 2024',
+        description: 'Finalized CNC files sent to production manager.',
+        title: 'CAD files exported',
+      },
+      {
+        date: 'Feb 12, 2024',
+        description: 'Signed shop drawings received via email.',
+        title: 'Drawings approved by client',
+      },
+      {
+        date: 'Feb 20, 2024',
+        description: 'Shop floor began cutting walnut panels for the primary shelving unit.',
+        title: 'Fabrication started - Main framing',
+      },
+    ],
+  },
+};
 
 export const quoteMetrics: Metric[] = [
   { icon: 'dollar', label: 'Total Value', tone: 'danger', value: '$93,890' },
@@ -409,3 +469,88 @@ export const payments: PaymentItem[] = [
     reference: 'WIRE-7726143',
   },
 ];
+
+export type LineItem = {
+  description: string;
+  qty: number;
+  rate: string;
+  amount: string;
+};
+
+export type LinkedProject = {
+  id: string;
+  title: string;
+  category: string;
+  estCompletion: string;
+  location: string;
+};
+
+export type QuoteDetailInfo = {
+  specifications: string;
+  lineItems: LineItem[];
+  subtotal: string;
+  tax: string;
+  total: string;
+  linkedProject: LinkedProject;
+};
+
+export type InvoiceDetailInfo = {
+  billToName: string;
+  billToEmail: string;
+  billToAddress1: string;
+  billToAddress2: string;
+  projectReference: string;
+  quoteReference: string;
+  lineItems: LineItem[];
+  subtotal: string;
+  tax: string;
+  total: string;
+  linkedProject: LinkedProject;
+};
+
+export const quoteDetails: Record<string, QuoteDetailInfo> = {
+  'quote-0892': {
+    specifications: 'Custom reception desk and conference room millwork for the new headquarters expansion.',
+    lineItems: [
+      { description: 'Reception Desk - Walnut Veneer', qty: 1, rate: '$4,500.00', amount: '$4,500' },
+      { description: 'Conference Table - 12ft Oak', qty: 1, rate: '$6,200.00', amount: '$6,200' },
+      { description: 'Conference Table - 12ft Oak', qty: 1, rate: '$90.00', amount: '$1,800' }
+    ],
+    subtotal: '$12,500.00',
+    tax: '$1,000.00',
+    total: '$12,500.00',
+    linkedProject: {
+      id: 'proj-1',
+      title: 'Downtown HQ Expansion',
+      category: 'Commercial',
+      estCompletion: 'Dec 15, 2024',
+      location: 'San Francisco, CA'
+    }
+  }
+};
+
+export const invoiceDetails: Record<string, InvoiceDetailInfo> = {
+  'INV - 2024- 001': {
+    billToName: 'Acme Corp',
+    billToEmail: 'billing@acmecorp.com',
+    billToAddress1: '123 Business Park, Suite 400',
+    billToAddress2: 'San Francisco, CA 94107',
+    projectReference: 'Website Redesign & Migration',
+    quoteReference: 'Q-2024-055',
+    lineItems: [
+      { description: 'Reception Desk - Walnut Veneer', qty: 1, rate: '$4,500.00', amount: '$4,500' },
+      { description: 'Conference Table - 12ft Oak', qty: 1, rate: '$6,200.00', amount: '$6,200' },
+      { description: 'Conference Table - 12ft Oak', qty: 1, rate: '$90.00', amount: '$1,800' }
+    ],
+    subtotal: '$12,500.00',
+    tax: '$1,000.00',
+    total: '$12,500.00',
+    linkedProject: {
+      id: 'proj-1',
+      title: 'Downtown HQ Expansion',
+      category: 'Commercial',
+      estCompletion: 'Dec 15, 2024',
+      location: 'San Francisco, CA'
+    }
+  }
+};

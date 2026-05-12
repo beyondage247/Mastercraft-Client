@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { QuoteListItem } from '../data/portal';
 import { PortalIcon } from './PortalIcon';
 import StatusBadge from './StatusBadge';
@@ -16,8 +17,10 @@ type QuoteCardProps = {
 };
 
 function QuoteCard({ onAccept, quote }: QuoteCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <article className="record-card quote-card">
+    <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
       <div className="record-card__body">
         <div className="quote-card__idline">
           <span>{quote.id}</span>
@@ -39,7 +42,7 @@ function QuoteCard({ onAccept, quote }: QuoteCardProps) {
         </div>
       </div>
       <div className="quote-card__actions">
-        <button className="accept-button" onClick={() => onAccept(quote.uid)} type="button">
+        <button className="accept-button" onClick={(e) => { e.stopPropagation(); onAccept(quote.uid); }} type="button">
           Accept
         </button>
         <button className="record-card__arrow" type="button" aria-label={`Open ${quote.title}`}>

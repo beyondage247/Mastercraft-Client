@@ -8,9 +8,12 @@ import {
   payments,
   projectMetrics,
   projects,
+  projectDetails,
   quoteMetrics,
   quotes,
+  quoteDetails,
   recentActivity,
+  invoiceDetails,
 } from '../data/portal';
 import type {
   ActivityItem,
@@ -20,7 +23,10 @@ import type {
   Metric,
   PaymentItem,
   ProjectListItem,
+  ProjectDetailInfo,
   QuoteListItem,
+  QuoteDetailInfo,
+  InvoiceDetailInfo,
 } from '../data/portal';
 
 type ProjectResponse = {
@@ -100,6 +106,17 @@ export async function getProjects(): Promise<ProjectResponse> {
   }
 }
 
+export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {
+  try {
+    const data = await fetchJson<{ project: ProjectListItem, details: ProjectDetailInfo }>(`/api/projects/${id}`);
+    return data;
+  } catch {
+    const project = projects.find(p => p.id === id);
+    const details = projectDetails[id];
+    return { project, details };
+  }
+}
+
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
     return await fetchJson<QuoteResponse>('/api/quotes');
@@ -148,5 +165,27 @@ export async function getPayments(): Promise<PaymentResponse> {
       metrics: paymentMetrics,
       payments,
     };
+  }
+}
+
+export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem | undefined, details: QuoteDetailInfo | undefined }> {
+  try {
+    const data = await fetchJson<{ quote: QuoteListItem, details: QuoteDetailInfo }>(`/api/quotes/${id}`);
+    return data;
+  } catch {
+    const quote = quotes.find(q => q.id === id || q.uid === id);
+    const details = quoteDetails[id] || quoteDetails['quote-0892']; // Fallback to mock
+    return { quote, details };
+  }
+}
+
+export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceItem | undefined, details: InvoiceDetailInfo | undefined }> {
+  try {
+    const data = await fetchJson<{ invoice: InvoiceItem, details: InvoiceDetailInfo }>(`/api/invoices/${id}`);
+    return data;
+  } catch {
+    const invoice = invoices.find(i => i.id === id);
+    const details = invoiceDetails[id] || invoiceDetails['INV - 2024- 001']; // Fallback to mock
+    return { invoice, details };
   }
 }

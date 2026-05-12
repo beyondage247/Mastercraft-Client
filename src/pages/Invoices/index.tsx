@@ -1,26 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
-import PageHeader from '../../components/PageHeader';
-import { PortalIcon } from '../../components/PortalIcon';
-import StatusBadge from '../../components/StatusBadge';
-import { invoiceMetrics, invoices } from '../../data/portal';
-import type { InvoiceItem, InvoiceStatus } from '../../data/portal';
-import { getInvoices } from '../../services/portalApi';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import { PortalIcon } from "../../components/PortalIcon";
+import StatusBadge from "../../components/StatusBadge";
+import { invoiceMetrics, invoices } from "../../data/portal";
+import type { InvoiceItem, InvoiceStatus } from "../../data/portal";
+import { getInvoices } from "../../services/portalApi";
 
-type InvoiceFilter = 'All' | InvoiceStatus;
+type InvoiceFilter = "All" | InvoiceStatus;
 
-const statusFilters: InvoiceFilter[] = ['All', 'Paid', 'Overdue', 'Draft'];
+const statusFilters: InvoiceFilter[] = ["All", "Paid", "Overdue", "Draft"];
 const invoiceStatusTone = {
-  Draft: 'neutral',
-  Overdue: 'danger',
-  Paid: 'success',
+  Draft: "neutral",
+  Overdue: "danger",
+  Paid: "success",
 } as const;
 
 function Invoices() {
   const [invoiceList, setInvoiceList] = useState<InvoiceItem[]>(invoices);
   const [metrics, setMetrics] = useState(invoiceMetrics);
-  const [projectFilter, setProjectFilter] = useState('All');
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceFilter>('All');
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<InvoiceFilter>("All");
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -38,7 +40,12 @@ function Invoices() {
   }, []);
 
   const projectFilters = useMemo(
-    () => ['All', ...Array.from(new Set(invoiceList.map((invoice) => invoice.project).filter(Boolean)))],
+    () => [
+      "All",
+      ...Array.from(
+        new Set(invoiceList.map((invoice) => invoice.project).filter(Boolean)),
+      ),
+    ],
     [invoiceList],
   );
 
@@ -46,11 +53,16 @@ function Invoices() {
     const normalizedSearch = search.trim().toLowerCase();
 
     return invoiceList.filter((invoice) => {
-      const matchesStatus = statusFilter === 'All' || invoice.status === statusFilter;
-      const matchesProject = projectFilter === 'All' || invoice.project === projectFilter;
+      const matchesStatus =
+        statusFilter === "All" || invoice.status === statusFilter;
+      const matchesProject =
+        projectFilter === "All" || invoice.project === projectFilter;
       const matchesSearch =
         !normalizedSearch ||
-        [invoice.id, invoice.project, invoice.amount, invoice.status].join(' ').toLowerCase().includes(normalizedSearch);
+        [invoice.id, invoice.project, invoice.amount, invoice.status]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
 
       return matchesStatus && matchesProject && matchesSearch;
     });
@@ -58,11 +70,18 @@ function Invoices() {
 
   return (
     <div className="page-stack">
-      <PageHeader actionLabel="New Invoice" subtitle="Track payments and billing history" title="Invoices" />
+      <PageHeader
+        actionLabel="New Invoice"
+        subtitle="Track payments and billing history"
+        title="Invoices"
+      />
 
       <section className="billing-metrics" aria-label="Invoice summary">
         {metrics.map((metric, index) => (
-          <article className={`billing-metric${index === 0 ? ' billing-metric--featured' : ''}`} key={metric.label}>
+          <article
+            className={`billing-metric${index === 0 ? " billing-metric--featured" : ""}`}
+            key={metric.label}
+          >
             <div>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
@@ -79,7 +98,13 @@ function Invoices() {
           <span>Status</span>
           <span className="select-field">
             <PortalIcon name="filter" />
-            <select aria-label="Invoice status" onChange={(event) => setStatusFilter(event.target.value as InvoiceFilter)} value={statusFilter}>
+            <select
+              aria-label="Invoice status"
+              onChange={(event) =>
+                setStatusFilter(event.target.value as InvoiceFilter)
+              }
+              value={statusFilter}
+            >
               {statusFilters.map((filter) => (
                 <option key={filter} value={filter}>
                   {filter}
@@ -94,7 +119,11 @@ function Invoices() {
           <span>Project</span>
           <span className="select-field">
             <PortalIcon name="filter" />
-            <select aria-label="Invoice project" onChange={(event) => setProjectFilter(event.target.value)} value={projectFilter}>
+            <select
+              aria-label="Invoice project"
+              onChange={(event) => setProjectFilter(event.target.value)}
+              value={projectFilter}
+            >
               {projectFilters.map((filter) => (
                 <option key={filter} value={filter}>
                   {filter}
@@ -122,11 +151,19 @@ function Invoices() {
 
       <section className="record-list" aria-label="Invoices">
         {filteredInvoices.map((invoice, index) => (
-          <article className="invoice-card" key={`${invoice.id}-${invoice.status}-${index}`}>
+          <article
+            className="invoice-card"
+            key={`${invoice.id}-${invoice.status}-${index}`}
+            onClick={() => navigate(`/invoices/${invoice.id}`)}
+            style={{ cursor: "pointer" }}
+          >
             <div>
               <div className="invoice-card__idline">
                 <span>{invoice.id}</span>
-                <StatusBadge icon={invoice.status === 'Paid' ? 'check' : 'clock'} tone={invoiceStatusTone[invoice.status]}>
+                <StatusBadge
+                  icon={invoice.status === "Paid" ? "check" : "clock"}
+                  tone={invoiceStatusTone[invoice.status]}
+                >
                   {invoice.status}
                 </StatusBadge>
               </div>
@@ -144,7 +181,11 @@ function Invoices() {
               </div>
             </div>
             <div className="invoice-card__actions">
-              <button type="button" aria-label={`Download ${invoice.id}`}>
+              <button
+                type="button"
+                aria-label={`Download ${invoice.id}`}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <PortalIcon name="download" />
               </button>
               <button type="button" aria-label={`Open ${invoice.id}`}>

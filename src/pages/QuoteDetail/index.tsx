@@ -1,0 +1,148 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { PortalIcon } from '../../components/PortalIcon';
+import StatusBadge from '../../components/StatusBadge';
+import { getQuoteDetail } from '../../services/portalApi';
+import type { QuoteListItem, QuoteDetailInfo } from '../../data/portal';
+
+function QuoteDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [quote, setQuote] = useState<QuoteListItem | null>(null);
+  const [details, setDetails] = useState<QuoteDetailInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      getQuoteDetail(id).then((data) => {
+        if (data.quote) setQuote(data.quote);
+        if (data.details) setDetails(data.details);
+        setLoading(false);
+      });
+    }
+  }, [id]);
+
+  if (loading) {
+    return <div className="page-stack">Loading...</div>;
+  }
+
+  if (!quote || !details) {
+    return (
+      <div className="page-stack">
+        <button className="back-link" onClick={() => navigate('/quotes')}>
+          <PortalIcon name="left" /> Back to Quotes
+        </button>
+        <div className="panel">Quote not found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-stack quote-detail-page">
+      <button className="back-link" onClick={() => navigate('/quotes')}>
+        <PortalIcon name="left" /> Back to Quotes
+      </button>
+
+      <div className="billing-header">
+        <div className="billing-header-title">
+          <h1>{quote.title || quote.id} <StatusBadge tone={quote.status === 'Sent' ? 'success' : 'neutral'}>{quote.status}</StatusBadge></h1>
+          <p>Valid until <strong>{quote.validUntil}</strong></p>
+        </div>
+        <button className="secondary-action-btn"><PortalIcon name="download" /> Download PDF</button>
+      </div>
+
+      <div className="detail-panel">
+        <h3>Project Specifications</h3>
+        <p className="spec-text">{details.specifications}</p>
+      </div>
+
+      <div className="detail-grid">
+        <div className="detail-grid-left">
+          <div className="detail-panel no-padding-bottom">
+            <div className="panel-flex-header">
+              <h3>Line Items</h3>
+              <span className="items-count">{details.lineItems.length} items</span>
+            </div>
+            
+            <div className="line-items-list">
+              {details.lineItems.map((item, idx) => (
+                <div className="line-item-row" key={idx}>
+                  <div className="line-item-icon"><PortalIcon name="documents" /></div>
+                  <div className="line-item-info">
+                    <h4>{item.description}</h4>
+                    <p>Qty: {item.qty} &nbsp;&nbsp;@ {item.rate} / ea</p>
+                  </div>
+                  <div className="line-item-amount">{item.amount}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="totals-section">
+              <div className="totals-row">
+                <span>Subtotal</span>
+                <span>{details.subtotal}</span>
+              </div>
+              <div className="totals-row">
+                <span>Tax (8%)</span>
+                <span>{details.tax}</span>
+              </div>
+              <div className="totals-row grand-total">
+                <span>Total</span>
+                <span>{details.total}</span>
+              </div>
+            </div>
+
+            <div className="action-buttons-bottom">
+              <button className="accept-quote-btn">Accept Quote</button>
+              <button className="request-revision-btn">Request Revision</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="detail-grid-right">
+          <div className="detail-panel">
+            <div className="panel-flex-header">
+              <h3>Linked Project</h3>
+              <Link to={`/projects/${details.linkedProject.id}`} className="view-link">View</Link>
+            </div>
+            <div className="linked-project-card">
+              <div className="linked-project-header">
+                <div className="project-avatar">DH</div>
+                <div className="project-title-info">
+                  <h4>{details.linkedProject.title}</h4>
+                  <p>{details.linkedProject.category}</p>
+                </div>
+              </div>
+              <div className="linked-project-meta">
+                <div className="meta-row">
+                  <PortalIcon name="calendar" />
+                  <div>
+                    <label>Est. Completion</label>
+                    <p>{details.linkedProject.estCompletion}</p>
+                  </div>
+                </div>
+                <div className="meta-row">
+                  <PortalIcon name="location" />
+                  <div>
+                    <label>Location</label>
+                    <p>{details.linkedProject.location}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="detail-panel">
+            <h3>Action</h3>
+            <div className="action-links">
+              <button className="action-link-btn"><PortalIcon name="file" /> Print Quote</button>
+              <button className="action-link-btn"><PortalIcon name="messages" /> Email to Client</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default QuoteDetail;

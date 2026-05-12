@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { ProjectListItem } from '../data/portal';
 import { PortalIcon } from './PortalIcon';
 import ProgressBar from './ProgressBar';
@@ -15,8 +16,14 @@ type ProjectCardProps = {
 };
 
 function ProjectCard({ project }: ProjectCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <article className="record-card project-card">
+    <article 
+      className="record-card project-card" 
+      onClick={() => navigate(`/projects/${project.id}`)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="record-card__body">
         <div className="record-card__meta">
           <StatusBadge tone={projectStatusTone[project.status]}>{project.status}</StatusBadge>
