@@ -1,23 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import { PortalIcon } from '../../components/PortalIcon';
-import StatusBadge from '../../components/StatusBadge';
-import { getProjectDetail } from '../../services/portalApi';
-import type { ProjectListItem, ProjectDetailInfo } from '../../data/portal';
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { PortalIcon } from "../../components/PortalIcon";
+import StatusBadge from "../../components/StatusBadge";
+import { getProjectDetail } from "../../services/portalApi";
+import type { ProjectListItem, ProjectDetailInfo } from "../../data/portal";
 
-const projectStatusTone = {
-  Completed: 'success',
-  'In Design': 'info',
-  'In Fabrication': 'danger',
-  Pending: 'danger',
-} as const;
+// const projectStatusTone = {
+//   Completed: 'success',
+//   'In Design': 'info',
+//   'In Fabrication': 'danger',
+//   Pending: 'danger',
+// } as const;
 
 function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectListItem | null>(null);
   const [details, setDetails] = useState<ProjectDetailInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'Overview' | 'Document' | 'Activity'>('Overview');
+  const [activeTab, setActiveTab] = useState<
+    "Overview" | "Document" | "Activity"
+  >("Overview");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ function ProjectDetail() {
   if (!project) {
     return (
       <div className="page-stack">
-        <button className="back-link" onClick={() => navigate('/projects')}>
+        <button className="back-link" onClick={() => navigate("/projects")}>
           <PortalIcon name="left" /> Back to Projects
         </button>
         <div className="panel">Project not found</div>
@@ -47,54 +49,51 @@ function ProjectDetail() {
 
   return (
     <div className="page-stack">
-      <button className="back-link" onClick={() => navigate('/projects')}>
+      <button className="back-link" onClick={() => navigate("/projects")}>
         <PortalIcon name="left" /> Back to Projects
       </button>
 
       <div className="project-detail-header">
-        <div className="header-icon-box">
-          <PortalIcon name="home" />
+        <div className="project-detail-header__top">
+          <PortalIcon name="projects" /> {project.category} PROJECT
         </div>
-        <div className="header-content">
-          <div className="project-detail-header__top">
-            {project.category} PROJECT
-          </div>
-          <h1>{project.title}</h1>
-          <div className="project-detail-header__meta">
-            <span><PortalIcon name="location" /> {project.location}</span>
-            <span><PortalIcon name="calendar" /> Due: {project.dueDate}</span>
-          </div>
+        <h1>{project.title}</h1>
+        <div className="project-detail-header__meta">
+          <span>
+            <PortalIcon name="location" /> {project.location}
+          </span>
+          <span>
+            <PortalIcon name="calendar" /> Due: {project.dueDate}
+          </span>
         </div>
         <div className="project-detail-header__actions">
-          <StatusBadge tone="neutral">
-            {project.status}
-          </StatusBadge>
+          <StatusBadge tone="neutral">{project.status}</StatusBadge>
           <button className="edit-button">Edit</button>
         </div>
       </div>
 
       <div className="detail-tabs">
-        <button 
-          className={`detail-tab ${activeTab === 'Overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('Overview')}
+        <button
+          className={`detail-tab ${activeTab === "Overview" ? "active" : ""}`}
+          onClick={() => setActiveTab("Overview")}
         >
           Overview
         </button>
-        <button 
-          className={`detail-tab ${activeTab === 'Document' ? 'active' : ''}`}
-          onClick={() => setActiveTab('Document')}
+        <button
+          className={`detail-tab ${activeTab === "Document" ? "active" : ""}`}
+          onClick={() => setActiveTab("Document")}
         >
           Document <span className="detail-tab-count">4</span>
         </button>
-        <button 
-          className={`detail-tab ${activeTab === 'Activity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('Activity')}
+        <button
+          className={`detail-tab ${activeTab === "Activity" ? "active" : ""}`}
+          onClick={() => setActiveTab("Activity")}
         >
           Activity <span className="detail-tab-count">4</span>
         </button>
       </div>
 
-      {activeTab === 'Overview' && details && (
+      {activeTab === "Overview" && details && (
         <div className="detail-grid">
           <div className="detail-grid-left">
             <div className="detail-panel">
@@ -106,21 +105,30 @@ function ProjectDetail() {
                 </div>
                 <div className="spec-item">
                   <span className="spec-label">ESTIMATED COMPLETION</span>
-                  <span className="spec-value">{details.estimatedCompletion}</span>
+                  <span className="spec-value">
+                    {details.estimatedCompletion}
+                  </span>
                 </div>
-                <div className="spec-item" style={{ gridColumn: '1 / -1' }}>
+                <div className="spec-item" style={{ gridColumn: "1 / -1" }}>
                   <span className="spec-label">SITE ADDRESS</span>
                   <span className="spec-value">{details.siteAddress}</span>
                 </div>
               </div>
               <div className="spec-notes">
-                <span className="spec-label" style={{ display: 'block', marginBottom: '8px' }}>NOTES</span>
+                <span
+                  className="spec-label"
+                  style={{ display: "block", marginBottom: "8px" }}
+                >
+                  NOTES
+                </span>
                 <p>{details.notes}</p>
               </div>
             </div>
 
             <div className="detail-panel">
-              <h3>Project Timeline <Link to="#">View all</Link></h3>
+              <h3>
+                Project Timeline <Link to="#">View all</Link>
+              </h3>
               <div className="timeline-list">
                 {details.timeline.map((event, index) => (
                   <div className="timeline-row" key={index}>
@@ -140,7 +148,9 @@ function ProjectDetail() {
 
           <div className="detail-grid-right">
             <div className="detail-panel">
-              <h3>Related Quotes <Link to="#">View all</Link></h3>
+              <h3>
+                Related Quotes <Link to="#">View all</Link>
+              </h3>
               <div className="quote-row">
                 <h4>QT-2024-0089</h4>
                 <p>Initial millwork package including kitchen and built-ins</p>
@@ -171,55 +181,71 @@ function ProjectDetail() {
         </div>
       )}
 
-      {activeTab === 'Document' && (
+      {activeTab === "Document" && (
         <div className="detail-panel">
           <h3>Project Documents</h3>
           <div className="document-list">
             <div className="document-row">
-              <div className="document-icon"><PortalIcon name="file" /></div>
+              <div className="document-icon">
+                <PortalIcon name="file" />
+              </div>
               <div className="document-info">
                 <h4>Main Unit Shop Drawings - Rev A</h4>
                 <p>Uploaded Mar 15, 2024</p>
               </div>
               <div className="document-actions">
                 <span className="document-type-badge">Shop Drawing</span>
-                <button className="document-download"><PortalIcon name="download" /></button>
+                <button className="document-download">
+                  <PortalIcon name="download" />
+                </button>
                 <button className="document-more">⋮</button>
               </div>
             </div>
             <div className="document-row">
-              <div className="document-icon"><PortalIcon name="file" /></div>
+              <div className="document-icon">
+                <PortalIcon name="file" />
+              </div>
               <div className="document-info">
                 <h4>CAD Export - Master Plan.dwg</h4>
                 <p>Uploaded Mar 15, 2024</p>
               </div>
               <div className="document-actions">
                 <span className="document-type-badge">CAD File</span>
-                <button className="document-download"><PortalIcon name="download" /></button>
+                <button className="document-download">
+                  <PortalIcon name="download" />
+                </button>
                 <button className="document-more">⋮</button>
               </div>
             </div>
             <div className="document-row">
-              <div className="document-icon"><PortalIcon name="file" /></div>
+              <div className="document-icon">
+                <PortalIcon name="file" />
+              </div>
               <div className="document-info">
                 <h4>Walnut Spec Sheet & Finish Samples</h4>
                 <p>Uploaded Mar 15, 2024</p>
               </div>
               <div className="document-actions">
                 <span className="document-type-badge">Spec Sheet</span>
-                <button className="document-download"><PortalIcon name="download" /></button>
+                <button className="document-download">
+                  <PortalIcon name="download" />
+                </button>
                 <button className="document-more">⋮</button>
               </div>
             </div>
             <div className="document-row">
-              <div className="document-icon"><PortalIcon name="file" /></div>
+              <div className="document-icon">
+                <PortalIcon name="file" />
+              </div>
               <div className="document-info">
                 <h4>Main Unit Shop Drawings - Rev A</h4>
                 <p>Uploaded Mar 15, 2024</p>
               </div>
               <div className="document-actions">
                 <span className="document-type-badge">Approval</span>
-                <button className="document-download"><PortalIcon name="download" /></button>
+                <button className="document-download">
+                  <PortalIcon name="download" />
+                </button>
                 <button className="document-more">⋮</button>
               </div>
             </div>
@@ -227,9 +253,22 @@ function ProjectDetail() {
         </div>
       )}
 
-      {activeTab === 'Activity' && details && (
+      {activeTab === "Activity" && details && (
         <div className="detail-panel">
-          <h3>Project Timeline <button className="manage-team-btn" style={{ width: 'auto', margin: 0, padding: '6px 16px', fontSize: '13px' }}>Add Update</button></h3>
+          <h3>
+            Project Timeline{" "}
+            <button
+              className="manage-team-btn"
+              style={{
+                width: "auto",
+                margin: 0,
+                padding: "6px 16px",
+                fontSize: "13px",
+              }}
+            >
+              Add Update
+            </button>
+          </h3>
           <div className="timeline-list">
             {details.timeline.map((event, index) => (
               <div className="timeline-row" key={index}>
@@ -246,7 +285,6 @@ function ProjectDetail() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
