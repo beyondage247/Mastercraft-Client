@@ -1,11 +1,12 @@
+import { useQuery } from '@apollo/client/react';
 import { useEffect, useMemo, useState } from 'react';
 import FilterToolbar from '../../components/FilterToolbar';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
 import { paymentFilters, paymentMetrics, payments } from '../../data/portal';
-import type { PaymentItem, PaymentMethod } from '../../data/portal';
-import { getPayments } from '../../services/portalApi';
+import type { Metric, PaymentItem, PaymentMethod } from '../../data/portal';
+import { GET_PAYMENTS } from '../../graphql/portal';
 
 type PaymentFilter = 'All' | PaymentMethod;
 
@@ -21,21 +22,19 @@ function Payments() {
   const [metrics, setMetrics] = useState(paymentMetrics);
   const [paymentList, setPaymentList] = useState<PaymentItem[]>(payments);
   const [search, setSearch] = useState('');
+  const { data } = useQuery<{
+    payments: {
+      metrics: Metric[];
+      payments: PaymentItem[];
+    };
+  }>(GET_PAYMENTS);
 
   useEffect(() => {
-    let isMounted = true;
-
-    getPayments().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setPaymentList(data.payments);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (data?.payments) {
+      setMetrics(data.payments.metrics.length ? data.payments.metrics : paymentMetrics);
+      setPaymentList(data.payments.payments.length ? data.payments.payments : payments);
+    }
+  }, [data]);
 
   const filteredPayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();

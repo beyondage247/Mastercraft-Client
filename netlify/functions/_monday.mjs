@@ -174,6 +174,40 @@ export function columnText(columns, id, fallback = '') {
   return columns[id]?.text || fallback;
 }
 
+export function columnValue(columns, id, fallback = '') {
+  return columns[id]?.value || fallback;
+}
+
+export function itemMatchesClient(item, columnId, client) {
+  if (!client || client.role !== 'client' || !columnId) {
+    return true;
+  }
+
+  const columns = columnMap(item);
+  const column = columns[columnId];
+  const haystack = [column?.text, column?.value, item.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const needles = [client.clientItemId, client.email, client.name]
+    .filter(Boolean)
+    .map((value) => `${value}`.toLowerCase());
+
+  return needles.some((needle) => haystack.includes(needle));
+}
+
+export function filterItemsForClient(items, columnId, client) {
+  if (client?.role !== 'client') {
+    return items;
+  }
+
+  if (!columnId) {
+    return [];
+  }
+
+  return items.filter((item) => itemMatchesClient(item, columnId, client));
+}
+
 export function numberFromColumn(columns, id, fallback = 0) {
   const raw = columnText(columns, id, `${fallback}`);
   const match = raw.match(/\d+(\.\d+)?/);
@@ -242,6 +276,23 @@ export async function changeColumnValue({ boardId, columnId, itemId, value }) {
     columnId,
     itemId,
     value: JSON.stringify(value),
+  });
+}
+
+export async function createItem({ boardId, itemName, columnValues = {} }) {
+  const mutation = `
+    mutation CreateItem($boardId: ID!, $itemName: String!, $columnValues: JSON) {
+      create_item(board_id: $boardId, item_name: $itemName, column_values: $columnValues) {
+        id
+        name
+      }
+    }
+  `;
+
+  return mondayRequest(mutation, {
+    boardId,
+    itemName,
+    columnValues: JSON.stringify(columnValues),
   });
 }
 

@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",
-    "antd": "^6.3.7",
+    "antd": "^6.4.2",
     "graphql": "^16.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

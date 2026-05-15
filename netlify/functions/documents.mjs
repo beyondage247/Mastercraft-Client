@@ -4,6 +4,7 @@ import {
   getBoardItems,
   handleError,
   inferredColumnIds,
+  filterItemsForClient,
   json,
   resolveBoard,
 } from './_monday.mjs';
@@ -54,8 +55,10 @@ export async function handler(event) {
       TYPE: { candidates: ['type', 'document type', 'file type', 'status'], fallback: 'type', types: ['status', 'dropdown'] },
       PROJECT: { candidates: ['deals orders', 'project', 'job', 'site', 'client'], fallback: 'project', types: ['text', 'board_relation'] },
       DATE: { candidates: ['issue date', 'date', 'uploaded', 'created'], fallback: 'date', types: ['date'] },
+      CLIENT: { candidates: ['client board', 'client', 'customer', 'company'], fallback: process.env.MONDAY_DOCUMENT_CLIENT_COLUMN || '', types: ['board_relation'] },
     });
-    const documents = (await getBoardItems(board.id)).map((item) => mapDocument(item, ids));
+    const items = filterItemsForClient(await getBoardItems(board.id), ids.CLIENT, event.portalUser);
+    const documents = items.map((item) => mapDocument(item, ids));
 
     return json(200, { documents });
   } catch (error) {

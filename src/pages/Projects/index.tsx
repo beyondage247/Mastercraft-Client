@@ -1,3 +1,4 @@
+import { useQuery } from '@apollo/client/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FilterToolbar from '../../components/FilterToolbar';
@@ -5,8 +6,8 @@ import PageHeader from '../../components/PageHeader';
 import ProjectCard from '../../components/ProjectCard';
 import StatCard from '../../components/StatCard';
 import { projectFilters, projectMetrics, projects } from '../../data/portal';
-import type { ProjectFilter, ProjectListItem } from '../../data/portal';
-import { getProjects } from '../../services/portalApi';
+import type { Metric, ProjectFilter, ProjectListItem } from '../../data/portal';
+import { GET_PROJECTS } from '../../graphql/portal';
 
 function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
   if (filter === 'All') {
@@ -26,21 +27,19 @@ function Projects() {
   const [projectList, setProjectList] = useState<ProjectListItem[]>(projects);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
+  const { data } = useQuery<{
+    projects: {
+      metrics: Metric[];
+      projects: ProjectListItem[];
+    };
+  }>(GET_PROJECTS);
 
   useEffect(() => {
-    let isMounted = true;
-
-    getProjects().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setProjectList(data.projects);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (data?.projects) {
+      setMetrics(data.projects.metrics.length ? data.projects.metrics : projectMetrics);
+      setProjectList(data.projects.projects.length ? data.projects.projects : projects);
+    }
+  }, [data]);
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();

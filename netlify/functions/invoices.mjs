@@ -4,6 +4,7 @@ import {
   getBoardItems,
   handleError,
   inferredColumnIds,
+  filterItemsForClient,
   json,
   resolveBoard,
 } from './_monday.mjs';
@@ -71,8 +72,10 @@ export async function handler(event) {
       DUE_DATE: { candidates: ['due date', 'due', 'deadline'], fallback: 'due_date', types: ['date'] },
       ISSUED_DATE: { candidates: ['issue date', 'date', 'issued', 'sent date'], fallback: 'issued_date', types: ['date'] },
       INVOICE_NUMBER: { candidates: ['quickbooks invoice id', 'quote invoice id', 'invoice number', 'invoice id', 'number'], fallback: 'invoice_number', types: ['text', 'auto_number'] },
+      CLIENT: { candidates: ['client board', 'client', 'customer', 'company'], fallback: 'board_relation_mm3bv2gd', types: ['board_relation'] },
     });
-    const invoices = (await getBoardItems(board.id)).map((item) => mapInvoice(item, ids));
+    const items = filterItemsForClient(await getBoardItems(board.id), ids.CLIENT, event.portalUser);
+    const invoices = items.map((item) => mapInvoice(item, ids));
 
     return json(200, {
       invoices,

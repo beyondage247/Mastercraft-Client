@@ -1,11 +1,12 @@
+import { useMutation, useQuery } from '@apollo/client/react';
 import { useEffect, useMemo, useState } from 'react';
 import FilterToolbar from '../../components/FilterToolbar';
 import PageHeader from '../../components/PageHeader';
 import QuoteCard from '../../components/QuoteCard';
 import StatCard from '../../components/StatCard';
 import { quoteFilters, quoteMetrics, quotes as quoteSeed } from '../../data/portal';
-import type { QuoteFilter, QuoteListItem } from '../../data/portal';
-import { acceptQuote, getQuotes } from '../../services/portalApi';
+import type { Metric, QuoteFilter, QuoteListItem } from '../../data/portal';
+import { ACCEPT_QUOTE, GET_QUOTES } from '../../graphql/portal';
 
 function matchesQuoteFilter(quote: QuoteListItem, filter: QuoteFilter) {
   return filter === 'All' || quote.status === filter;
@@ -16,21 +17,22 @@ function Quotes() {
   const [metrics, setMetrics] = useState(quoteMetrics);
   const [search, setSearch] = useState('');
   const [quotes, setQuotes] = useState<QuoteListItem[]>(quoteSeed);
+  const { data } = useQuery<{
+    quotes: {
+      metrics: Metric[];
+      quotes: QuoteListItem[];
+    };
+  }>(GET_QUOTES);
+  const [acceptQuoteMutation] = useMutation<{ acceptQuote: boolean }, { id: string }>(ACCEPT_QUOTE, {
+    refetchQueries: [{ query: GET_QUOTES }],
+  });
 
   useEffect(() => {
-    let isMounted = true;
-
-    getQuotes().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setQuotes(data.quotes);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (data?.quotes) {
+      setMetrics(data.quotes.metrics.length ? data.quotes.metrics : quoteMetrics);
+      setQuotes(data.quotes.quotes.length ? data.quotes.quotes : quoteSeed);
+    }
+  }, [data]);
 
   const filteredQuotes = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -55,7 +57,7 @@ function Quotes() {
     );
 
     try {
-      await acceptQuote(uid);
+      await acceptQuoteMutation({ variables: { id: uid } });
     } catch {
       setQuotes(previousQuotes);
     }

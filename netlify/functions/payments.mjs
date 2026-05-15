@@ -4,6 +4,7 @@ import {
   getBoardItems,
   handleError,
   inferredColumnIds,
+  filterItemsForClient,
   json,
   resolveBoard,
 } from './_monday.mjs';
@@ -72,8 +73,10 @@ export async function handler(event) {
       METHOD: { candidates: ['payment status', 'method', 'payment method', 'type'], fallback: 'method', types: ['status', 'dropdown'] },
       REFERENCE: { candidates: ['reference', 'transaction id', 'ref', 'quickbooks invoice id'], fallback: 'reference', types: ['text'] },
       AMOUNT: { candidates: ['deposit amount', 'deal value', 'balance due', 'amount', 'total', 'value'], fallback: 'amount', types: ['numbers', 'formula'] },
+      CLIENT: { candidates: ['client board', 'client', 'customer', 'company'], fallback: process.env.MONDAY_PAYMENT_CLIENT_COLUMN || '', types: ['board_relation'] },
     });
-    const payments = (await getBoardItems(board.id)).map((item) => mapPayment(item, ids));
+    const items = filterItemsForClient(await getBoardItems(board.id), ids.CLIENT, event.portalUser);
+    const payments = items.map((item) => mapPayment(item, ids));
 
     return json(200, {
       metrics: buildMetrics(payments),

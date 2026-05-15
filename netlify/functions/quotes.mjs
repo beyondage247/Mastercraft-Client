@@ -5,6 +5,7 @@ import {
   getBoardItems,
   handleError,
   inferredColumnIds,
+  filterItemsForClient,
   json,
   resolveBoard,
 } from './_monday.mjs';
@@ -104,8 +105,10 @@ export async function handler(event) {
       AMOUNT: { candidates: ['total value', 'sub total', 'amount', 'value', 'total', 'price'], fallback: 'amount', types: ['numbers', 'formula'] },
       VALID_UNTIL: { candidates: ['valid until', 'valid', 'expiry', 'expiration', 'due date'], fallback: 'valid_until', types: ['date'] },
       DESCRIPTION: { candidates: ['custom notes', 'description', 'scope', 'details', 'notes'], fallback: 'description', types: ['long_text', 'text', 'mirror'] },
+      CLIENT: { candidates: ['client board', 'client', 'customer', 'company'], fallback: 'board_relation_mm3bv2gd', types: ['board_relation'] },
     });
-    const quotes = (await getBoardItems(board.id)).map((item) => mapQuote(item, ids));
+    const items = filterItemsForClient(await getBoardItems(board.id), ids.CLIENT, event.portalUser);
+    const quotes = items.map((item) => mapQuote(item, ids));
 
     return json(200, {
       metrics: buildMetrics(quotes),

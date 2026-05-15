@@ -4,6 +4,7 @@ import {
   getBoardItems,
   handleError,
   inferredColumnIds,
+  filterItemsForClient,
   json,
   numberFromColumn,
   resolveBoard,
@@ -31,6 +32,7 @@ function mapProject(item, ids) {
   return {
     category: columnText(columns, ids.CATEGORY, 'Commercial'),
     dueDate: columnText(columns, ids.DUE_DATE, ''),
+    id: item.id,
     location: columnText(columns, ids.LOCATION, ''),
     progress: numberFromColumn(columns, ids.PROGRESS, 0),
     status,
@@ -82,8 +84,10 @@ export async function handler(event) {
       LOCATION: { candidates: ['project location', 'location', 'address', 'site'], fallback: 'location', types: ['location', 'text'] },
       DUE_DATE: { candidates: ['delivery date', 'expected close date', 'due date', 'deadline', 'date'], fallback: 'due_date', types: ['date'] },
       PROGRESS: { candidates: ['progress', 'close probability', 'percentage', 'completion'], fallback: 'progress', types: ['numbers'] },
+      CLIENT: { candidates: ['client board', 'client', 'customer', 'company'], fallback: 'board_relation_mm3ak6s8', types: ['board_relation'] },
     });
-    const projects = (await getBoardItems(board.id)).map((item) => mapProject(item, ids));
+    const items = filterItemsForClient(await getBoardItems(board.id), ids.CLIENT, event.portalUser);
+    const projects = items.map((item) => mapProject(item, ids));
     const activeProjects = projects.slice(0, 3).map((project) => ({
       category: project.category,
       estimate: project.dueDate ? `Est: ${project.dueDate}` : 'Est: Pending',

@@ -1,22 +1,33 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { Dropdown, type MenuProps } from "antd";
+import { MoreOutlined } from "@ant-design/icons";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { clearPortalSession, getCurrentPortalUser } from "../auth/session";
 import { PortalIcon } from "./PortalIcon";
+import type { PortalIconName } from "./PortalIcon";
 
-const primaryNavItems = [
+type NavItem = {
+  icon: PortalIconName;
+  label: string;
+  route: boolean;
+  to: string;
+};
+
+const primaryNavItems: NavItem[] = [
   { label: "Home", to: "/", icon: "home", route: true },
   { label: "Projects", to: "/projects", icon: "projects", route: true },
   { label: "Quotes", to: "/quotes", icon: "quotes", route: true },
 ] as const;
 
-const secondaryNavItems = [
+const secondaryNavItems: NavItem[] = [
   { label: "Documents", to: "/documents", icon: "documents", route: true },
   // { label: 'Messages', to: '#messages', icon: 'messages', route: false },
   { label: "Invoices", to: "/invoices", icon: "invoices", route: true },
   { label: "Payments", to: "/payments", icon: "payments", route: true },
 ] as const;
 
-function BrandLogo() {
+function BrandLogo({ href = "/" }: { href?: string }) {
   return (
-    <a className="brand-logo" href="/" aria-label="Mastercraft Products home">
+    <a className="brand-logo" href={href} aria-label="Mastercraft Products home">
       <span className="brand-logo__name">MASTERCRAFT</span>
       <span className="brand-logo__mark" aria-hidden="true">
         M
@@ -29,83 +40,112 @@ function BrandLogo() {
 
 function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const user = getCurrentPortalUser();
+  const displayName = user?.name || "User";
+  const isAdmin = user?.role === "admin";
+  const navItems: NavItem[] = secondaryNavItems;
   const isMoreActive = secondaryNavItems.some(
     (item) => item.route && item.to === location.pathname,
   );
+  const profileMenu: MenuProps = {
+    items: [
+      { key: "reset-password", label: "Reset password" },
+      { key: "sign-out", danger: true, label: "Sign out" },
+    ],
+    onClick: ({ key }) => {
+      if (key === "reset-password") {
+        navigate("/reset-password");
+        return;
+      }
+
+      clearPortalSession();
+      navigate("/login", { replace: true });
+    },
+  };
 
   return (
     <header className="site-header">
       <div className="content-container site-header__inner">
-        <BrandLogo />
-        <nav className="app-nav" aria-label="Primary">
-          {primaryNavItems.map((item) => {
-            const content = (
-              <>
-                <PortalIcon name={item.icon} />
-                <span>{item.label}</span>
-              </>
-            );
+        <BrandLogo href={isAdmin ? "/admin/clients" : "/"} />
+        {!isAdmin ? (
+          <nav className="app-nav" aria-label="Primary">
+            {primaryNavItems.map((item) => {
+              const content = (
+                <>
+                  <PortalIcon name={item.icon} />
+                  <span>{item.label}</span>
+                </>
+              );
 
-            return item.route ? (
-              <NavLink
-                end={item.to === "/"}
-                key={item.label}
-                to={item.to}
-                className={({ isActive }) =>
-                  `app-nav__link${isActive ? " is-active" : ""}`
-                }
+              return item.route ? (
+                <NavLink
+                  end={item.to === "/"}
+                  key={item.label}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `app-nav__link${isActive ? " is-active" : ""}`
+                  }
+                >
+                  {content}
+                </NavLink>
+              ) : (
+                <a className="app-nav__link" href={item.to} key={item.label}>
+                  {content}
+                </a>
+              );
+            })}
+            <div className="more-menu">
+              <button
+                className={`app-nav__link more-menu__trigger${isMoreActive ? " is-active" : ""}`}
+                type="button"
               >
-                {content}
-              </NavLink>
-            ) : (
-              <a className="app-nav__link" href={item.to} key={item.label}>
-                {content}
-              </a>
-            );
-          })}
-          <div className="more-menu">
-            <button
-              className={`app-nav__link more-menu__trigger${isMoreActive ? " is-active" : ""}`}
-              type="button"
-            >
-              <PortalIcon name="down" />
-              <span>More</span>
-            </button>
-            <div className="more-menu__panel">
-              {secondaryNavItems.map((item) => {
-                const content = (
-                  <>
-                    <PortalIcon name={item.icon} />
-                    <span>{item.label}</span>
-                  </>
-                );
+                <PortalIcon name="down" />
+                <span>More</span>
+              </button>
+              <div className="more-menu__panel">
+                {navItems.map((item) => {
+                  const content = (
+                    <>
+                      <PortalIcon name={item.icon} />
+                      <span>{item.label}</span>
+                    </>
+                  );
 
-                return item.route ? (
-                  <NavLink
-                    className={({ isActive }) =>
-                      `more-menu__item${isActive ? " is-active" : ""}`
-                    }
-                    key={item.label}
-                    to={item.to}
-                  >
-                    {content}
-                  </NavLink>
-                ) : (
-                  <a
-                    className="more-menu__item"
-                    href={item.to}
-                    key={item.label}
-                  >
-                    {content}
-                  </a>
-                );
-              })}
+                  return item.route ? (
+                    <NavLink
+                      className={({ isActive }) =>
+                        `more-menu__item${isActive ? " is-active" : ""}`
+                      }
+                      key={item.label}
+                      to={item.to}
+                    >
+                      {content}
+                    </NavLink>
+                  ) : (
+                    <a
+                      className="more-menu__item"
+                      href={item.to}
+                      key={item.label}
+                    >
+                      {content}
+                    </a>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </nav>
-        <div className="user-chip" aria-label="Signed in as Casmir">
-          <span className="user-chip__avatar">C</span>
-          <span>Casmir</span>
+          </nav>
+        ) : (
+          <div className="admin-nav-spacer" aria-hidden="true" />
+        )}
+        <div className="user-chip" aria-label={`Signed in as ${displayName}`}>
+          <span className="user-chip__avatar">{displayName.slice(0, 1).toUpperCase()}</span>
+          <span>{displayName}</span>
+          <Dropdown menu={profileMenu} placement="bottomRight" trigger={["click"]}>
+            <button className="user-chip__menu" aria-label="Profile actions" type="button">
+              <MoreOutlined />
+            </button>
+          </Dropdown>
         </div>
       </div>
     </header>

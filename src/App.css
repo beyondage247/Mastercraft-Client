@@ -185,6 +185,28 @@
   font-weight: 500;
 }
 
+.admin-nav-spacer {
+  min-width: 0;
+}
+
+.user-chip__menu {
+  border: 0;
+  background: transparent;
+  color: var(--color-danger-deep);
+  cursor: pointer;
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.user-chip__menu:hover {
+  background: var(--color-danger-soft);
+}
+
 .user-chip__avatar {
   display: grid;
   width: 38px;
@@ -2555,4 +2577,189 @@
 
 .action-link-btn:hover {
   color: #333;
+}
+
+/* Admin Clients */
+.admin-page {
+  gap: 26px;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 26px;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.8fr);
+}
+
+.admin-client-form {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-client-form .panel__header,
+.admin-client-list .panel__header {
+  margin-bottom: 0;
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.admin-password-button {
+  width: auto;
+  min-width: 190px;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.admin-feedback {
+  margin: 0;
+  color: var(--color-danger-deep);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-onboarding-panel h2 {
+  margin-bottom: 18px;
+}
+
+.admin-flow-list {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-flow-list div {
+  display: grid;
+  align-items: start;
+  gap: 12px;
+  grid-template-columns: 32px minmax(0, 1fr);
+}
+
+.admin-flow-list span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-deep);
+  font-weight: 800;
+}
+
+.admin-flow-list p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-client-list {
+  overflow-x: auto;
+}
+
+.admin-client-list .panel__header span {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-client-table {
+  min-width: 980px;
+}
+
+.admin-client-table__head,
+.admin-client-table__row {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr 1fr 1.2fr 0.8fr 1fr;
+}
+
+.admin-client-table__head {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 22px 0 14px;
+  text-transform: uppercase;
+}
+
+.admin-client-table__row {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-soft);
+  color: #444;
+  font-size: 14px;
+  padding: 18px 0;
+}
+
+.admin-client-table__row:last-child {
+  border-bottom: 0;
+}
+
+.admin-client-table__row strong {
+  color: var(--color-text);
+}
+
+.admin-client-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 18px;
+}
+
+.select-files-btn input {
+  display: none;
+}
+
+/* Login */
+.login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background: linear-gradient(110deg, #f7f7f7 0%, #fff 55%, #ffecec 100%);
+  padding: 24px;
+}
+
+.login-panel {
+  display: grid;
+  width: min(460px, 100%);
+  gap: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 12%);
+  padding: 34px;
+}
+
+.login-brand {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.login-panel h1 {
+  margin: 0 0 8px;
+  color: var(--color-text);
+  font-size: 28px;
+}
+
+.login-panel p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 4px;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.login-feedback {
+  color: var(--color-danger-deep);
+  font-size: 14px;
+  font-weight: 700;
 }

@@ -10,6 +10,24 @@ type Step = {
   icon: PortalIconName;
 };
 
+type ProjectRequestFormData = {
+  dimensions: string;
+  files: File[];
+  finish: string;
+  materialType: string;
+  projectDescription: string;
+  projectName: string;
+  siteAddress: string;
+};
+
+type ProjectRequestField = keyof Omit<ProjectRequestFormData, "files">;
+
+type ProjectRequestChangeEvent = React.ChangeEvent<
+  HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+>;
+
+type ProjectRequestChangeHandler = (event: ProjectRequestChangeEvent) => void;
+
 const STEPS: Step[] = [
   { label: "Project Details", icon: "activeProjects" },
   { label: "Specifications", icon: "tool" },
@@ -20,7 +38,7 @@ const STEPS: Step[] = [
 function NewProjectRequest() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProjectRequestFormData>({
     projectName: "",
     siteAddress: "",
     projectDescription: "",
@@ -34,13 +52,9 @@ function NewProjectRequest() {
     setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
+  const handleInputChange: ProjectRequestChangeHandler = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name as ProjectRequestField]: value }));
   };
 
   const renderStep = () => {
@@ -121,7 +135,13 @@ function NewProjectRequest() {
 
 // Sub-components (Simplified for now, will refine styles later)
 
-function StepProjectDetails({ data, onChange }: { data: any; onChange: any }) {
+function StepProjectDetails({
+  data,
+  onChange,
+}: {
+  data: ProjectRequestFormData;
+  onChange: ProjectRequestChangeHandler;
+}) {
   return (
     <div className="step-content">
       <div className="step-header">
@@ -164,7 +184,13 @@ function StepProjectDetails({ data, onChange }: { data: any; onChange: any }) {
   );
 }
 
-function StepSpecifications({ data, onChange }: { data: any; onChange: any }) {
+function StepSpecifications({
+  data,
+  onChange,
+}: {
+  data: ProjectRequestFormData;
+  onChange: ProjectRequestChangeHandler;
+}) {
   return (
     <div className="step-content">
       <div className="step-header">
@@ -216,10 +242,20 @@ function StepSpecifications({ data, onChange }: { data: any; onChange: any }) {
   );
 }
 
-function StepFileUpload({}: {
-  data: any;
+function StepFileUpload({
+  data,
+  onFilesChange,
+}: {
+  data: ProjectRequestFormData;
   onFilesChange: (files: File[]) => void;
 }) {
+  const selectedFileText =
+    data.files.length === 1
+      ? data.files[0].name
+      : data.files.length > 1
+        ? `${data.files.length} files selected`
+        : "No files selected";
+
   return (
     <div className="step-content">
       <div className="step-header">
@@ -231,13 +267,19 @@ function StepFileUpload({}: {
           <PortalIcon name="download" className="upload-icon" />
           <h4>Upload CAD Files & Plans</h4>
           <p>Drag and drop files here, or click to browse</p>
-          <button className="select-files-btn" type="button">
-            Select Files
-          </button>
+          <label className="select-files-btn">
+            <input
+              multiple
+              type="file"
+              onChange={(event) => onFilesChange(Array.from(event.target.files ?? []))}
+            />
+            <span>Select Files</span>
+          </label>
         </div>
         <p className="upload-hint">
           Supported formats: DWG, DXF, PDF, JPG, PNG (Max 10MB each)
         </p>
+        <p className="upload-hint">{selectedFileText}</p>
       </div>
     </div>
   );
@@ -247,7 +289,7 @@ function StepReview({
   data,
   onEdit,
 }: {
-  data: any;
+  data: ProjectRequestFormData;
   onEdit: (step: number) => void;
 }) {
   return (

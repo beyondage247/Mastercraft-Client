@@ -1,20 +1,21 @@
 import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
 import { SetContextLink } from "@apollo/client/link/context";
+import { getPortalToken } from "../../auth/session";
 
-const MONDAY_URI = import.meta.env.VITE_MONDAY_URI;
-const MONDAY_TOKEN = import.meta.env.VITE_MONDAY_TOKEN;
+const GRAPHQL_URI = import.meta.env.VITE_GRAPHQL_URI ?? "/api/graphql";
 
 const authLink = new SetContextLink(({ headers }) => {
-  const token = MONDAY_TOKEN;
+  const portalToken = getPortalToken();
+
   return {
     headers: {
       ...headers,
-      authorization: token,
+      ...(portalToken ? { authorization: `Bearer ${portalToken}` } : {}),
     },
   };
 });
 
-const httpLink = new HttpLink({ uri: MONDAY_URI });
+const httpLink = new HttpLink({ uri: GRAPHQL_URI });
 
 export const client = new ApolloClient({
   link: authLink.concat(httpLink),
