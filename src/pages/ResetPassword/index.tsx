@@ -64,7 +64,9 @@ function ResetPassword() {
       setConfirmPassword("");
       setSuccessMessage(response.message || "Password reset successful.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to reset password.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to reset password.",
+      );
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,9 @@ function ResetPassword() {
       await requestPasswordResetOtp(email.trim());
       setOtpStep("otp");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to request OTP.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to request OTP.",
+      );
     } finally {
       setLoading(false);
     }
@@ -105,7 +109,9 @@ function ResetPassword() {
       setResetToken(response.resetToken);
       setOtpStep("password");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to verify OTP.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to verify OTP.",
+      );
     } finally {
       setLoading(false);
     }
@@ -121,7 +127,11 @@ function ResetPassword() {
 
     try {
       setLoading(true);
-      const response = await confirmPasswordReset(resetToken, newPassword, confirmPassword);
+      const response = await confirmPasswordReset(
+        resetToken,
+        newPassword,
+        confirmPassword,
+      );
       setOtp("");
       setResetToken("");
       setNewPassword("");
@@ -129,7 +139,9 @@ function ResetPassword() {
       setOtpStep("email");
       setSuccessMessage(response.message || "Password reset successful.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to reset password.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to reset password.",
+      );
     } finally {
       setLoading(false);
     }
@@ -202,7 +214,11 @@ function ResetPassword() {
               setConfirmPassword={setConfirmPassword}
               setNewPassword={setNewPassword}
             />
-            <button className="primary-action login-button" disabled={loading} type="submit">
+            <button
+              className="primary-action login-button"
+              disabled={loading}
+              type="submit"
+            >
               <PortalIcon name="check" />
               <span>{loading ? "Saving..." : "Save Password"}</span>
             </button>
@@ -222,7 +238,11 @@ function ResetPassword() {
                 value={email}
               />
             </div>
-            <button className="primary-action login-button" disabled={loading} type="submit">
+            <button
+              className="primary-action login-button"
+              disabled={loading}
+              type="submit"
+            >
               <PortalIcon name="right" />
               <span>{loading ? "Sending..." : "Send OTP"}</span>
             </button>
@@ -243,7 +263,11 @@ function ResetPassword() {
                 value={otp}
               />
             </div>
-            <button className="primary-action login-button" disabled={loading} type="submit">
+            <button
+              className="primary-action login-button"
+              disabled={loading}
+              type="submit"
+            >
               <PortalIcon name="check" />
               <span>{loading ? "Verifying..." : "Verify OTP"}</span>
             </button>
@@ -258,7 +282,11 @@ function ResetPassword() {
               setConfirmPassword={setConfirmPassword}
               setNewPassword={setNewPassword}
             />
-            <button className="primary-action login-button" disabled={loading} type="submit">
+            <button
+              className="primary-action login-button"
+              disabled={loading}
+              type="submit"
+            >
               <PortalIcon name="check" />
               <span>{loading ? "Saving..." : "Save Password"}</span>
             </button>
@@ -271,7 +299,12 @@ function ResetPassword() {
           </p>
         ) : null}
 
-        <Link className="reset-back-link" to={user ? (user.role === "admin" ? "/admin/clients" : "/") : "/login"}>
+        <Link
+          className="reset-back-link"
+          to={
+            user ? (user.role === "admin" ? "/admin/clients" : "/") : "/login"
+          }
+        >
           Back to portal
         </Link>
       </section>

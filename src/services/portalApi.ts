@@ -132,6 +132,19 @@ type VerifyPasswordResetOtpResponse = PortalMessageResponse & {
   resetToken: string;
 };
 
+type BackendUserResponse = {
+  additionalEmail?: unknown;
+  additionalName?: unknown;
+  additionalNumber?: unknown;
+  clientItemId?: string;
+  email: string;
+  id: string;
+  isAdmin: boolean;
+  name?: unknown;
+  phoneNumber?: unknown;
+  temporaryPassword?: string;
+};
+
 const portalApiUrl = (
   import.meta.env.VITE_PORTAL_API_URL ?? "https://api-damp-garden-130.fly.dev"
 ).replace(/\/$/, "");
@@ -212,6 +225,32 @@ function normalizeBackendUser(
   };
 }
 
+function normalizeCurrentUser(user: BackendUserResponse, fallbackEmail = ""): PortalUser {
+  const role = user.isAdmin ? "admin" : "client";
+  const email = user.email || fallbackEmail;
+
+  return {
+    clientItemId: user.clientItemId ?? user.id,
+    email,
+    name: normalizeString(user.name) || (role === "admin" ? "Admin" : email),
+    role,
+  };
+}
+
+function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): ClientRecord {
+  return {
+    additionalEmail: normalizeString(data.additionalEmail),
+    additionalPhone: normalizeString(data.additionalNumber),
+    contactName: normalizeString(data.additionalName),
+    email: data.email,
+    id: data.id,
+    name: normalizeString(data.name) || fallbackName,
+    phone: normalizeString(data.phoneNumber),
+    phoneNumber: normalizeString(data.phoneNumber),
+    temporaryPassword: data.temporaryPassword,
+  };
+}
+
 function normalizeString(value: unknown) {
   if (typeof value === "string") {
     return value;
@@ -228,12 +267,13 @@ async function portalRequest<T>(
   path: string,
   options: RequestInit = {},
   authenticated = false,
+  tokenOverride?: string,
 ) {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
 
   if (authenticated) {
-    const token = getPortalToken();
+    const token = tokenOverride ?? getPortalToken();
 
     if (!token) {
       throw new Error("Your session has expired. Please sign in again.");
@@ -266,11 +306,25 @@ export async function loginPortalUser(email: string, password: string) {
     body: JSON.stringify({ email, password }),
     method: "POST",
   });
+  let user = normalizeBackendUser(data.token, email, data.user);
+
+  try {
+    const currentUser = await portalRequest<BackendUserResponse>("/auth/me", {}, true, data.token);
+    user = normalizeCurrentUser(currentUser, email);
+  } catch {
+    // Fall back to token-derived identity if /auth/me is temporarily unavailable.
+  }
 
   return {
     token: data.token,
-    user: normalizeBackendUser(data.token, email, data.user),
+    user,
   };
+}
+
+export async function getCurrentUserProfile() {
+  const data = await portalRequest<BackendUserResponse>("/auth/me", {}, true);
+
+  return normalizeCurrentUser(data);
 }
 
 export async function requestPasswordResetOtp(email: string) {
@@ -690,7 +744,17 @@ export async function getPayments(): Promise<PaymentResponse> {
 }
 
 export async function getClients(): Promise<ClientRecord[]> {
-  const items = await getBoardItems(boardIds.clients);
+  let items: MondayItem[] = [];
+
+  try {
+    items = await getBoardItems(boardIds.clients);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("VITE_MONDAY_TOKEN")) {
+      return [];
+    }
+
+    throw error;
+  }
 
   return items.map((item) => {
     const columns = columnMap(item);
@@ -710,7 +774,7 @@ export async function getClients(): Promise<ClientRecord[]> {
 }
 
 export async function createClient(input: ClientInviteInput) {
-  const data = await portalRequest<ClientRecord>("/users/clients", {
+  const data = await portalRequest<BackendUserResponse>("/users/clients", {
     body: JSON.stringify({
       additionalEmail: input.additionalEmail || undefined,
       additionalName: input.contactName || undefined,
@@ -722,16 +786,7 @@ export async function createClient(input: ClientInviteInput) {
     method: "POST",
   }, true);
 
-  return {
-    additionalEmail: normalizeString(data.additionalEmail),
-    additionalPhone: normalizeString(data.additionalPhone),
-    contactName: normalizeString(data.contactName),
-    email: data.email,
-    id: data.id,
-    name: normalizeString(data.name) || input.name,
-    phone: normalizeString(data.phone ?? data.phoneNumber),
-    temporaryPassword: data.temporaryPassword,
-  };
+  return normalizeClientRecord(data, input.name);
 }
 
 export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {

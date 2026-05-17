@@ -3,7 +3,11 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
-import { createClient, getClients, type ClientRecord } from "../../services/portalApi";
+import {
+  createClient,
+  getClients,
+  type ClientRecord,
+} from "../../services/portalApi";
 
 type ClientFormState = {
   additionalEmail: string;
@@ -67,9 +71,10 @@ function AdminClients() {
     event.preventDefault();
     const name = form.name.trim();
     const email = form.email.trim();
+    const phone = form.phone.trim();
 
-    if (!name || !email) {
-      setFeedback("Client name and email are required.");
+    if (!name || !email || !phone) {
+      setFeedback("Client name, email, and phone are required.");
       return;
     }
 
@@ -82,15 +87,19 @@ function AdminClients() {
         company: form.company.trim(),
         email,
         name,
-        phone: form.phone.trim(),
+        phone,
       });
-      setClientList(await getClients());
+      setClientList((current) => [
+        response,
+        ...current.filter((client) => client.id !== response.id),
+      ]);
+      setForm(initialForm);
+      setPage(1);
       setFeedback(
         response.temporaryPassword
-          ? `${response.name || name} was added. Temporary password: ${response.temporaryPassword}`
+          ? `${response.name || name} was added. Email sent to the client.`
           : `${response.name || name} was added.`,
       );
-      setForm(initialForm);
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Unable to add client.",
@@ -208,7 +217,11 @@ function AdminClients() {
           </div>
 
           <div className="admin-form-actions">
-            <button className="primary-action" disabled={isSaving} type="submit">
+            <button
+              className="primary-action"
+              disabled={isSaving}
+              type="submit"
+            >
               <PortalIcon name="plus" />
               <span>{isSaving ? "Adding..." : "Add Client"}</span>
             </button>
@@ -234,9 +247,7 @@ function AdminClients() {
             </div>
             <div>
               <span>3</span>
-              <p>
-                Client signs in and replaces the temporary password.
-              </p>
+              <p>Client signs in and replaces the temporary password.</p>
             </div>
           </div>
         </section>

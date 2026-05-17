@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatCard from "../../components/StatCard";
 import StatusBadge from "../../components/StatusBadge";
-import { getCurrentPortalUser } from "../../auth/session";
+import { getCurrentPortalUser, updatePortalUser } from "../../auth/session";
 import { activeProjects, homeMetrics, recentActivity } from "../../data/portal";
 import type { DashboardResponse } from "../../services/portalApi";
-import { getDashboard } from "../../services/portalApi";
+import { getCurrentUserProfile, getDashboard } from "../../services/portalApi";
 
 function Home() {
-  const name = getCurrentPortalUser()?.name || "Valued Client";
+  const [portalUser, setPortalUser] = useState(getCurrentPortalUser);
+  const name = portalUser?.name || "Valued Client";
   const [dashboard, setDashboard] = useState<DashboardResponse>({
     activeProjects,
     homeMetrics,
@@ -26,6 +27,15 @@ function Home() {
         setDashboard(data);
       }
     });
+
+    getCurrentUserProfile()
+      .then((profile) => {
+        if (isMounted) {
+          updatePortalUser(profile);
+          setPortalUser(profile);
+        }
+      })
+      .catch(() => undefined);
 
     return () => {
       isMounted = false;

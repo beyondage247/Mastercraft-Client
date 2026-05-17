@@ -1,9 +1,11 @@
 import { Dropdown, type MenuProps } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { clearPortalSession, getCurrentPortalUser } from "../auth/session";
+import { clearPortalSession, getCurrentPortalUser, updatePortalUser } from "../auth/session";
 import { PortalIcon } from "./PortalIcon";
 import type { PortalIconName } from "./PortalIcon";
+import { getCurrentUserProfile } from "../services/portalApi";
 
 type NavItem = {
   icon: PortalIconName;
@@ -41,7 +43,7 @@ function BrandLogo({ href = "/" }: { href?: string }) {
 function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = getCurrentPortalUser();
+  const [user, setUser] = useState(getCurrentPortalUser);
   const displayName = user?.name || "User";
   const isAdmin = user?.role === "admin";
   const navItems: NavItem[] = secondaryNavItems;
@@ -63,6 +65,23 @@ function Navbar() {
       navigate("/login", { replace: true });
     },
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getCurrentUserProfile()
+      .then((profile) => {
+        if (isMounted) {
+          updatePortalUser(profile);
+          setUser(profile);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <header className="site-header">

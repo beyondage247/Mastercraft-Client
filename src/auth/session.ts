@@ -34,6 +34,10 @@ export function savePortalSession(token: string, user: PortalUser) {
   window.localStorage.setItem(userKey, JSON.stringify(user));
 }
 
+export function updatePortalUser(user: PortalUser) {
+  window.localStorage.setItem(userKey, JSON.stringify(user));
+}
+
 export function clearPortalSession() {
   window.localStorage.removeItem(tokenKey);
   window.localStorage.removeItem(userKey);
