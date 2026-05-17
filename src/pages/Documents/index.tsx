@@ -1,11 +1,10 @@
-import { useQuery } from '@apollo/client/react';
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
 import { documents } from '../../data/portal';
 import type { DocumentItem, DocumentType } from '../../data/portal';
-import { GET_DOCUMENTS } from '../../graphql/portal';
+import { getDocuments } from '../../services/portalApi';
 
 type DocumentFilter = 'All types' | DocumentType;
 
@@ -15,13 +14,20 @@ function Documents() {
   const [projectFilter, setProjectFilter] = useState('All projects');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<DocumentFilter>('All types');
-  const { data } = useQuery<{ documents: { documents: DocumentItem[] } }>(GET_DOCUMENTS);
 
   useEffect(() => {
-    if (data?.documents) {
-      setDocumentList(data.documents.documents.length ? data.documents.documents : documents);
-    }
-  }, [data]);
+    let isMounted = true;
+
+    getDocuments().then((data) => {
+      if (isMounted) {
+        setDocumentList(data.documents);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const projectFilters = useMemo(
     () => ['All projects', ...Array.from(new Set(documentList.map((document) => document.project).filter(Boolean)))],

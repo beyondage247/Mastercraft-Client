@@ -271,7 +271,9 @@ function StepFileUpload({
             <input
               multiple
               type="file"
-              onChange={(event) => onFilesChange(Array.from(event.target.files ?? []))}
+              onChange={(event) =>
+                onFilesChange(Array.from(event.target.files ?? []))
+              }
             />
             <span>Select Files</span>
           </label>

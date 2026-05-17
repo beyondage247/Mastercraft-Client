@@ -1,4 +1,4 @@
-import { useQuery } from "@apollo/client/react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatCard from "../../components/StatCard";
@@ -6,18 +6,31 @@ import StatusBadge from "../../components/StatusBadge";
 import { getCurrentPortalUser } from "../../auth/session";
 import { activeProjects, homeMetrics, recentActivity } from "../../data/portal";
 import type { DashboardResponse } from "../../services/portalApi";
-import { GET_DASHBOARD } from "../../graphql/portal";
+import { getDashboard } from "../../services/portalApi";
 
 function Home() {
-  const { data } = useQuery<{ dashboard: DashboardResponse }>(GET_DASHBOARD);
   const name = getCurrentPortalUser()?.name || "Valued Client";
-  const dashboard = data?.dashboard ?? {
+  const [dashboard, setDashboard] = useState<DashboardResponse>({
     activeProjects,
     homeMetrics,
     projectMetrics: [],
     quoteMetrics: [],
     recentActivity,
-  };
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getDashboard().then((data) => {
+      if (isMounted) {
+        setDashboard(data);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="page-stack">
@@ -29,10 +42,10 @@ function Home() {
           place.
         </p>
         <div className="hero-panel__actions">
-          <Link className="portal-button portal-button--light" to="/new">
+          {/* <Link className="portal-button portal-button--light" to="/new">
             <PortalIcon name="plus" />
             <span>New Project Request</span>
-          </Link>
+          </Link> */}
           <Link
             className="portal-button portal-button--outline-light"
             to="/quotes"
@@ -55,7 +68,7 @@ function Home() {
       <section className="dashboard-grid">
         <div className="dashboard-stack">
           <section className="panel">
-            <h2>Quick Actions</h2>
+            {/* <h2>Quick Actions</h2>
             <div className="quick-actions">
               <Link className="quick-action quick-action--primary" to="/new">
                 <PortalIcon name="plus" />
@@ -65,7 +78,7 @@ function Home() {
                 <PortalIcon name="plus" />
                 <span>Review Quote Request</span>
               </Link>
-            </div>
+            </div> */}
           </section>
 
           <section className="panel active-projects-panel">

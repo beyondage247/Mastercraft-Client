@@ -68,7 +68,7 @@ function ProjectDetail() {
         </div>
         <div className="project-detail-header__actions">
           <StatusBadge tone="neutral">{project.status}</StatusBadge>
-          <button className="edit-button">Edit</button>
+          {/*   <button className="edit-button">Edit</button> */}
         </div>
       </div>
 

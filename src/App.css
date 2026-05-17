@@ -2763,3 +2763,47 @@
   font-size: 14px;
   font-weight: 700;
 }
+
+.reset-panel {
+  width: min(520px, 100%);
+}
+
+.reset-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f7f7f7;
+  padding: 4px;
+}
+
+.reset-mode-toggle button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 38px;
+}
+
+.reset-mode-toggle button.is-active {
+  background: #fff;
+  color: var(--color-text);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 8%);
+}
+
+.reset-back-link {
+  color: var(--color-danger-deep);
+  font-size: 14px;
+  font-weight: 800;
+  justify-self: center;
+  text-decoration: none;
+}
+
+.reset-success-message {
+  color: var(--color-text);
+  font-weight: 700;
+  margin: 0;
+}

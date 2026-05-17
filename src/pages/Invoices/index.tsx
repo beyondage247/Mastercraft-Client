@@ -1,12 +1,11 @@
-import { useQuery } from "@apollo/client/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import { invoiceMetrics, invoices } from "../../data/portal";
-import type { InvoiceItem, InvoiceStatus, Metric } from "../../data/portal";
-import { GET_INVOICES } from "../../graphql/portal";
+import type { InvoiceItem, InvoiceStatus } from "../../data/portal";
+import { getInvoices } from "../../services/portalApi";
 
 type InvoiceFilter = "All" | InvoiceStatus;
 
@@ -24,19 +23,21 @@ function Invoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceFilter>("All");
   const navigate = useNavigate();
-  const { data } = useQuery<{
-    invoices: {
-      invoices: InvoiceItem[];
-      metrics: Metric[];
-    };
-  }>(GET_INVOICES);
 
   useEffect(() => {
-    if (data?.invoices) {
-      setInvoiceList(data.invoices.invoices.length ? data.invoices.invoices : invoices);
-      setMetrics(data.invoices.metrics.length ? data.invoices.metrics : invoiceMetrics);
-    }
-  }, [data]);
+    let isMounted = true;
+
+    getInvoices().then((data) => {
+      if (isMounted) {
+        setInvoiceList(data.invoices);
+        setMetrics(data.metrics);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const projectFilters = useMemo(
     () => [

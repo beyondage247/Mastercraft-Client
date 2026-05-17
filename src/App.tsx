@@ -14,6 +14,7 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import Quotes from './pages/Quotes';
 import AdminClients from './pages/AdminClients';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 
 function RequireAuth({ adminOnly = false }: { adminOnly?: boolean }) {
   const user = getCurrentPortalUser();
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: '/login', element: <Login /> },
+  { path: '/reset-password', element: <ResetPassword /> },
 ]);
 
 function App() {

@@ -1,36 +1,23 @@
-import { useMutation } from "@apollo/client/react";
 import { type FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { savePortalSession, type PortalUser } from "../../auth/session";
+import { Link, useNavigate } from "react-router-dom";
+import { savePortalSession } from "../../auth/session";
 import { PortalIcon } from "../../components/PortalIcon";
-import { LOGIN } from "../../graphql/portal";
-
-type LoginResponse = {
-  login: {
-    token: string;
-    user: PortalUser;
-  };
-};
+import { loginPortalUser } from "../../services/portalApi";
 
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [login, { loading }] = useMutation<LoginResponse, { email: string; password: string }>(LOGIN);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback("");
+    setLoading(true);
 
     try {
-      const response = await login({
-        variables: {
-          email: email.trim(),
-          password,
-        },
-      });
-      const payload = response.data?.login;
+      const payload = await loginPortalUser(email.trim(), password);
 
       if (!payload) {
         setFeedback("Unable to start your session.");
@@ -48,6 +35,8 @@ function Login() {
       }
 
       setFeedback("Invalid email or password.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -92,6 +81,9 @@ function Login() {
             <PortalIcon name="right" />
             <span>{loading ? "Signing in..." : "Sign In"}</span>
           </button>
+          <Link className="reset-back-link" to="/reset-password">
+            Reset password
+          </Link>
           {feedback ? (
             <p className="login-feedback" aria-live="polite">
               {feedback}

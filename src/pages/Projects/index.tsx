@@ -1,45 +1,48 @@
-import { useQuery } from '@apollo/client/react';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import FilterToolbar from '../../components/FilterToolbar';
-import PageHeader from '../../components/PageHeader';
-import ProjectCard from '../../components/ProjectCard';
-import StatCard from '../../components/StatCard';
-import { projectFilters, projectMetrics, projects } from '../../data/portal';
-import type { Metric, ProjectFilter, ProjectListItem } from '../../data/portal';
-import { GET_PROJECTS } from '../../graphql/portal';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import FilterToolbar from "../../components/FilterToolbar";
+import PageHeader from "../../components/PageHeader";
+import ProjectCard from "../../components/ProjectCard";
+import StatCard from "../../components/StatCard";
+import { projectFilters, projectMetrics, projects } from "../../data/portal";
+import type { ProjectFilter, ProjectListItem } from "../../data/portal";
+import { getProjects } from "../../services/portalApi";
 
 function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
-  if (filter === 'All') {
+  if (filter === "All") {
     return true;
   }
 
-  if (filter === 'In Progress') {
-    return project.status === 'In Design' || project.status === 'In Fabrication';
+  if (filter === "In Progress") {
+    return (
+      project.status === "In Design" || project.status === "In Fabrication"
+    );
   }
 
   return project.status === filter;
 }
 
 function Projects() {
-  const [activeFilter, setActiveFilter] = useState<ProjectFilter>('All');
+  const [activeFilter, setActiveFilter] = useState<ProjectFilter>("All");
   const [metrics, setMetrics] = useState(projectMetrics);
   const [projectList, setProjectList] = useState<ProjectListItem[]>(projects);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
-  const { data } = useQuery<{
-    projects: {
-      metrics: Metric[];
-      projects: ProjectListItem[];
-    };
-  }>(GET_PROJECTS);
 
   useEffect(() => {
-    if (data?.projects) {
-      setMetrics(data.projects.metrics.length ? data.projects.metrics : projectMetrics);
-      setProjectList(data.projects.projects.length ? data.projects.projects : projects);
-    }
-  }, [data]);
+    let isMounted = true;
+
+    getProjects().then((data) => {
+      if (isMounted) {
+        setMetrics(data.metrics);
+        setProjectList(data.projects);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -48,7 +51,7 @@ function Projects() {
       const matchesSearch =
         !normalizedSearch ||
         [project.title, project.location, project.category, project.status]
-          .join(' ')
+          .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
 
@@ -59,13 +62,16 @@ function Projects() {
   return (
     <div className="page-stack">
       <PageHeader
-        actionLabel="New Project"
-        onAction={() => navigate('/new')}
+        //   actionLabel="New Project"
+        onAction={() => navigate("/new")}
         subtitle="Millwork & Fabrication Portal"
         title="Projects"
       />
 
-      <section className="metrics-grid metrics-grid--four" aria-label="Project summary">
+      <section
+        className="metrics-grid metrics-grid--four"
+        aria-label="Project summary"
+      >
         {metrics.map((metric) => (
           <StatCard key={metric.label} {...metric} />
         ))}

@@ -1,23 +1,9 @@
 import { Pagination } from "antd";
-import { useMutation, useQuery } from "@apollo/client/react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
-import { GET_CLIENTS } from "../../graphql/clients/queries";
-import { INVITE_CLIENT } from "../../graphql/portal";
-
-type ClientRecord = {
-  additionalEmail?: string;
-  additionalPhone?: string;
-  clientId?: string;
-  company?: string;
-  contactName?: string;
-  email?: string;
-  id: string;
-  name: string;
-  phone?: string;
-};
+import { createClient, getClients, type ClientRecord } from "../../services/portalApi";
 
 type ClientFormState = {
   additionalEmail: string;
@@ -42,14 +28,31 @@ const initialForm: ClientFormState = {
 function AdminClients() {
   const [form, setForm] = useState<ClientFormState>(initialForm);
   const [feedback, setFeedback] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [page, setPage] = useState(1);
-  const { data, refetch } = useQuery<{ clients: ClientRecord[] }>(GET_CLIENTS);
-  const [inviteClient, { loading }] = useMutation<
-    { inviteClient: { id: string; name: string } },
-    { input: ClientFormState }
-  >(INVITE_CLIENT);
+  const [clientList, setClientList] = useState<ClientRecord[]>([]);
 
-  const clients = useMemo(() => data?.clients ?? [], [data?.clients]);
+  useEffect(() => {
+    let isMounted = true;
+
+    getClients()
+      .then((clients) => {
+        if (isMounted) {
+          setClientList(clients);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setClientList([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const clients = useMemo(() => clientList, [clientList]);
   const visibleClients = useMemo(() => {
     const start = (page - 1) * 25;
 
@@ -71,28 +74,29 @@ function AdminClients() {
     }
 
     try {
-      const response = await inviteClient({
-        variables: {
-          input: {
-            ...form,
-            additionalEmail: form.additionalEmail.trim(),
-            additionalPhone: form.additionalPhone.trim(),
-            company: form.company.trim(),
-            email,
-            name,
-            phone: form.phone.trim(),
-          },
-        },
+      setIsSaving(true);
+      const response = await createClient({
+        ...form,
+        additionalEmail: form.additionalEmail.trim(),
+        additionalPhone: form.additionalPhone.trim(),
+        company: form.company.trim(),
+        email,
+        name,
+        phone: form.phone.trim(),
       });
-      await refetch();
+      setClientList(await getClients());
       setFeedback(
-        `${response.data?.inviteClient.name || name} was added to the Monday clients board.`,
+        response.temporaryPassword
+          ? `${response.name || name} was added. Temporary password: ${response.temporaryPassword}`
+          : `${response.name || name} was added.`,
       );
       setForm(initialForm);
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Unable to add client.",
       );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -204,9 +208,9 @@ function AdminClients() {
           </div>
 
           <div className="admin-form-actions">
-            <button className="primary-action" disabled={loading} type="submit">
+            <button className="primary-action" disabled={isSaving} type="submit">
               <PortalIcon name="plus" />
-              <span>{loading ? "Adding..." : "Add Client"}</span>
+              <span>{isSaving ? "Adding..." : "Add Client"}</span>
             </button>
           </div>
 
@@ -218,7 +222,7 @@ function AdminClients() {
         </form>
 
         <section className="panel admin-onboarding-panel">
-          <h2>Monday Email Flow</h2>
+          <h2>Client Access Flow</h2>
           <div className="admin-flow-list">
             <div>
               <span>1</span>
@@ -226,13 +230,12 @@ function AdminClients() {
             </div>
             <div>
               <span>2</span>
-              <p>Temporary password is created and sent to the client.</p>
+              <p>Temporary password is created for the client.</p>
             </div>
             <div>
               <span>3</span>
               <p>
-                A Monday automation sends the client email with the link to the
-                login page and the temporary password.
+                Client signs in and replaces the temporary password.
               </p>
             </div>
           </div>

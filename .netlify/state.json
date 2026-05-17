@@ -1,6 +1,6 @@
 {
 	"siteId": "22b325cb-1fab-496e-b399-403b8283e09b",
-	"dbConnectionString": "postgres://localhost:49199/postgres",
+	"dbConnectionString": "postgres://localhost:65285/postgres",
 	"geolocation": {
 		"data": {
 			"city": "Lagos",
@@ -16,6 +16,6 @@
 			"latitude": 6.4474,
 			"longitude": 3.3903
 		},
-		"timestamp": 1778270176790
+		"timestamp": 1778937171647
 	}
 }
