@@ -71,7 +71,6 @@ function Invoices() {
   return (
     <div className="page-stack">
       <PageHeader
-        actionLabel="New Invoice"
         subtitle="Track payments and billing history"
         title="Invoices"
       />

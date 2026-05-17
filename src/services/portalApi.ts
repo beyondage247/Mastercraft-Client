@@ -216,11 +216,12 @@ function normalizeBackendUser(
 ): PortalUser {
   const payload = decodeJwtPayload(token);
   const role = roleFromValue(backendUser?.role ?? payload.role, backendUser?.isAdmin ?? payload.isAdmin);
+  const name = normalizeString(backendUser?.name ?? payload.name);
 
   return {
     clientItemId: backendUser?.clientItemId ?? payload.id ?? payload.sub,
     email: backendUser?.email ?? payload.email ?? email,
-    name: backendUser?.name ?? payload.name ?? (role === "admin" ? "Admin" : email),
+    name: name || fallbackDisplayName(email, role),
     role,
   };
 }
@@ -232,7 +233,7 @@ function normalizeCurrentUser(user: BackendUserResponse, fallbackEmail = ""): Po
   return {
     clientItemId: user.clientItemId ?? user.id,
     email,
-    name: normalizeString(user.name) || (role === "admin" ? "Admin" : email),
+    name: normalizeString(user.name) || fallbackDisplayName(email, role),
     role,
   };
 }
@@ -251,16 +252,56 @@ function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): Cl
   };
 }
 
-function normalizeString(value: unknown) {
+function normalizeString(value: unknown): string {
   if (typeof value === "string") {
     return value;
   }
 
-  if (value && typeof value === "object" && "text" in value && typeof value.text === "string") {
-    return value.text;
+  if (Array.isArray(value)) {
+    return value.map(normalizeString).filter(Boolean).join(" ");
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const directValue = record.text ?? record.value ?? record.name ?? record.fullName ?? record.displayName;
+    const directText = normalizeString(directValue);
+
+    if (directText) {
+      return directText;
+    }
+
+    const joinedName = [record.firstName, record.lastName]
+      .map(normalizeString)
+      .filter(Boolean)
+      .join(" ");
+
+    if (joinedName) {
+      return joinedName;
+    }
   }
 
   return "";
+}
+
+function fallbackDisplayName(email: string, role: PortalUser["role"]) {
+  if (role === "admin") {
+    return "Admin";
+  }
+
+  const localPart = email.split("@")[0] || "Client";
+  const words = localPart
+    .replace(/[._-]+/g, " ")
+    .split(" ")
+    .map((word) => word.trim())
+    .filter(Boolean);
+
+  if (!words.length) {
+    return "Client";
+  }
+
+  return words
+    .map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`)
+    .join(" ");
 }
 
 async function portalRequest<T>(
@@ -325,6 +366,16 @@ export async function getCurrentUserProfile() {
   const data = await portalRequest<BackendUserResponse>("/auth/me", {}, true);
 
   return normalizeCurrentUser(data);
+}
+
+export async function getClientDetails(id: string) {
+  const data = await portalRequest<BackendUserResponse>(
+    `/users/clients/${encodeURIComponent(id)}`,
+    {},
+    true,
+  );
+
+  return normalizeClientRecord(data);
 }
 
 export async function requestPasswordResetOtp(email: string) {
@@ -786,7 +837,13 @@ export async function createClient(input: ClientInviteInput) {
     method: "POST",
   }, true);
 
-  return normalizeClientRecord(data, input.name);
+  const client = normalizeClientRecord(data, input.name);
+
+  try {
+    return await getClientDetails(client.id);
+  } catch {
+    return client;
+  }
 }
 
 export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {

@@ -1,20 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import FilterToolbar from '../../components/FilterToolbar';
-import PageHeader from '../../components/PageHeader';
-import QuoteCard from '../../components/QuoteCard';
-import StatCard from '../../components/StatCard';
-import { quoteFilters, quoteMetrics, quotes as quoteSeed } from '../../data/portal';
-import type { QuoteFilter, QuoteListItem } from '../../data/portal';
-import { acceptQuote, getQuotes } from '../../services/portalApi';
+import { useEffect, useMemo, useState } from "react";
+import FilterToolbar from "../../components/FilterToolbar";
+import PageHeader from "../../components/PageHeader";
+import QuoteCard from "../../components/QuoteCard";
+import StatCard from "../../components/StatCard";
+import {
+  quoteFilters,
+  quoteMetrics,
+  quotes as quoteSeed,
+} from "../../data/portal";
+import type { QuoteFilter, QuoteListItem } from "../../data/portal";
+import { acceptQuote, getQuotes } from "../../services/portalApi";
 
 function matchesQuoteFilter(quote: QuoteListItem, filter: QuoteFilter) {
-  return filter === 'All' || quote.status === filter;
+  return filter === "All" || quote.status === filter;
 }
 
 function Quotes() {
-  const [activeFilter, setActiveFilter] = useState<QuoteFilter>('All');
+  const [activeFilter, setActiveFilter] = useState<QuoteFilter>("All");
   const [metrics, setMetrics] = useState(quoteMetrics);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [quotes, setQuotes] = useState<QuoteListItem[]>(quoteSeed);
 
   useEffect(() => {
@@ -39,7 +43,7 @@ function Quotes() {
       const matchesSearch =
         !normalizedSearch ||
         [quote.id, quote.title, quote.description, quote.status]
-          .join(' ')
+          .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
 
@@ -51,7 +55,9 @@ function Quotes() {
     const previousQuotes = quotes;
 
     setQuotes((currentQuotes) =>
-      currentQuotes.map((quote) => (quote.uid === uid ? { ...quote, status: 'Accepted' } : quote)),
+      currentQuotes.map((quote) =>
+        quote.uid === uid ? { ...quote, status: "Accepted" } : quote,
+      ),
     );
 
     try {
@@ -63,9 +69,15 @@ function Quotes() {
 
   return (
     <div className="page-stack">
-      <PageHeader actionLabel="New Quote" subtitle="Manage your project estimates and approvals" title="Quotes" />
+      <PageHeader
+        subtitle="Manage your project estimates and approvals"
+        title="Quotes"
+      />
 
-      <section className="metrics-grid metrics-grid--four" aria-label="Quote summary">
+      <section
+        className="metrics-grid metrics-grid--four"
+        aria-label="Quote summary"
+      >
         {metrics.map((metric) => (
           <StatCard key={metric.label} {...metric} />
         ))}

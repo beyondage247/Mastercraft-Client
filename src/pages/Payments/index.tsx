@@ -1,26 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import FilterToolbar from '../../components/FilterToolbar';
-import PageHeader from '../../components/PageHeader';
-import { PortalIcon } from '../../components/PortalIcon';
-import StatusBadge from '../../components/StatusBadge';
-import { paymentFilters, paymentMetrics, payments } from '../../data/portal';
-import type { PaymentItem, PaymentMethod } from '../../data/portal';
-import { getPayments } from '../../services/portalApi';
+import { useEffect, useMemo, useState } from "react";
+import FilterToolbar from "../../components/FilterToolbar";
+import PageHeader from "../../components/PageHeader";
+import { PortalIcon } from "../../components/PortalIcon";
+import StatusBadge from "../../components/StatusBadge";
+import { paymentFilters, paymentMetrics, payments } from "../../data/portal";
+import type { PaymentItem, PaymentMethod } from "../../data/portal";
+import { getPayments } from "../../services/portalApi";
 
-type PaymentFilter = 'All' | PaymentMethod;
+type PaymentFilter = "All" | PaymentMethod;
 
 const methodTone = {
-  ACH: 'danger',
-  Check: 'info',
-  'Credit Card': 'warning',
-  Wire: 'warning',
+  ACH: "danger",
+  Check: "info",
+  "Credit Card": "warning",
+  Wire: "warning",
 } as const;
 
 function Payments() {
-  const [activeFilter, setActiveFilter] = useState<PaymentFilter>('All');
+  const [activeFilter, setActiveFilter] = useState<PaymentFilter>("All");
   const [metrics, setMetrics] = useState(paymentMetrics);
   const [paymentList, setPaymentList] = useState<PaymentItem[]>(payments);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -41,11 +41,12 @@ function Payments() {
     const normalizedSearch = search.trim().toLowerCase();
 
     return paymentList.filter((payment) => {
-      const matchesMethod = activeFilter === 'All' || payment.method === activeFilter;
+      const matchesMethod =
+        activeFilter === "All" || payment.method === activeFilter;
       const matchesSearch =
         !normalizedSearch ||
         [payment.invoice, payment.project, payment.method, payment.reference]
-          .join(' ')
+          .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
 
@@ -55,7 +56,10 @@ function Payments() {
 
   return (
     <div className="page-stack">
-      <PageHeader actionLabel="New Invoice" subtitle="Transaction history and payment records" title="Payments" />
+      <PageHeader
+        subtitle="Transaction history and payment records"
+        title="Payments"
+      />
 
       <section className="billing-metrics" aria-label="Payment summary">
         {metrics.map((metric) => (
@@ -74,8 +78,8 @@ function Payments() {
       <FilterToolbar
         activeFilter={activeFilter}
         filters={paymentFilters}
-        onFilterChange={setActiveFilter}
-        onSearchChange={setSearch}
+        onFilterChange={(value) => setActiveFilter(value as PaymentFilter)}
+        onSearchChange={(value) => setSearch(value)}
         search={search}
         searchLabel="payments"
       />
@@ -96,10 +100,15 @@ function Payments() {
               <span>{payment.date}</span>
               <strong>{payment.invoice}</strong>
               <span>{payment.project}</span>
-              <StatusBadge tone={methodTone[payment.method]}>{payment.method}</StatusBadge>
+              <StatusBadge tone={methodTone[payment.method]}>
+                {payment.method}
+              </StatusBadge>
               <span>{payment.reference}</span>
               <span>{payment.amount}</span>
-              <button type="button" aria-label={`Open payment ${payment.reference}`}>
+              <button
+                type="button"
+                aria-label={`Open payment ${payment.reference}`}
+              >
                 <PortalIcon name="right" />
               </button>
             </article>
