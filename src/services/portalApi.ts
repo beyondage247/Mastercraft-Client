@@ -163,21 +163,6 @@ const boardIds = {
   quotes: import.meta.env.VITE_MONDAY_QUOTES_BOARD_ID ?? "18410185109",
 };
 
-const clientColumns = {
-  additionalEmail:
-    import.meta.env.VITE_MONDAY_CLIENT_ADDITIONAL_EMAIL_COLUMN ??
-    "email_mm3ckqtx",
-  additionalPhone:
-    import.meta.env.VITE_MONDAY_CLIENT_ADDITIONAL_PHONE_COLUMN ??
-    "numeric_mm3cj80y",
-  company: import.meta.env.VITE_MONDAY_CLIENT_COMPANY_COLUMN ?? "text_mm32xemb",
-  contactName:
-    import.meta.env.VITE_MONDAY_CLIENT_CONTACT_NAME_COLUMN ?? "text_mm38x2kk",
-  email: import.meta.env.VITE_MONDAY_CLIENT_EMAIL_COLUMN ?? "email_mm2qgcq8",
-  password: import.meta.env.VITE_MONDAY_CLIENT_PASSWORD_COLUMN ?? "text_mm3b6fsj",
-  phone: import.meta.env.VITE_MONDAY_CLIENT_PHONE_COLUMN ?? "phone_mm2q10cp",
-};
-
 function requireMondayToken() {
   if (!mondayToken) {
     throw new Error("Missing public VITE_MONDAY_TOKEN.");
@@ -795,33 +780,9 @@ export async function getPayments(): Promise<PaymentResponse> {
 }
 
 export async function getClients(): Promise<ClientRecord[]> {
-  let items: MondayItem[] = [];
+  const data = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
 
-  try {
-    items = await getBoardItems(boardIds.clients);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("VITE_MONDAY_TOKEN")) {
-      return [];
-    }
-
-    throw error;
-  }
-
-  return items.map((item) => {
-    const columns = columnMap(item);
-
-    return {
-      additionalEmail: columnText(columns, clientColumns.additionalEmail, ""),
-      additionalPhone: columnText(columns, clientColumns.additionalPhone, ""),
-      clientId: columnText(columns, "text_mm3amtas", ""),
-      company: columnText(columns, clientColumns.company, ""),
-      contactName: columnText(columns, clientColumns.contactName, ""),
-      email: columnText(columns, clientColumns.email, ""),
-      id: item.id,
-      name: item.name,
-      phone: columnText(columns, clientColumns.phone, ""),
-    };
-  });
+  return data.map((client) => normalizeClientRecord(client));
 }
 
 export async function createClient(input: ClientInviteInput) {
