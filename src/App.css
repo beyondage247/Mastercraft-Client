@@ -2673,7 +2673,7 @@
 .admin-client-table__row {
   display: grid;
   gap: 18px;
-  grid-template-columns: 1fr 1fr 1.2fr 0.8fr 1fr;
+  grid-template-columns: 1fr 1fr 1.2fr 0.8fr 1fr 0.7fr;
 }
 
 .admin-client-table__head {
@@ -2705,6 +2705,122 @@
   display: flex;
   justify-content: flex-end;
   padding-top: 18px;
+}
+
+.table-action-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.admin-partner-name {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.table-action-button:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger-deep);
+}
+
+.admin-detail-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-detail-grid div {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.admin-detail-grid span,
+.admin-modal-list span,
+.admin-empty-copy {
+  color: var(--color-muted);
+}
+
+.admin-detail-grid strong {
+  color: var(--color-text);
+}
+
+.admin-modal-form {
+  display: grid;
+  gap: 18px;
+  padding-top: 8px;
+}
+
+.admin-modal-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-modal-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.admin-modal-list article > div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-record-table {
+  min-width: 980px;
+}
+
+.admin-record-table__head,
+.admin-record-table__row {
+  display: grid;
+  align-items: center;
+  gap: 18px;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.7fr;
+}
+
+.admin-record-table__head {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 0 14px;
+  text-transform: uppercase;
+}
+
+.admin-record-table__row {
+  border-bottom: 1px solid var(--color-border-soft);
+  color: #444;
+  font-size: 14px;
+  padding: 18px 0;
+}
+
+.admin-record-table__row strong {
+  color: var(--color-text);
+}
+
+.admin-empty-row {
+  border-bottom: 1px solid var(--color-border-soft);
+  color: var(--color-muted);
+  padding: 20px 0;
 }
 
 .select-files-btn input {

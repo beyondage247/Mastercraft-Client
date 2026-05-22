@@ -20,15 +20,25 @@ function ProjectDetail() {
   const [activeTab, setActiveTab] = useState<
     "Overview" | "Document" | "Activity"
   >("Overview");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
-      getProjectDetail(id).then((data) => {
-        if (data.project) setProject(data.project);
-        if (data.details) setDetails(data.details);
-        setLoading(false);
-      });
+      setLoading(true);
+      setError("");
+
+      getProjectDetail(id)
+        .then((data) => {
+          if (data.project) setProject(data.project);
+          if (data.details) setDetails(data.details);
+        })
+        .catch((requestError: Error) => {
+          setError(requestError.message || "Unable to load this project.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [id]);
 
@@ -42,7 +52,7 @@ function ProjectDetail() {
         <button className="back-link" onClick={() => navigate("/projects")}>
           <PortalIcon name="left" /> Back to Projects
         </button>
-        <div className="panel">Project not found</div>
+        <div className="panel">{error || "Project not found"}</div>
       </div>
     );
   }

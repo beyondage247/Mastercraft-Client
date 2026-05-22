@@ -1,5 +1,4 @@
 import {
-  activeProjects,
   documents,
   invoiceDetails,
   invoiceMetrics,
@@ -7,7 +6,6 @@ import {
   paymentMetrics,
   payments,
   projectDetails,
-  projectMetrics,
   projects,
   quoteDetails,
   quoteMetrics,
@@ -27,27 +25,7 @@ import type {
   QuoteDetailInfo,
   QuoteListItem,
 } from "../data/portal";
-import { getPortalToken, type PortalUser } from "../auth/session";
-
-type MondayColumn = {
-  id: string;
-  text?: string | null;
-  value?: string | null;
-};
-
-type MondayItem = {
-  id: string;
-  name: string;
-  column_values: MondayColumn[];
-};
-
-type BoardItemsResponse = {
-  boards?: Array<{
-    items_page?: {
-      items?: MondayItem[];
-    };
-  }>;
-};
+import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
 
 type ProjectResponse = {
   activeProjects: HomeProject[];
@@ -77,9 +55,12 @@ type PaymentResponse = {
 export type ClientRecord = {
   additionalEmail?: string;
   additionalPhone?: string;
+  accountPartnerId?: string;
   clientId?: string;
+  clientCredit?: "COD" | "CREDIT_ACCOUNT";
   company?: string;
   contactName?: string;
+  createdAt?: string;
   email?: string;
   id: string;
   name: string;
@@ -91,6 +72,8 @@ export type ClientRecord = {
 export type ClientInviteInput = {
   additionalEmail?: string;
   additionalPhone?: string;
+  assignmentId?: string;
+  clientCredit?: "COD" | "CREDIT_ACCOUNT";
   company?: string;
   contactName?: string;
   email: string;
@@ -107,10 +90,12 @@ export type DashboardResponse = {
 };
 
 type BackendLoginResponse = {
-  token: string;
+  accessToken?: string;
+  token?: string;
   user?: Partial<PortalUser> & {
     id?: string;
     isAdmin?: boolean;
+    role?: string;
   };
 };
 
@@ -136,38 +121,101 @@ type BackendUserResponse = {
   additionalEmail?: unknown;
   additionalName?: unknown;
   additionalNumber?: unknown;
+  additionalContact?: unknown;
+  accountPartnerId?: unknown;
   clientItemId?: string;
+  clientCredit?: "COD" | "CREDIT_ACCOUNT" | null;
+  company?: unknown;
+  createdAt?: string;
   email: string;
   id: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
   name?: unknown;
+  phone?: unknown;
   phoneNumber?: unknown;
+  role?: string;
   temporaryPassword?: string;
 };
 
-const portalApiUrl = (
-  import.meta.env.VITE_PORTAL_API_URL ?? "https://api-damp-garden-130.fly.dev"
-).replace(/\/$/, "");
-
-const mondayApiUrl =
-  import.meta.env.VITE_MONDAY_API_URL ?? "https://api.monday.com/v2";
-const mondayToken = import.meta.env.VITE_MONDAY_TOKEN ?? "";
-const mondayApiVersion = import.meta.env.VITE_MONDAY_API_VERSION ?? "2026-04";
-
-const boardIds = {
-  clients: import.meta.env.VITE_MONDAY_CLIENT_BOARD_ID ?? "18410183790",
-  documents: import.meta.env.VITE_MONDAY_DOCUMENTS_BOARD_ID ?? "",
-  invoices: import.meta.env.VITE_MONDAY_INVOICES_BOARD_ID ?? "18413146142",
-  payments: import.meta.env.VITE_MONDAY_PAYMENTS_BOARD_ID ?? "",
-  projects: import.meta.env.VITE_MONDAY_PROJECTS_BOARD_ID ?? "18410184393",
-  quotes: import.meta.env.VITE_MONDAY_QUOTES_BOARD_ID ?? "18410185109",
+type BackendProjectClientResponse = {
+  email?: string;
+  id?: string;
+  name?: unknown;
 };
 
-function requireMondayToken() {
-  if (!mondayToken) {
-    throw new Error("Missing public VITE_MONDAY_TOKEN.");
-  }
-}
+type BackendProjectResponse = {
+  client?: BackendProjectClientResponse;
+  clientId?: string;
+  description?: string;
+  estimatedCompletion?: string | null;
+  fabricationCompleted?: boolean;
+  id: string;
+  location?: string;
+  name?: string;
+  startDate?: string | null;
+  status?: string;
+};
+
+type BackendQuoteResponse = {
+  amount?: string | number;
+  description?: string;
+  id: string;
+  name?: string;
+  status?: string;
+  title?: string;
+  total?: string | number;
+  uid?: string;
+  validUntil?: string | null;
+};
+
+type BackendDocumentResponse = {
+  createdAt?: string;
+  date?: string;
+  id: string;
+  name?: string;
+  project?: string | { name?: string; title?: string };
+  title?: string;
+  type?: string;
+};
+
+type BackendInvoiceResponse = {
+  amount?: string | number;
+  dueDate?: string | null;
+  id: string;
+  issuedDate?: string | null;
+  project?: string | { name?: string; title?: string };
+  status?: string;
+  total?: string | number;
+};
+
+type BackendPaymentResponse = {
+  amount?: string | number;
+  date?: string | null;
+  id: string;
+  invoice?: string | { id?: string };
+  method?: string;
+  project?: string | { name?: string; title?: string };
+  reference?: string;
+};
+
+export type StaffRecord = {
+  createdAt?: string;
+  email: string;
+  id: string;
+  name: string;
+  isAdmin?: boolean;
+  role: "ADMIN" | "STAFF" | "CLIENT";
+};
+
+export type CreateStaffInput = {
+  email: string;
+  isAdmin?: boolean;
+  name: string;
+};
+
+const portalApiUrl = (
+  import.meta.env.VITE_PORTAL_API_URL ?? "/portal-api"
+).replace(/\/$/, "");
 
 function decodeJwtPayload(token: string): JwtPayload {
   const payload = token.split(".")[1];
@@ -187,8 +235,14 @@ function decodeJwtPayload(token: string): JwtPayload {
 }
 
 function roleFromValue(value: unknown, isAdmin?: boolean): PortalUser["role"] {
-  if (value === "admin" || isAdmin) {
+  const normalized = typeof value === "string" ? value.toLowerCase() : "";
+
+  if (normalized === "admin" || isAdmin) {
     return "admin";
+  }
+
+  if (normalized === "staff") {
+    return "staff";
   }
 
   return "client";
@@ -204,15 +258,16 @@ function normalizeBackendUser(
   const name = normalizeString(backendUser?.name ?? payload.name);
 
   return {
-    clientItemId: backendUser?.clientItemId ?? payload.id ?? payload.sub,
+    clientItemId: backendUser?.clientItemId ?? backendUser?.id ?? payload.id ?? payload.sub,
     email: backendUser?.email ?? payload.email ?? email,
     name: name || fallbackDisplayName(email, role),
     role,
   };
 }
 
-function normalizeCurrentUser(user: BackendUserResponse, fallbackEmail = ""): PortalUser {
-  const role = user.isAdmin ? "admin" : "client";
+function normalizeCurrentUser(user: BackendUserResponse, fallbackEmail = "", token = getPortalToken() ?? ""): PortalUser {
+  const payload = token ? decodeJwtPayload(token) : {};
+  const role = roleFromValue(user.role ?? payload.role, user.isAdmin ?? payload.isAdmin);
   const email = user.email || fallbackEmail;
 
   return {
@@ -227,12 +282,16 @@ function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): Cl
   return {
     additionalEmail: normalizeString(data.additionalEmail),
     additionalPhone: normalizeString(data.additionalNumber),
-    contactName: normalizeString(data.additionalName),
+    accountPartnerId: normalizeString(data.accountPartnerId),
+    clientCredit: data.clientCredit ?? undefined,
+    company: normalizeString(data.company),
+    contactName: normalizeString(data.additionalContact ?? data.additionalName),
+    createdAt: data.createdAt,
     email: data.email,
     id: data.id,
     name: normalizeString(data.name) || fallbackName,
-    phone: normalizeString(data.phoneNumber),
-    phoneNumber: normalizeString(data.phoneNumber),
+    phone: normalizeString(data.phone ?? data.phoneNumber),
+    phoneNumber: normalizeString(data.phone ?? data.phoneNumber),
     temporaryPassword: data.temporaryPassword,
   };
 }
@@ -271,6 +330,10 @@ function normalizeString(value: unknown): string {
 function fallbackDisplayName(email: string, role: PortalUser["role"]) {
   if (role === "admin") {
     return "Admin";
+  }
+
+  if (role === "staff") {
+    return "Staff";
   }
 
   const localPart = email.split("@")[0] || "Client";
@@ -332,17 +395,23 @@ export async function loginPortalUser(email: string, password: string) {
     body: JSON.stringify({ email, password }),
     method: "POST",
   });
-  let user = normalizeBackendUser(data.token, email, data.user);
+  const token = data.accessToken ?? data.token;
+
+  if (!token) {
+    throw new Error("The portal API did not return an access token.");
+  }
+
+  let user = normalizeBackendUser(token, email, data.user);
 
   try {
-    const currentUser = await portalRequest<BackendUserResponse>("/auth/me", {}, true, data.token);
-    user = normalizeCurrentUser(currentUser, email);
+    const currentUser = await portalRequest<BackendUserResponse>("/auth/me", {}, true, token);
+    user = normalizeCurrentUser(currentUser, email, token);
   } catch {
     // Fall back to token-derived identity if /auth/me is temporarily unavailable.
   }
 
   return {
-    token: data.token,
+    token,
     user,
   };
 }
@@ -400,78 +469,169 @@ export async function resetUserPassword(
   });
 }
 
-async function mondayRequest<T>(query: string, variables: Record<string, unknown> = {}) {
-  requireMondayToken();
-
-  const response = await fetch(mondayApiUrl, {
-    body: JSON.stringify({ query, variables }),
-    headers: {
-      "API-Version": mondayApiVersion,
-      Authorization: mondayToken,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-  const payload = await response.json();
-
-  if (!response.ok || payload.errors) {
-    throw new Error(payload.errors?.[0]?.message || "Monday request failed.");
-  }
-
-  return payload.data as T;
-}
-
-async function getBoardItems(boardId: string) {
-  if (!boardId) {
-    return [];
-  }
-
-  const query = `
-    query GetBoardItems($boardId: [ID!]) {
-      boards(ids: $boardId) {
-        items_page(limit: 100) {
-          items {
-            id
-            name
-            column_values {
-              id
-              text
-              value
-            }
-          }
-        }
-      }
-    }
-  `;
-  const data = await mondayRequest<BoardItemsResponse>(query, {
-    boardId: [boardId],
-  });
-
-  return data.boards?.[0]?.items_page?.items ?? [];
-}
-
-function columnMap(item: MondayItem) {
-  return Object.fromEntries(item.column_values.map((column) => [column.id, column]));
-}
-
-function columnText(
-  columns: Record<string, MondayColumn>,
-  id: string,
-  fallback = "",
-) {
-  return columns[id]?.text || fallback;
-}
-
 function amountNumber(amount: string) {
   return Number(amount.replace(/[^0-9.]/g, "")) || 0;
 }
 
 function normalizeProjectStatus(status: string) {
-  if (["Pending", "In Design", "In Fabrication", "Completed"].includes(status)) {
-    return status as ProjectListItem["status"];
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized.includes("complete")) {
+    return "Completed";
+  }
+
+  if (normalized.includes("fabric")) {
+    return "In Fabrication";
+  }
+
+  if (normalized.includes("design")) {
+    return "In Design";
+  }
+
+  if (normalized.includes("progress")) {
+    return "In Progress";
+  }
+
+  if (normalized.includes("pending")) {
+    return "Pending";
   }
 
   return "Pending";
+}
+
+function formatProjectDate(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function projectProgress(status: ProjectListItem["status"], fabricationCompleted?: boolean) {
+  if (fabricationCompleted || status === "Completed") {
+    return 100;
+  }
+
+  if (status === "In Fabrication") {
+    return 70;
+  }
+
+  if (status === "In Progress") {
+    return 50;
+  }
+
+  if (status === "In Design") {
+    return 25;
+  }
+
+  return 0;
+}
+
+function projectTone(status: ProjectListItem["status"]) {
+  if (status === "Completed") return "success";
+  if (status === "In Design") return "info";
+  if (status === "In Progress") return "warning";
+  return "danger";
+}
+
+function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
+  const status = normalizeProjectStatus(project.status || "Pending");
+  const estimatedCompletion = formatProjectDate(project.estimatedCompletion);
+  const startDate = formatProjectDate(project.startDate);
+
+  return {
+    category: "Fabrication",
+    clientEmail: project.client?.email,
+    clientId: project.clientId ?? project.client?.id,
+    clientName: normalizeString(project.client?.name),
+    description: project.description || "",
+    dueDate: estimatedCompletion,
+    estimatedCompletion,
+    fabricationCompleted: project.fabricationCompleted,
+    id: project.id,
+    location: project.location || "",
+    progress: projectProgress(status, project.fabricationCompleted),
+    startDate,
+    status,
+    title: project.name || "Untitled project",
+  };
+}
+
+function moneyText(value: unknown, fallback = "$ 0.00") {
+  if (typeof value === "number") {
+    return `$${value.toLocaleString()}`;
+  }
+
+  return normalizeString(value) || fallback;
+}
+
+function projectName(value: unknown, fallback = "") {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    return normalizeString(record.name ?? record.title) || fallback;
+  }
+
+  return fallback;
+}
+
+function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
+  return {
+    amount: moneyText(quote.amount ?? quote.total),
+    description: quote.description || "",
+    id: quote.id,
+    status: normalizeQuoteStatus(quote.status || "Draft"),
+    title: quote.title || quote.name || "Untitled quote",
+    uid: quote.uid || quote.id,
+    validUntil: formatProjectDate(quote.validUntil),
+  };
+}
+
+function mapBackendDocument(document: BackendDocumentResponse): DocumentItem {
+  return {
+    date: formatProjectDate(document.date ?? document.createdAt),
+    id: document.id,
+    project: projectName(document.project, ""),
+    title: document.title || document.name || "Untitled document",
+    type: normalizeDocumentType(document.type || "Spec Sheet"),
+  };
+}
+
+function mapBackendInvoice(invoice: BackendInvoiceResponse): InvoiceItem {
+  return {
+    amount: moneyText(invoice.amount ?? invoice.total),
+    dueDate: formatProjectDate(invoice.dueDate),
+    id: invoice.id,
+    issuedDate: formatProjectDate(invoice.issuedDate),
+    project: projectName(invoice.project, ""),
+    status: normalizeInvoiceStatus(invoice.status || "Draft"),
+  };
+}
+
+function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
+  return {
+    amount: moneyText(payment.amount),
+    date: formatProjectDate(payment.date),
+    id: payment.id,
+    invoice: projectName(payment.invoice, payment.id),
+    method: normalizePaymentMethod(payment.method || "ACH"),
+    project: projectName(payment.project, ""),
+    reference: payment.reference || payment.id,
+  };
 }
 
 function normalizeQuoteStatus(status: string) {
@@ -527,7 +687,7 @@ function buildProjectMetrics(projectList: ProjectListItem[]) {
       icon: "projects",
       label: "In Progress",
       tone: "danger",
-      value: `${projectList.filter((project) => ["In Design", "In Fabrication"].includes(project.status)).length}`,
+      value: `${projectList.filter((project) => ["In Progress", "In Design", "In Fabrication"].includes(project.status)).length}`,
     },
     {
       icon: "projects",
@@ -542,6 +702,14 @@ function buildProjectMetrics(projectList: ProjectListItem[]) {
       value: `${projectList.filter((project) => project.status === "Completed").length}`,
     },
   ] as Metric[];
+}
+
+function emptyProjectResponse(): ProjectResponse {
+  return {
+    activeProjects: [],
+    metrics: buildProjectMetrics([]),
+    projects: [],
+  };
 }
 
 function buildQuoteMetrics(quoteList: QuoteListItem[]) {
@@ -566,60 +734,32 @@ function buildQuoteMetrics(quoteList: QuoteListItem[]) {
 }
 
 export async function getProjects(): Promise<ProjectResponse> {
-  try {
-    const items = await getBoardItems(boardIds.projects);
-    const mappedProjects = items.map((item) => {
-      const columns = columnMap(item);
+  const currentUser = getCurrentPortalUser();
+  const path =
+    currentUser?.role === "client" && currentUser.clientItemId
+      ? `/projects/clients/${encodeURIComponent(currentUser.clientItemId)}`
+      : "/projects";
+  const backendProjects = await portalRequest<BackendProjectResponse[]>(path, {}, true);
+  const mappedProjects = backendProjects.map(mapBackendProject);
+  const mappedActiveProjects = mappedProjects.slice(0, 3).map((project) => ({
+    category: project.category,
+    estimate: project.dueDate ? `Est: ${project.dueDate}` : "Est: Pending",
+    location: project.location,
+    name: project.title,
+    status: project.status,
+    tone: projectTone(project.status),
+  })) as HomeProject[];
 
-      return {
-        category: "Commercial",
-        dueDate: columnText(columns, "date_mm383qdq", ""),
-        id: item.id,
-        location: columnText(columns, "text_mm3aea8y", ""),
-        progress: 0,
-        status: normalizeProjectStatus(columnText(columns, "color_mm35nk1m", "Pending")),
-        title: item.name,
-      };
-    });
-    const mappedActiveProjects = mappedProjects.slice(0, 3).map((project) => ({
-      category: project.category,
-      estimate: project.dueDate ? `Est: ${project.dueDate}` : "Est: Pending",
-      location: project.location,
-      name: project.title,
-      status: project.status,
-      tone: project.status === "Completed" ? "success" : project.status === "In Design" ? "info" : "danger",
-    })) as HomeProject[];
-
-    return {
-      activeProjects: mappedActiveProjects.length ? mappedActiveProjects : activeProjects,
-      metrics: buildProjectMetrics(mappedProjects),
-      projects: mappedProjects.length ? mappedProjects : projects,
-    };
-  } catch {
-    return {
-      activeProjects,
-      metrics: projectMetrics,
-      projects,
-    };
-  }
+  return {
+    activeProjects: mappedActiveProjects,
+    metrics: buildProjectMetrics(mappedProjects),
+    projects: mappedProjects,
+  };
 }
 
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
-    const items = await getBoardItems(boardIds.quotes);
-    const mappedQuotes = items.map((item) => {
-      const columns = columnMap(item);
-
-      return {
-        amount: columnText(columns, "formula_mm3be01v", "$ 0.00"),
-        description: "",
-        id: item.id,
-        status: normalizeQuoteStatus(columnText(columns, "color_mm2qqbms", "Draft")),
-        title: item.name,
-        uid: item.id,
-        validUntil: columnText(columns, "date_mm2trm4j", ""),
-      };
-    });
+    const mappedQuotes = (await portalRequest<BackendQuoteResponse[]>("/quotes", {}, true)).map(mapBackendQuote);
 
     return {
       metrics: buildQuoteMetrics(mappedQuotes),
@@ -634,10 +774,13 @@ export async function getQuotes(): Promise<QuoteResponse> {
 }
 
 export async function getDashboard(): Promise<DashboardResponse> {
-  const [projectData, quoteData] = await Promise.all([getProjects(), getQuotes()]);
+  const [projectData, quoteData] = await Promise.all([
+    getProjects().catch(() => emptyProjectResponse()),
+    getQuotes(),
+  ]);
 
   return {
-    activeProjects: projectData.activeProjects.length ? projectData.activeProjects : activeProjects,
+    activeProjects: projectData.activeProjects,
     homeMetrics: [
       {
         icon: "activeProjects",
@@ -668,36 +811,14 @@ export async function getDashboard(): Promise<DashboardResponse> {
 }
 
 export async function acceptQuote(uid: string): Promise<void> {
-  const mutation = `
-    mutation AcceptQuote($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
-      change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
-        id
-      }
-    }
-  `;
-
-  await mondayRequest(mutation, {
-    boardId: boardIds.quotes,
-    columnId: "color_mm2qqbms",
-    itemId: uid,
-    value: JSON.stringify({ label: "Accepted" }),
-  });
+  await portalRequest(`/quotes/${encodeURIComponent(uid)}/accept`, {
+    method: "POST",
+  }, true);
 }
 
 export async function getDocuments(): Promise<DocumentResponse> {
   try {
-    const items = await getBoardItems(boardIds.documents);
-    const mappedDocuments = items.map((item) => {
-      const columns = columnMap(item);
-
-      return {
-        date: columnText(columns, "date", ""),
-        id: item.id,
-        project: columnText(columns, "project", ""),
-        title: item.name,
-        type: normalizeDocumentType(columnText(columns, "type", "Spec Sheet")),
-      };
-    });
+    const mappedDocuments = (await portalRequest<BackendDocumentResponse[]>("/documents", {}, true)).map(mapBackendDocument);
 
     return { documents: mappedDocuments.length ? mappedDocuments : documents };
   } catch {
@@ -707,19 +828,7 @@ export async function getDocuments(): Promise<DocumentResponse> {
 
 export async function getInvoices(): Promise<InvoiceResponse> {
   try {
-    const items = await getBoardItems(boardIds.invoices);
-    const mappedInvoices = items.map((item) => {
-      const columns = columnMap(item);
-
-      return {
-        amount: columnText(columns, "formula_mm3be01v", "$ 0.00"),
-        dueDate: columnText(columns, "date_mm2trm4j", ""),
-        id: columnText(columns, "autonumber_mm2w68r2", item.id),
-        issuedDate: "",
-        project: item.name,
-        status: normalizeInvoiceStatus(columnText(columns, "color_mm2qqbms", "Draft")),
-      };
-    });
+    const mappedInvoices = (await portalRequest<BackendInvoiceResponse[]>("/invoices", {}, true)).map(mapBackendInvoice);
     const outstanding = mappedInvoices
       .filter((invoice) => invoice.status !== "Paid")
       .reduce((sum, invoice) => sum + amountNumber(invoice.amount), 0);
@@ -747,20 +856,7 @@ export async function getInvoices(): Promise<InvoiceResponse> {
 
 export async function getPayments(): Promise<PaymentResponse> {
   try {
-    const items = await getBoardItems(boardIds.payments);
-    const mappedPayments = items.map((item) => {
-      const columns = columnMap(item);
-
-      return {
-        amount: columnText(columns, "amount", "$0.00"),
-        date: columnText(columns, "date", ""),
-        id: item.id,
-        invoice: columnText(columns, "invoice", item.name),
-        method: normalizePaymentMethod(columnText(columns, "method", "ACH")),
-        project: columnText(columns, "project", item.name),
-        reference: columnText(columns, "reference", item.id),
-      };
-    });
+    const mappedPayments = (await portalRequest<BackendPaymentResponse[]>("/payments", {}, true)).map(mapBackendPayment);
     const total = mappedPayments.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
 
     return {
@@ -786,30 +882,82 @@ export async function getClients(): Promise<ClientRecord[]> {
 }
 
 export async function createClient(input: ClientInviteInput) {
-  const data = await portalRequest<BackendUserResponse>("/users/clients", {
+  await portalRequest<PortalMessageResponse>("/users/clients", {
     body: JSON.stringify({
-      additionalEmail: input.additionalEmail || undefined,
-      additionalName: input.contactName || undefined,
-      additionalNumber: input.additionalPhone || undefined,
+      additionalContact: input.contactName || "",
+      additionalEmail: input.additionalEmail || "",
+      assignmentId: input.assignmentId || "",
+      clientCredit: input.clientCredit || "COD",
+      company: input.company || "",
       email: input.email,
       name: input.name,
-      phoneNumber: input.phone || undefined,
+      phone: input.phone || "",
     }),
     method: "POST",
   }, true);
 
-  const client = normalizeClientRecord(data, input.name);
+  const clients = await getClients();
+  const client = clients.find((item) => item.email === input.email);
 
-  try {
-    return await getClientDetails(client.id);
-  } catch {
-    return client;
+  if (!client) {
+    throw new Error("Client was created, but the refreshed client list did not include it yet.");
   }
+
+  return client;
+}
+
+export async function getStaffUsers() {
+  return portalRequest<StaffRecord[]>("/users/staff", {}, true);
+}
+
+export async function createStaffUser(input: CreateStaffInput) {
+  return portalRequest<PortalMessageResponse>("/users/staff", {
+    body: JSON.stringify({
+      email: input.email,
+      isAdmin: Boolean(input.isAdmin),
+      name: input.name,
+    }),
+    method: "POST",
+  }, true);
+}
+
+export async function reassignClient(clientId: string, staffId: string) {
+  return portalRequest<PortalMessageResponse>("/users/clients/reassign", {
+    body: JSON.stringify({ clientId, staffId }),
+    method: "PATCH",
+  }, true);
 }
 
 export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {
-  const project = projects.find((p) => p.id === id);
-  const details = projectDetails[id];
+  const projectData = await getProjects();
+  const project = projectData.projects.find((p) => p.id === id) ?? projects.find((p) => p.id === id);
+  const details = project
+    ? {
+        estimatedCompletion: project.estimatedCompletion || project.dueDate || "Pending",
+        notes: project.description || "No project notes have been added yet.",
+        siteAddress: project.location || "Not provided",
+        startDate: project.startDate || "Pending",
+        team: project.clientName
+          ? [{ initials: project.clientName.slice(0, 2).toUpperCase(), name: project.clientName, role: "Client" }]
+          : [],
+        timeline: [
+          {
+            date: project.startDate || "Pending",
+            description: project.startDate
+              ? "Project start date recorded."
+              : "Project start date has not been set yet.",
+            title: "Project start",
+          },
+          {
+            date: project.estimatedCompletion || project.dueDate || "Pending",
+            description: project.fabricationCompleted
+              ? "Fabrication has been marked complete."
+              : `Current project status is ${project.status}.`,
+            title: project.fabricationCompleted ? "Fabrication completed" : "Current status",
+          },
+        ],
+      }
+    : projectDetails[id];
 
   return { project, details };
 }

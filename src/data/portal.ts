@@ -27,16 +27,23 @@ export type ActivityItem = {
   time: string;
 };
 
-export type ProjectStatus = 'Pending' | 'In Design' | 'In Fabrication' | 'Completed';
+export type ProjectStatus = 'Pending' | 'In Progress' | 'In Design' | 'In Fabrication' | 'Completed';
 
 export type ProjectFilter = 'All' | 'Pending' | 'In Progress' | 'Completed';
 
 export type ProjectListItem = {
   id: string;
   category: string;
+  clientEmail?: string;
+  clientId?: string;
+  clientName?: string;
+  description?: string;
   dueDate: string;
+  estimatedCompletion?: string;
+  fabricationCompleted?: boolean;
   location: string;
   progress: number;
+  startDate?: string;
   status: ProjectStatus;
   title: string;
 };

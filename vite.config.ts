@@ -8,4 +8,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/portal-api': {
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/portal-api/, ''),
+        target: 'https://mc-api-sakp.onrender.com',
+      },
+    },
+  },
 })

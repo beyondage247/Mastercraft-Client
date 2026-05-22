@@ -1,4 +1,4 @@
-export type PortalRole = "admin" | "client";
+export type PortalRole = "admin" | "staff" | "client";
 
 export type PortalUser = {
   clientItemId?: string;

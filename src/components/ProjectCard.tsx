@@ -8,6 +8,7 @@ const projectStatusTone = {
   Completed: 'success',
   'In Design': 'info',
   'In Fabrication': 'danger',
+  'In Progress': 'warning',
   Pending: 'danger',
 } as const;
 

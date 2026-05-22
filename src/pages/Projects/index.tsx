@@ -4,8 +4,8 @@ import FilterToolbar from "../../components/FilterToolbar";
 import PageHeader from "../../components/PageHeader";
 import ProjectCard from "../../components/ProjectCard";
 import StatCard from "../../components/StatCard";
-import { projectFilters, projectMetrics, projects } from "../../data/portal";
-import type { ProjectFilter, ProjectListItem } from "../../data/portal";
+import { projectFilters } from "../../data/portal";
+import type { Metric, ProjectFilter, ProjectListItem } from "../../data/portal";
 import { getProjects } from "../../services/portalApi";
 
 function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
@@ -14,9 +14,7 @@ function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
   }
 
   if (filter === "In Progress") {
-    return (
-      project.status === "In Design" || project.status === "In Fabrication"
-    );
+    return ["In Progress", "In Design", "In Fabrication"].includes(project.status);
   }
 
   return project.status === filter;
@@ -24,20 +22,38 @@ function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
 
 function Projects() {
   const [activeFilter, setActiveFilter] = useState<ProjectFilter>("All");
-  const [metrics, setMetrics] = useState(projectMetrics);
-  const [projectList, setProjectList] = useState<ProjectListItem[]>(projects);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [projectList, setProjectList] = useState<ProjectListItem[]>([]);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
 
-    getProjects().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setProjectList(data.projects);
-      }
-    });
+    setLoading(true);
+    setError("");
+
+    getProjects()
+      .then((data) => {
+        if (isMounted) {
+          setMetrics(data.metrics);
+          setProjectList(data.projects);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setError(requestError.message || "Unable to load projects.");
+          setMetrics([]);
+          setProjectList([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -87,9 +103,17 @@ function Projects() {
       />
 
       <section className="record-list" aria-label="Projects">
-        {filteredProjects.map((project) => (
-          <ProjectCard key={project.title} project={project} />
-        ))}
+        {loading ? (
+          <div className="panel">Loading projects...</div>
+        ) : error ? (
+          <div className="panel">{error}</div>
+        ) : filteredProjects.length ? (
+          filteredProjects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))
+        ) : (
+          <div className="panel">No projects have been assigned to this account yet.</div>
+        )}
       </section>
 
       <p className="result-count">

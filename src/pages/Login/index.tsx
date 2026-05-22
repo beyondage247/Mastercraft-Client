@@ -25,12 +25,12 @@ function Login() {
       }
 
       savePortalSession(payload.token, payload.user);
-      navigate(payload.user.role === "admin" ? "/admin/clients" : "/", { replace: true });
+      navigate(payload.user.role === "admin" || payload.user.role === "staff" ? "/admin/clients" : "/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.toLowerCase().includes("failed to fetch")) {
-        setFeedback("Cannot reach the portal API. Open the app through Netlify Dev on port 8888.");
+        setFeedback("Cannot reach the portal API. Please check that the local dev server proxy is running.");
         return;
       }
 

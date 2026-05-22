@@ -1,26 +1,31 @@
-import { PortalIcon } from './PortalIcon';
+import type { ReactNode } from "react";
+
 
 type PageHeaderProps = {
   title: string;
   subtitle: string;
+  action?: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
 };
 
-function PageHeader({ title, subtitle, actionLabel, onAction }: PageHeaderProps) {
+function PageHeader({ title, subtitle, action, actionLabel, onAction }: PageHeaderProps) {
+  const actionNode =
+    action ??
+    (actionLabel ? (
+      <button onClick={onAction} type="button">
+        {actionLabel}
+      </button>
+    ) : null);
+
   return (
-    <div className="page-header">
+    <header className="page-header">
       <div>
         <h1>{title}</h1>
         <p>{subtitle}</p>
       </div>
-      {actionLabel && (
-        <button className="primary-action" type="button" onClick={onAction}>
-          <PortalIcon name="plus" />
-          <span>{actionLabel}</span>
-        </button>
-      )}
-    </div>
+      {actionNode}
+    </header>
   );
 }
 

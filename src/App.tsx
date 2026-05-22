@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import './App.css';
 import { getCurrentPortalUser } from './auth/session';
 import MainLayout from './layouts/MainLayout';
@@ -13,6 +14,11 @@ import QuoteDetail from './pages/QuoteDetail';
 import InvoiceDetail from './pages/InvoiceDetail';
 import Quotes from './pages/Quotes';
 import AdminClients from './pages/AdminClients';
+import AdminInvoices from './pages/AdminInvoices';
+import AdminPayments from './pages/AdminPayments';
+import AdminProjects from './pages/AdminProjects';
+import AdminQuotes from './pages/AdminQuotes';
+import AdminStaff from './pages/AdminStaff';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 
@@ -23,15 +29,29 @@ function RequireAuth({ adminOnly = false }: { adminOnly?: boolean }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!adminOnly && user.role === 'admin') {
+  if (!adminOnly && (user.role === 'admin' || user.role === 'staff')) {
     return <Navigate to="/admin/clients" replace />;
   }
 
-  if (adminOnly && user.role !== 'admin') {
+  if (adminOnly && user.role !== 'admin' && user.role !== 'staff') {
     return <Navigate to="/" replace />;
   }
 
   return <MainLayout />;
+}
+
+function RequireAdminPage({ children }: { children: ReactNode }) {
+  const user = getCurrentPortalUser();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/admin/clients" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 const router = createBrowserRouter([
@@ -57,6 +77,11 @@ const router = createBrowserRouter([
     element: <RequireAuth adminOnly />,
     children: [
       { path: 'clients', element: <AdminClients /> },
+      { path: 'projects', element: <AdminProjects /> },
+      { path: 'quotes', element: <AdminQuotes /> },
+      { path: 'invoices', element: <AdminInvoices /> },
+      { path: 'payments', element: <AdminPayments /> },
+      { path: 'staff', element: <RequireAdminPage><AdminStaff /></RequireAdminPage> },
       { path: '*', element: <Navigate to="/admin/clients" replace /> },
     ],
   },

@@ -27,6 +27,15 @@ const secondaryNavItems: NavItem[] = [
   { label: "Payments", to: "/payments", icon: "payments", route: true },
 ] as const;
 
+const backOfficeNavItems: NavItem[] = [
+  { label: "Clients", to: "/admin/clients", icon: "home", route: true },
+  { label: "Projects", to: "/admin/projects", icon: "projects", route: true },
+  { label: "Quotes", to: "/admin/quotes", icon: "quotes", route: true },
+  { label: "Invoices", to: "/admin/invoices", icon: "invoices", route: true },
+  { label: "Payments", to: "/admin/payments", icon: "payments", route: true },
+  { label: "Staff", to: "/admin/staff", icon: "projects", route: true },
+] as const;
+
 function BrandLogo({ href = "/" }: { href?: string }) {
   return (
     <a className="brand-logo" href={href} aria-label="Mastercraft Products home">
@@ -46,6 +55,7 @@ function Navbar() {
   const [user, setUser] = useState(getCurrentPortalUser);
   const displayName = user?.name || "User";
   const isAdmin = user?.role === "admin";
+  const isBackOffice = user?.role === "admin" || user?.role === "staff";
   const navItems: NavItem[] = secondaryNavItems;
   const isMoreActive = secondaryNavItems.some(
     (item) => item.route && item.to === location.pathname,
@@ -86,8 +96,8 @@ function Navbar() {
   return (
     <header className="site-header">
       <div className="content-container site-header__inner">
-        <BrandLogo href={isAdmin ? "/admin/clients" : "/"} />
-        {!isAdmin ? (
+        <BrandLogo href={isBackOffice ? "/admin/clients" : "/"} />
+        {!isBackOffice ? (
           <nav className="app-nav" aria-label="Primary">
             {primaryNavItems.map((item) => {
               const content = (
@@ -155,7 +165,22 @@ function Navbar() {
             </div>
           </nav>
         ) : (
-          <div className="admin-nav-spacer" aria-hidden="true" />
+          <nav className="app-nav" aria-label="Back office">
+            {backOfficeNavItems
+              .filter((item) => item.to !== "/admin/staff" || isAdmin)
+              .map((item) => (
+                <NavLink
+                  className={({ isActive }) =>
+                    `app-nav__link${isActive ? " is-active" : ""}`
+                  }
+                  key={item.label}
+                  to={item.to}
+                >
+                  <PortalIcon name={item.icon} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+          </nav>
         )}
         <div className="user-chip" aria-label={`Signed in as ${displayName}`}>
           <span className="user-chip__avatar">{displayName.slice(0, 1).toUpperCase()}</span>
