@@ -9,6 +9,7 @@ import {
   resetUserPassword,
   verifyPasswordResetOtp,
 } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 type ResetMode = "current" | "otp";
 type OtpStep = "email" | "otp" | "password";
@@ -51,6 +52,8 @@ function ResetPassword() {
       return;
     }
 
+    const toast = showRequestToast("reset-current-password", "Resetting password...");
+
     try {
       setLoading(true);
       const response = await resetUserPassword(
@@ -63,10 +66,12 @@ function ResetPassword() {
       setNewPassword("");
       setConfirmPassword("");
       setSuccessMessage(response.message || "Password reset successful.");
+      toast.success(response.message || "Password reset successful.");
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Unable to reset password.",
-      );
+      const message = error instanceof Error ? error.message : "Unable to reset password.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -81,14 +86,18 @@ function ResetPassword() {
       return;
     }
 
+    const toast = showRequestToast("request-password-otp", "Sending OTP...");
+
     try {
       setLoading(true);
       await requestPasswordResetOtp(email.trim());
       setOtpStep("otp");
+      toast.success("OTP sent successfully.");
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Unable to request OTP.",
-      );
+      const message = error instanceof Error ? error.message : "Unable to request OTP.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -103,15 +112,19 @@ function ResetPassword() {
       return;
     }
 
+    const toast = showRequestToast("verify-password-otp", "Verifying OTP...");
+
     try {
       setLoading(true);
       const response = await verifyPasswordResetOtp(email.trim(), otp.trim());
       setResetToken(response.resetToken);
       setOtpStep("password");
+      toast.success("OTP verified.");
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Unable to verify OTP.",
-      );
+      const message = error instanceof Error ? error.message : "Unable to verify OTP.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -124,6 +137,8 @@ function ResetPassword() {
     if (!resetToken || !validateNewPassword()) {
       return;
     }
+
+    const toast = showRequestToast("confirm-password-reset", "Saving new password...");
 
     try {
       setLoading(true);
@@ -138,10 +153,12 @@ function ResetPassword() {
       setConfirmPassword("");
       setOtpStep("email");
       setSuccessMessage(response.message || "Password reset successful.");
+      toast.success(response.message || "Password reset successful.");
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Unable to reset password.",
-      );
+      const message = error instanceof Error ? error.message : "Unable to reset password.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

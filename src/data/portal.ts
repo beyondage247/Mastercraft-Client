@@ -31,6 +31,18 @@ export type ProjectStatus = 'Pending' | 'In Progress' | 'In Design' | 'In Fabric
 
 export type ProjectFilter = 'All' | 'Pending' | 'In Progress' | 'Completed';
 
+export type ProjectStageType = 'MIL' | 'BUILD_ASSEMBLE' | 'FINISHING' | 'DELIVERY' | 'INSTALL';
+
+export type ProjectStageItem = {
+  id?: string;
+  stage: ProjectStageType;
+  hoursBudgeted: number;
+  hoursSpent: number;
+  progress: number;
+  startDate?: string;
+  startDateValue?: string;
+};
+
 export type ProjectListItem = {
   id: string;
   category: string;
@@ -39,11 +51,16 @@ export type ProjectListItem = {
   clientName?: string;
   description?: string;
   dueDate: string;
+  endDate?: string;
+  endDateValue?: string;
   estimatedCompletion?: string;
+  fabrication?: number;
   fabricationCompleted?: boolean;
   location: string;
   progress: number;
+  stages?: ProjectStageItem[];
   startDate?: string;
+  startDateValue?: string;
   status: ProjectStatus;
   title: string;
 };

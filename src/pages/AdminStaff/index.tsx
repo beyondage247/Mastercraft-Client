@@ -9,6 +9,7 @@ import {
   type CreateStaffInput,
   type StaffRecord,
 } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 type StaffFormState = CreateStaffInput;
 
@@ -94,6 +95,8 @@ function AdminStaff() {
       return;
     }
 
+    const toast = showRequestToast("create-staff", "Creating staff account...");
+
     try {
       setIsSaving(true);
       const response = await createStaffUser({
@@ -103,11 +106,15 @@ function AdminStaff() {
       });
       setForm(initialForm);
       setFeedback(response.message || `${name} was added.`);
+      toast.success(response.message || `${name} was added.`);
 
       const staff = await getStaffUsers();
       setStaffList(staff);
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to add staff.");
+      const message = error instanceof Error ? error.message : "Unable to add staff.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }

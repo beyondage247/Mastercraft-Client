@@ -21,6 +21,8 @@ import type {
   Metric,
   PaymentItem,
   ProjectDetailInfo,
+  ProjectStageItem,
+  ProjectStageType,
   ProjectListItem,
   QuoteDetailInfo,
   QuoteListItem,
@@ -146,13 +148,65 @@ type BackendProjectResponse = {
   client?: BackendProjectClientResponse;
   clientId?: string;
   description?: string;
+  endDate?: string | null;
+  fabrication?: number;
   estimatedCompletion?: string | null;
   fabricationCompleted?: boolean;
   id: string;
   location?: string;
   name?: string;
   startDate?: string | null;
+  stages?: BackendProjectStageResponse[];
   status?: string;
+};
+
+type BackendProjectStageResponse = {
+  id?: string;
+  stage: ProjectStageType;
+  hoursBudgeted?: number;
+  hoursSpent?: number;
+  progress?: number;
+  startDate?: string | null;
+};
+
+export type ProjectStageInput = {
+  hoursBudgeted: number;
+  hoursSpent?: number;
+  startDate: string;
+};
+
+export type CreateProjectInput = {
+  buildAssemble: ProjectStageInput;
+  clientId: string;
+  delivery: ProjectStageInput;
+  description: string;
+  endDate: string;
+  finishing: ProjectStageInput;
+  install: ProjectStageInput;
+  location: string;
+  mil: ProjectStageInput;
+  name: string;
+  startDate: string;
+  status?: ProjectListItem["status"];
+};
+
+type BackendCreateProjectResponse = {
+  message: string;
+  project: BackendProjectResponse;
+};
+
+export type UpdateProjectStatusInput = {
+  buildAssemble?: ProjectStageInput;
+  delivery?: ProjectStageInput;
+  finishing?: ProjectStageInput;
+  install?: ProjectStageInput;
+  mil?: ProjectStageInput;
+  status?: ProjectListItem["status"];
+};
+
+type BackendUpdateProjectResponse = {
+  message: string;
+  project: BackendProjectResponse;
 };
 
 type BackendQuoteResponse = {
@@ -516,7 +570,69 @@ function formatProjectDate(value?: string | null) {
   }).format(date);
 }
 
-function projectProgress(status: ProjectListItem["status"], fabricationCompleted?: boolean) {
+function formatDateInputValue(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function calculateStageProgress(hoursBudgeted?: number, hoursSpent?: number, fallbackProgress = 0) {
+  const budgeted = Number(hoursBudgeted) || 0;
+  const spent = Number(hoursSpent) || 0;
+
+  if (budgeted <= 0) {
+    return clampPercent(fallbackProgress);
+  }
+
+  return clampPercent((spent / budgeted) * 100);
+}
+
+function stageProgress(stage?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">) {
+  if (!stage) {
+    return 0;
+  }
+
+  return calculateStageProgress(stage.hoursBudgeted, stage.hoursSpent, stage.progress);
+}
+
+export function calculateFabricationProgress(stages: {
+  buildAssemble?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
+  finishing?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
+  mil?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
+}) {
+  return clampPercent(
+    (stageProgress(stages.mil) +
+      stageProgress(stages.buildAssemble) +
+      stageProgress(stages.finishing)) /
+      3,
+  );
+}
+
+function projectProgress(
+  status: ProjectListItem["status"],
+  fabricationCompleted?: boolean,
+  fabrication?: number,
+) {
+  if (typeof fabrication === "number") {
+    return clampPercent(fabrication);
+  }
+
   if (fabricationCompleted || status === "Completed") {
     return 100;
   }
@@ -536,6 +652,39 @@ function projectProgress(status: ProjectListItem["status"], fabricationCompleted
   return 0;
 }
 
+function normalizeProjectStage(stage: BackendProjectStageResponse): ProjectStageItem {
+  const hoursBudgeted = Number(stage.hoursBudgeted) || 0;
+  const hoursSpent = Number(stage.hoursSpent) || 0;
+
+  return {
+    hoursBudgeted,
+    hoursSpent,
+    id: stage.id,
+    progress: calculateStageProgress(hoursBudgeted, hoursSpent, Number(stage.progress) || 0),
+    stage: stage.stage,
+    startDate: formatProjectDate(stage.startDate),
+    startDateValue: formatDateInputValue(stage.startDate),
+  };
+}
+
+function stageByType(stages: ProjectStageItem[], stage: ProjectStageType) {
+  return stages.find((item) => item.stage === stage);
+}
+
+function projectFabrication(project: BackendProjectResponse, stages: ProjectStageItem[]) {
+  const calculated = calculateFabricationProgress({
+    buildAssemble: stageByType(stages, "BUILD_ASSEMBLE"),
+    finishing: stageByType(stages, "FINISHING"),
+    mil: stageByType(stages, "MIL"),
+  });
+
+  if (calculated > 0 || stages.length) {
+    return calculated;
+  }
+
+  return typeof project.fabrication === "number" ? clampPercent(project.fabrication) : undefined;
+}
+
 function projectTone(status: ProjectListItem["status"]) {
   if (status === "Completed") return "success";
   if (status === "In Design") return "info";
@@ -545,8 +694,11 @@ function projectTone(status: ProjectListItem["status"]) {
 
 function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
   const status = normalizeProjectStatus(project.status || "Pending");
-  const estimatedCompletion = formatProjectDate(project.estimatedCompletion);
+  const endDateSource = project.endDate ?? project.estimatedCompletion;
+  const estimatedCompletion = formatProjectDate(endDateSource);
   const startDate = formatProjectDate(project.startDate);
+  const stages = (project.stages ?? []).map(normalizeProjectStage);
+  const fabrication = projectFabrication(project, stages);
 
   return {
     category: "Fabrication",
@@ -555,12 +707,17 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
     clientName: normalizeString(project.client?.name),
     description: project.description || "",
     dueDate: estimatedCompletion,
+    endDate: estimatedCompletion,
+    endDateValue: formatDateInputValue(endDateSource),
     estimatedCompletion,
+    fabrication,
     fabricationCompleted: project.fabricationCompleted,
     id: project.id,
     location: project.location || "",
-    progress: projectProgress(status, project.fabricationCompleted),
+    progress: projectProgress(status, project.fabricationCompleted, fabrication),
+    stages,
     startDate,
+    startDateValue: formatDateInputValue(project.startDate),
     status,
     title: project.name || "Untitled project",
   };
@@ -732,13 +889,90 @@ function buildQuoteMetrics(quoteList: QuoteListItem[]) {
   ] as Metric[];
 }
 
+function toBackendProjectStatus(status?: ProjectListItem["status"]) {
+  if (status === "Completed") {
+    return "COMPLETED";
+  }
+
+  if (status === "In Progress" || status === "In Design" || status === "In Fabrication") {
+    return "IN_PROGRESS";
+  }
+
+  return "PENDING";
+}
+
+function toApiDate(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  const date = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00.000Z`);
+
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+function projectStagePayload(stage: ProjectStageInput) {
+  const hoursBudgeted = Number(stage.hoursBudgeted) || 0;
+  const hoursSpent = Number(stage.hoursSpent) || 0;
+
+  return {
+    hoursBudgeted,
+    hoursSpent,
+    progress: calculateStageProgress(hoursBudgeted, hoursSpent),
+    startDate: toApiDate(stage.startDate),
+  };
+}
+
+function createProjectPayload(input: CreateProjectInput) {
+  const mil = projectStagePayload(input.mil);
+  const buildAssemble = projectStagePayload(input.buildAssemble);
+  const finishing = projectStagePayload(input.finishing);
+  const delivery = projectStagePayload(input.delivery);
+  const install = projectStagePayload(input.install);
+
+  return {
+    buildAssemble,
+    clientId: input.clientId,
+    delivery,
+    description: input.description,
+    endDate: toApiDate(input.endDate),
+    fabrication: calculateFabricationProgress({ buildAssemble, finishing, mil }),
+    finishing,
+    install,
+    location: input.location,
+    mil,
+    name: input.name,
+    startDate: toApiDate(input.startDate),
+    status: toBackendProjectStatus(input.status),
+  };
+}
+
+function updateProjectPayload(input: UpdateProjectStatusInput) {
+  return {
+    ...(input.status ? { status: toBackendProjectStatus(input.status) } : {}),
+    ...(input.mil ? { mil: projectStagePayload(input.mil) } : {}),
+    ...(input.buildAssemble ? { buildAssemble: projectStagePayload(input.buildAssemble) } : {}),
+    ...(input.finishing ? { finishing: projectStagePayload(input.finishing) } : {}),
+    ...(input.delivery ? { delivery: projectStagePayload(input.delivery) } : {}),
+    ...(input.install ? { install: projectStagePayload(input.install) } : {}),
+  };
+}
+
 export async function getProjects(): Promise<ProjectResponse> {
   const currentUser = getCurrentPortalUser();
-  const path =
-    currentUser?.role === "client" && currentUser.clientItemId
-      ? `/projects/clients/${encodeURIComponent(currentUser.clientItemId)}`
-      : "/projects";
-  const backendProjects = await portalRequest<BackendProjectResponse[]>(path, {}, true);
+  const path = "/projects";
+  let backendProjects: BackendProjectResponse[];
+
+  try {
+    backendProjects = await portalRequest<BackendProjectResponse[]>(path, {}, true);
+  } catch (error) {
+    if (currentUser?.role === "client") {
+      return emptyProjectResponse();
+    }
+
+    throw error;
+  }
+
   const mappedProjects = backendProjects.map(mapBackendProject);
   const mappedActiveProjects = mappedProjects.slice(0, 3).map((project) => ({
     category: project.category,
@@ -754,6 +988,38 @@ export async function getProjects(): Promise<ProjectResponse> {
     metrics: buildProjectMetrics(mappedProjects),
     projects: mappedProjects,
   };
+}
+
+export async function getProjectsForClient(clientId: string) {
+  const backendProjects = await portalRequest<BackendProjectResponse[]>(
+    `/projects/client/${encodeURIComponent(clientId)}`,
+    {},
+    true,
+  );
+
+  return backendProjects.map(mapBackendProject);
+}
+
+export async function createProject(input: CreateProjectInput) {
+  const response = await portalRequest<BackendCreateProjectResponse>("/projects", {
+    body: JSON.stringify(createProjectPayload(input)),
+    method: "POST",
+  }, true);
+
+  return mapBackendProject(response.project);
+}
+
+export async function updateProjectStatus(projectId: string, input: UpdateProjectStatusInput) {
+  const response = await portalRequest<BackendUpdateProjectResponse>(
+    `/projects/${encodeURIComponent(projectId)}/status`,
+    {
+      body: JSON.stringify(updateProjectPayload(input)),
+      method: "PATCH",
+    },
+    true,
+  );
+
+  return mapBackendProject(response.project);
 }
 
 export async function getQuotes(): Promise<QuoteResponse> {
@@ -928,8 +1194,17 @@ export async function reassignClient(clientId: string, staffId: string) {
 }
 
 export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {
-  const projectData = await getProjects();
-  const project = projectData.projects.find((p) => p.id === id) ?? projects.find((p) => p.id === id);
+  let project: ProjectListItem | undefined;
+
+  try {
+    project = mapBackendProject(
+      await portalRequest<BackendProjectResponse>(`/projects/${encodeURIComponent(id)}`, {}, true),
+    );
+  } catch {
+    const projectData = await getProjects().catch(() => emptyProjectResponse());
+    project = projectData.projects.find((p) => p.id === id) ?? projects.find((p) => p.id === id);
+  }
+
   const details = project
     ? {
         estimatedCompletion: project.estimatedCompletion || project.dueDate || "Pending",

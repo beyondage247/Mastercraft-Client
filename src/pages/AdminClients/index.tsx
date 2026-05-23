@@ -1,22 +1,27 @@
-import { Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
+import { Dropdown, message, Modal, Pagination, Tabs, type MenuProps } from "antd";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
+import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
+import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import {
+  calculateFabricationProgress,
+  calculateStageProgress,
   createClient,
+  createProject,
   getClients,
+  getProjectsForClient,
   getStaffUsers,
   reassignClient,
   type ClientRecord,
+  type ProjectStageInput,
   type StaffRecord,
 } from "../../services/portalApi";
-import {
-  listProjectsForClient,
-  saveBackOfficeProject,
-  type BackOfficeProject,
-} from "../../services/backOfficeStore";
+import type { ProjectListItem } from "../../data/portal";
+import { showRequestToast } from "../../utils/portalToast";
 
 type ClientFormState = {
   additionalEmail: string;
@@ -41,26 +46,48 @@ const initialForm: ClientFormState = {
 };
 
 type ProjectFormState = {
+  buildAssemble: ProjectStageFormState;
+  delivery: ProjectStageFormState;
   description: string;
-  estimatedCompletion: string;
+  endDate: string;
+  finishing: ProjectStageFormState;
+  install: ProjectStageFormState;
   location: string;
+  mil: ProjectStageFormState;
   name: string;
   startDate: string;
-  status: string;
+  status: ProjectListItem["status"];
+};
+
+type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
+
+type ProjectStageFormState = {
+  hoursBudgeted: string;
+  hoursSpent: string;
+  startDate: string;
 };
 
 const initialProjectForm: ProjectFormState = {
+  buildAssemble: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
+  delivery: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
   description: "",
-  estimatedCompletion: "",
+  endDate: "",
+  finishing: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
+  install: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
   location: "",
+  mil: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
   name: "",
   startDate: "",
   status: "Pending",
 };
 
-function clientProjects(clientId?: string) {
-  return clientId ? listProjectsForClient(clientId) : [];
-}
+const projectStageFields: Array<{ key: ProjectStageKey; label: string }> = [
+  { key: "mil", label: "MIL" },
+  { key: "buildAssemble", label: "Build/Assemble" },
+  { key: "finishing", label: "Finishing" },
+  { key: "delivery", label: "Delivery" },
+  { key: "install", label: "Install" },
+];
 
 function AdminClients() {
   const currentUser = getCurrentPortalUser();
@@ -72,10 +99,15 @@ function AdminClients() {
   const [page, setPage] = useState(1);
   const [clientList, setClientList] = useState<ClientRecord[]>([]);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isLoadingClientProjects, setIsLoadingClientProjects] = useState(false);
   const [projectForm, setProjectForm] = useState<ProjectFormState>(initialProjectForm);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignStaffId, setReassignStaffId] = useState("");
+  const [editingProject, setEditingProject] = useState<ProjectListItem | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectListItem | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
+  const [selectedClientProjects, setSelectedClientProjects] = useState<ProjectListItem[]>([]);
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
   const [viewClientOpen, setViewClientOpen] = useState(false);
 
@@ -123,9 +155,35 @@ function AdminClients() {
     setProjectForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateProjectStageField(stage: ProjectStageKey, field: keyof ProjectStageFormState, value: string) {
+    setProjectForm((current) => ({
+      ...current,
+      [stage]: {
+        ...current[stage],
+        [field]: value,
+      },
+    }));
+  }
+
+  async function loadProjectsForClient(client: ClientRecord) {
+    setIsLoadingClientProjects(true);
+
+    try {
+      const projects = await getProjectsForClient(client.id);
+      setSelectedClientProjects(projects);
+    } catch (error) {
+      setSelectedClientProjects([]);
+      setFeedback(error instanceof Error ? error.message : "Unable to load projects for this client.");
+    } finally {
+      setIsLoadingClientProjects(false);
+    }
+  }
+
   function openClientDetails(client: ClientRecord) {
     setSelectedClient(client);
+    setSelectedClientProjects([]);
     setViewClientOpen(true);
+    void loadProjectsForClient(client);
   }
 
   function openCreateProject(client: ClientRecord) {
@@ -139,6 +197,43 @@ function AdminClients() {
     setReassignStaffId(client.accountPartnerId || "");
     setReassignOpen(true);
   }
+
+  function numberValue(value: string) {
+    return Number(value) || 0;
+  }
+
+  function stageInput(stage: ProjectStageKey): ProjectStageInput {
+    return {
+      hoursBudgeted: numberValue(projectForm[stage].hoursBudgeted),
+      hoursSpent: numberValue(projectForm[stage].hoursSpent),
+      startDate: projectForm[stage].startDate || projectForm.startDate,
+    };
+  }
+
+  function stageProgressValue(stage: ProjectStageKey) {
+    return calculateStageProgress(
+      numberValue(projectForm[stage].hoursBudgeted),
+      numberValue(projectForm[stage].hoursSpent),
+    );
+  }
+
+  const fabricationProgress = calculateFabricationProgress({
+    buildAssemble: {
+      hoursBudgeted: numberValue(projectForm.buildAssemble.hoursBudgeted),
+      hoursSpent: numberValue(projectForm.buildAssemble.hoursSpent),
+      progress: stageProgressValue("buildAssemble"),
+    },
+    finishing: {
+      hoursBudgeted: numberValue(projectForm.finishing.hoursBudgeted),
+      hoursSpent: numberValue(projectForm.finishing.hoursSpent),
+      progress: stageProgressValue("finishing"),
+    },
+    mil: {
+      hoursBudgeted: numberValue(projectForm.mil.hoursBudgeted),
+      hoursSpent: numberValue(projectForm.mil.hoursSpent),
+      progress: stageProgressValue("mil"),
+    },
+  });
 
   function actionMenu(client: ClientRecord): MenuProps {
     return {
@@ -161,6 +256,17 @@ function AdminClients() {
         openCreateProject(client);
       },
     };
+  }
+
+  function handleCreateQuote(project: ProjectListItem) {
+    message.info(`Quote creation for ${project.title} will be connected when the quote endpoint is available.`);
+  }
+
+  function handleProjectSaved(project: ProjectListItem) {
+    setSelectedClientProjects((current) =>
+      current.map((item) => (item.id === project.id ? project : item)),
+    );
+    setSelectedProject((current) => (current?.id === project.id ? project : current));
   }
 
   function staffName(staffId?: string) {
@@ -199,6 +305,8 @@ function AdminClients() {
       return;
     }
 
+    const toast = showRequestToast("create-client", "Creating client...");
+
     try {
       setIsSaving(true);
       const response = await createClient({
@@ -218,10 +326,12 @@ function AdminClients() {
       setForm(initialForm);
       setPage(1);
       setFeedback(`${response.name || name} was added.`);
+      toast.success(`${response.name || name} was added.`);
     } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : "Unable to add client.",
-      );
+      const message = error instanceof Error ? error.message : "Unable to add client.";
+
+      setFeedback(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -252,38 +362,65 @@ function AdminClients() {
     }
   }
 
-  function handleCreateProject() {
+  async function handleCreateProject() {
     if (!selectedClient) {
       return;
     }
 
     const projectName = projectForm.name.trim();
+    const description = projectForm.description.trim();
+    const location = projectForm.location.trim();
 
-    if (!projectName) {
-      setFeedback("Project name is required.");
+    if (!projectName || !description || !location || !projectForm.startDate || !projectForm.endDate) {
+      setFeedback("Project name, description, location, start date, and end date are required.");
       return;
     }
 
-    const project: BackOfficeProject = saveBackOfficeProject({
-      clientEmail: selectedClient.email,
-      clientId: selectedClient.id,
-      clientName: selectedClient.name,
-      createdAt: new Date().toISOString(),
-      description: projectForm.description.trim(),
-      estimatedCompletion: projectForm.estimatedCompletion,
-      id: `project-${crypto.randomUUID()}`,
-      location: projectForm.location.trim(),
-      name: projectName,
-      startDate: projectForm.startDate,
-      status: projectForm.status,
-    });
+    const missingStageBudget = projectStageFields.some(
+      ({ key }) => !numberValue(projectForm[key].hoursBudgeted),
+    );
 
-    setCreateProjectOpen(false);
-    setProjectForm(initialProjectForm);
-    setFeedback(`${project.name} was created for ${selectedClient.name}.`);
+    if (missingStageBudget) {
+      setFeedback("Budgeted hours are required for every project stage.");
+      return;
+    }
+
+    const toast = showRequestToast("create-project", "Creating project...");
+
+    try {
+      setIsCreatingProject(true);
+      const project = await createProject({
+        buildAssemble: stageInput("buildAssemble"),
+        clientId: selectedClient.id,
+        delivery: stageInput("delivery"),
+        description,
+        endDate: projectForm.endDate,
+        finishing: stageInput("finishing"),
+        install: stageInput("install"),
+        location,
+        mil: stageInput("mil"),
+        name: projectName,
+        startDate: projectForm.startDate,
+        status: projectForm.status,
+      });
+
+      setSelectedClientProjects((current) => [
+        project,
+        ...current.filter((item) => item.id !== project.id),
+      ]);
+      setCreateProjectOpen(false);
+      setProjectForm(initialProjectForm);
+      setFeedback(`${project.title || projectName} was created for ${selectedClient.name}.`);
+      toast.success(`${project.title || projectName} was created for ${selectedClient.name}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create project.";
+
+      setFeedback(message);
+      toast.error(message);
+    } finally {
+      setIsCreatingProject(false);
+    }
   }
-
-  const selectedClientProjects = clientProjects(selectedClient?.id);
 
   return (
     <div className="page-stack admin-page">
@@ -486,8 +623,9 @@ function AdminClients() {
         footer={null}
         onCancel={() => setViewClientOpen(false)}
         open={viewClientOpen}
+        style={{ maxWidth: "calc(100vw - 32px)" }}
         title={selectedClient?.name || "Client details"}
-        width={860}
+        width={1320}
       >
         {selectedClient ? (
           <Tabs
@@ -535,18 +673,16 @@ function AdminClients() {
               {
                 key: "projects",
                 label: "Projects",
-                children: selectedClientProjects.length ? (
-                  <div className="admin-modal-list">
-                    {selectedClientProjects.map((project) => (
-                      <article key={project.id}>
-                        <div>
-                          <strong>{project.name}</strong>
-                          <span>{project.location || "No location"}</span>
-                        </div>
-                        <StatusBadge tone="neutral">{project.status}</StatusBadge>
-                      </article>
-                    ))}
-                  </div>
+                children: isLoadingClientProjects ? (
+                  <p className="admin-empty-copy">Loading projects...</p>
+                ) : selectedClientProjects.length ? (
+                  <AdminProjectTable
+                    emptyMessage="No projects have been attached to this client yet."
+                    onCreateQuote={handleCreateQuote}
+                    onEdit={setEditingProject}
+                    onView={setSelectedProject}
+                    projects={selectedClientProjects}
+                  />
                 ) : (
                   <p className="admin-empty-copy">
                     No projects have been attached to this client yet.
@@ -559,6 +695,7 @@ function AdminClients() {
       </Modal>
 
       <Modal
+        okButtonProps={{ loading: isCreatingProject }}
         okText="Create project"
         onCancel={() => setCreateProjectOpen(false)}
         onOk={handleCreateProject}
@@ -587,8 +724,6 @@ function AdminClients() {
               >
                 <option>Pending</option>
                 <option>In Progress</option>
-                <option>In Design</option>
-                <option>In Fabrication</option>
                 <option>Completed</option>
               </select>
             </div>
@@ -617,11 +752,65 @@ function AdminClients() {
               <label htmlFor="projectCompletion">Estimated completion</label>
               <input
                 id="projectCompletion"
-                onChange={(event) => updateProjectField("estimatedCompletion", event.target.value)}
+                onChange={(event) => updateProjectField("endDate", event.target.value)}
                 type="date"
-                value={projectForm.estimatedCompletion}
+                value={projectForm.endDate}
               />
             </div>
+          </div>
+          <div className="admin-stage-summary">
+            <span>Fabrication</span>
+            <strong>{fabricationProgress}%</strong>
+          </div>
+          <div className="admin-stage-grid">
+            {projectStageFields.map((stage) => (
+              <fieldset key={stage.key}>
+                <legend>{stage.label}</legend>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor={`${stage.key}Budgeted`}>Hours budgeted</label>
+                    <input
+                      id={`${stage.key}Budgeted`}
+                      min="0"
+                      onChange={(event) =>
+                        updateProjectStageField(stage.key, "hoursBudgeted", event.target.value)
+                      }
+                      type="number"
+                      value={projectForm[stage.key].hoursBudgeted}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor={`${stage.key}Spent`}>Hours spent</label>
+                    <input
+                      id={`${stage.key}Spent`}
+                      min="0"
+                      onChange={(event) =>
+                        updateProjectStageField(stage.key, "hoursSpent", event.target.value)
+                      }
+                      type="number"
+                      value={projectForm[stage.key].hoursSpent}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor={`${stage.key}Start`}>Stage start</label>
+                    <input
+                      id={`${stage.key}Start`}
+                      onChange={(event) =>
+                        updateProjectStageField(stage.key, "startDate", event.target.value)
+                      }
+                      type="date"
+                      value={projectForm[stage.key].startDate}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Progress</label>
+                    <input readOnly type="text" value={`${stageProgressValue(stage.key)}%`} />
+                  </div>
+                </div>
+              </fieldset>
+            ))}
           </div>
           <div className="form-group">
             <label htmlFor="projectDescription">Description</label>
@@ -662,6 +851,18 @@ function AdminClients() {
           </div>
         </div>
       </Modal>
+
+      <AdminProjectDetailModal
+        onClose={() => setSelectedProject(null)}
+        open={Boolean(selectedProject)}
+        project={selectedProject}
+      />
+      <AdminProjectStatusModal
+        onClose={() => setEditingProject(null)}
+        onSaved={handleProjectSaved}
+        open={Boolean(editingProject)}
+        project={editingProject}
+      />
     </div>
   );
 }

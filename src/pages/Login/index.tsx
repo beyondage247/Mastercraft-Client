@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { savePortalSession } from "../../auth/session";
 import { PortalIcon } from "../../components/PortalIcon";
 import { loginPortalUser } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 function Login() {
   const navigate = useNavigate();
@@ -15,26 +16,33 @@ function Login() {
     event.preventDefault();
     setFeedback("");
     setLoading(true);
+    const toast = showRequestToast("login", "Signing in...");
 
     try {
       const payload = await loginPortalUser(email.trim(), password);
 
       if (!payload) {
         setFeedback("Unable to start your session.");
+        toast.error("Unable to start your session.");
         return;
       }
 
       savePortalSession(payload.token, payload.user);
+      toast.success("Signed in successfully.");
       navigate(payload.user.role === "admin" || payload.user.role === "staff" ? "/admin/clients" : "/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.toLowerCase().includes("failed to fetch")) {
-        setFeedback("Cannot reach the portal API. Please check that the local dev server proxy is running.");
+        const feedbackMessage = "Cannot reach the portal API. Please check that the local dev server proxy is running.";
+
+        setFeedback(feedbackMessage);
+        toast.error(feedbackMessage);
         return;
       }
 
       setFeedback("Invalid email or password.");
+      toast.error("Invalid email or password.");
     } finally {
       setLoading(false);
     }
