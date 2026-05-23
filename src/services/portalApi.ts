@@ -71,14 +71,13 @@ export type ClientRecord = {
 
 export type ClientInviteInput = {
   additionalEmail?: string;
-  additionalPhone?: string;
-  assignmentId?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT";
   company?: string;
   contactName?: string;
   email: string;
   name: string;
   phone?: string;
+  staffId?: string;
 };
 
 export type DashboardResponse = {
@@ -886,12 +885,12 @@ export async function createClient(input: ClientInviteInput) {
     body: JSON.stringify({
       additionalContact: input.contactName || "",
       additionalEmail: input.additionalEmail || "",
-      assignmentId: input.assignmentId || "",
       clientCredit: input.clientCredit || "COD",
       company: input.company || "",
       email: input.email,
       name: input.name,
       phone: input.phone || "",
+      staffId: input.staffId || "",
     }),
     method: "POST",
   }, true);

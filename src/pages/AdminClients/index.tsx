@@ -203,13 +203,13 @@ function AdminClients() {
       setIsSaving(true);
       const response = await createClient({
         additionalEmail,
-        assignmentId: form.assignmentId || currentUser?.clientItemId,
         clientCredit: form.clientCredit,
         company,
         contactName,
         email,
         name,
         phone,
+        staffId: form.assignmentId || currentUser?.clientItemId,
       });
       setClientList((current) => [
         response,
