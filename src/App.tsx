@@ -17,8 +17,10 @@ import AdminClients from './pages/AdminClients';
 import AdminInvoices from './pages/AdminInvoices';
 import AdminPayments from './pages/AdminPayments';
 import AdminProjects from './pages/AdminProjects';
+import AdminProductsServices from './pages/AdminProductsServices';
 import AdminQuotes from './pages/AdminQuotes';
 import AdminStaff from './pages/AdminStaff';
+import AdminWeeklyReports from './pages/AdminWeeklyReports';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 
@@ -78,9 +80,11 @@ const router = createBrowserRouter([
     children: [
       { path: 'clients', element: <AdminClients /> },
       { path: 'projects', element: <AdminProjects /> },
+      { path: 'products-services', element: <AdminProductsServices /> },
       { path: 'quotes', element: <AdminQuotes /> },
       { path: 'invoices', element: <AdminInvoices /> },
       { path: 'payments', element: <AdminPayments /> },
+      { path: 'reports', element: <AdminWeeklyReports /> },
       { path: 'staff', element: <RequireAdminPage><AdminStaff /></RequireAdminPage> },
       { path: '*', element: <Navigate to="/admin/clients" replace /> },
     ],

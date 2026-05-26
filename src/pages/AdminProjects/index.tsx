@@ -1,6 +1,7 @@
-import { message } from "antd";
 import { useEffect, useState } from "react";
+import AdminPaymentModal from "../../components/AdminPaymentModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
 import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
@@ -13,6 +14,8 @@ function AdminProjects() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [paymentProject, setPaymentProject] = useState<ProjectListItem | null>(null);
+  const [quoteProject, setQuoteProject] = useState<ProjectListItem | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -42,7 +45,7 @@ function AdminProjects() {
   }, []);
 
   function handleCreateQuote(project: ProjectListItem) {
-    message.info(`Quote creation for ${project.title} will be connected when the quote endpoint is available.`);
+    setQuoteProject(project);
   }
 
   function handleProjectSaved(project: ProjectListItem) {
@@ -69,6 +72,7 @@ function AdminProjects() {
           isLoading={isLoading}
           onCreateQuote={handleCreateQuote}
           onEdit={setEditingProject}
+          onRecordPayment={setPaymentProject}
           onView={setActiveProject}
           projects={projects}
         />
@@ -84,6 +88,19 @@ function AdminProjects() {
         onSaved={handleProjectSaved}
         open={Boolean(editingProject)}
         project={editingProject}
+      />
+      <AdminQuoteModal
+        onClose={() => setQuoteProject(null)}
+        onCreated={() => {
+          getProjects().then((data) => setProjects(data.projects)).catch(() => undefined);
+        }}
+        open={Boolean(quoteProject)}
+        project={quoteProject}
+      />
+      <AdminPaymentModal
+        onClose={() => setPaymentProject(null)}
+        open={Boolean(paymentProject)}
+        project={paymentProject}
       />
     </div>
   );

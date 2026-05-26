@@ -138,6 +138,7 @@ export function saveBackOfficeClient(client: ClientRecord) {
     ...clients.filter((currentClient) => currentClient.id !== client.id),
   ];
 
+
   writeCollection(clientsKey, nextClients);
 
   return client;

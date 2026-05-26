@@ -114,6 +114,46 @@ type PortalMessageResponse = {
   message: string;
 };
 
+export type CatalogAvailabilityStatus = "EMAIL_FOR_QUOTE" | "IN_STOCK" | "SPECIAL_ORDER";
+
+export type CatalogItem = {
+  active: boolean;
+  availabilityStatus: CatalogAvailabilityStatus[];
+  category: string;
+  createdAt?: string;
+  id: string;
+  itemCode?: string;
+  lastPriceUpdate?: string;
+  markUp?: string;
+  ourPrice?: string;
+  productName: string;
+  sizeDimension?: string;
+  styleProfile?: string;
+  subcategory?: string;
+  supplier: string;
+  supplierCatalogue?: string;
+  supplierCost?: string;
+  unitMeasure?: string;
+  updatedAt?: string;
+};
+
+export type UpdateCatalogItemInput = Partial<Omit<CatalogItem, "createdAt" | "id" | "updatedAt">>;
+
+export type CatalogImportIssue = {
+  reason: string;
+  row: number;
+};
+
+export type CatalogImportResponse = {
+  errorCount: number;
+  errors: CatalogImportIssue[];
+  importedCount: number;
+  message: string;
+  processedCount: number;
+  skippedCount: number;
+  skippedRows: CatalogImportIssue[];
+};
+
 type VerifyPasswordResetOtpResponse = PortalMessageResponse & {
   resetToken: string;
 };
@@ -211,14 +251,59 @@ type BackendUpdateProjectResponse = {
 
 type BackendQuoteResponse = {
   amount?: string | number;
+  clientComment?: unknown;
   description?: string;
+  dateIssued?: string | null;
   id: string;
+  lineItems?: Array<{
+    id: string;
+    ourPrice?: string | number | null;
+    productName?: string;
+    quantity?: number;
+    lineTotal?: string | number | null;
+    serviceId?: string;
+  }>;
   name?: string;
+  project?: {
+    clientId?: string;
+    id?: string;
+    name?: string;
+    status?: string;
+  };
+  quoteId?: string;
   status?: string;
   title?: string;
+  subtotal?: string | number;
+  tax?: string | number;
+  taxAmount?: string | number;
   total?: string | number;
   uid?: string;
   validUntil?: string | null;
+};
+
+export type CreateQuoteInput = {
+  dateIssued: string;
+  lineItems: Array<{
+    quantity: number;
+    serviceId: string;
+  }>;
+  name: string;
+  projectId: string;
+  quoteId: string;
+  subtotal: number;
+  tax: number;
+  taxAmount: number;
+  total: number;
+  validUntil: string;
+};
+
+export type UpdateQuoteInput = Partial<Omit<CreateQuoteInput, "projectId">>;
+
+export type QuoteDecisionStatus = "APPROVED" | "REJECTED" | "IN_REVIEW";
+
+type BackendCreateQuoteResponse = {
+  message: string;
+  quote: BackendQuoteResponse;
 };
 
 type BackendDocumentResponse = {
@@ -243,12 +328,60 @@ type BackendInvoiceResponse = {
 
 type BackendPaymentResponse = {
   amount?: string | number;
+  createdAt?: string | null;
   date?: string | null;
   id: string;
   invoice?: string | { id?: string };
   method?: string;
-  project?: string | { name?: string; title?: string };
+  project?: string | {
+    client?: { id?: string; name?: string };
+    clientId?: string;
+    clientName?: string;
+    id?: string;
+    name?: string;
+    title?: string;
+  };
+  projectId?: string;
   reference?: string;
+};
+
+export type PaymentMethodInput = "ACH" | "WIRE" | "CREDIT_CARD" | "CHECK";
+
+export type CreatePaymentInput = {
+  amount: number;
+  createdAt: string;
+  method: PaymentMethodInput;
+  projectId: string;
+  reference?: string;
+};
+
+export type ProjectPaymentSummary = {
+  amountDue: string;
+  amountPaid: string;
+  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  payments: PaymentItem[];
+  projectId: string;
+};
+
+type BackendProjectPaymentsResponse = {
+  amountDue: string;
+  amountPaid: string;
+  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  payments: BackendPaymentResponse[];
+  projectId: string;
+};
+
+type BackendCreatePaymentResponse = {
+  amountDue: string;
+  amountPaid: string;
+  message: string;
+  payment: BackendPaymentResponse;
+  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+};
+
+type BackendClientPaymentsResponse = {
+  amountPaid: string;
+  payments: BackendPaymentResponse[];
 };
 
 export type StaffRecord = {
@@ -412,7 +545,11 @@ async function portalRequest<T>(
   tokenOverride?: string,
 ) {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+
+  if (!isFormData) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (authenticated) {
     const token = tokenOverride ?? getPortalToken();
@@ -529,6 +666,18 @@ function amountNumber(amount: string) {
 function normalizeProjectStatus(status: string) {
   const normalized = status.trim().toLowerCase();
 
+  if (normalized.includes("quoted")) {
+    return "Quoted";
+  }
+
+  if (normalized.includes("lost")) {
+    return "Lost";
+  }
+
+  if (normalized.includes("production")) {
+    return "In Production";
+  }
+
   if (normalized.includes("complete")) {
     return "Completed";
   }
@@ -637,7 +786,7 @@ function projectProgress(
     return 100;
   }
 
-  if (status === "In Fabrication") {
+  if (status === "In Fabrication" || status === "In Production") {
     return 70;
   }
 
@@ -687,8 +836,8 @@ function projectFabrication(project: BackendProjectResponse, stages: ProjectStag
 
 function projectTone(status: ProjectListItem["status"]) {
   if (status === "Completed") return "success";
-  if (status === "In Design") return "info";
-  if (status === "In Progress") return "warning";
+  if (status === "In Design" || status === "Quoted") return "info";
+  if (status === "In Progress" || status === "In Fabrication" || status === "In Production") return "warning";
   return "danger";
 }
 
@@ -725,10 +874,36 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
 
 function moneyText(value: unknown, fallback = "$ 0.00") {
   if (typeof value === "number") {
-    return `$${value.toLocaleString()}`;
+    return formatMoney(value);
   }
 
-  return normalizeString(value) || fallback;
+  const text = normalizeString(value);
+  const numeric = numberFromDecimal(value);
+
+  if (text && text.startsWith("$")) {
+    return text;
+  }
+
+  return text ? formatMoney(numeric) : fallback;
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    style: "currency",
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
+function numberFromDecimal(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    return Number(value.replace(/[^0-9.-]/g, "")) || 0;
+  }
+
+  return 0;
 }
 
 function projectName(value: unknown, fallback = "") {
@@ -746,14 +921,37 @@ function projectName(value: unknown, fallback = "") {
 }
 
 function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
+  const validUntil = formatProjectDate(quote.validUntil);
+  const lineItems = (quote.lineItems ?? []).map((item) => {
+    const rate = moneyText(item.ourPrice);
+    const quantity = Number(item.quantity) || 1;
+    const lineTotal = numberFromDecimal(item.lineTotal) || numberFromDecimal(item.ourPrice) * quantity;
+
+    return {
+      amount: moneyText(lineTotal),
+      description: item.productName || "Line item",
+      qty: quantity,
+      rate,
+    };
+  });
+
   return {
     amount: moneyText(quote.amount ?? quote.total),
-    description: quote.description || "",
+    clientComment: normalizeString(quote.clientComment),
+    dateIssued: formatProjectDate(quote.dateIssued),
+    description: quote.description || projectName(quote.project, ""),
     id: quote.id,
-    status: normalizeQuoteStatus(quote.status || "Draft"),
-    title: quote.title || quote.name || "Untitled quote",
-    uid: quote.uid || quote.id,
-    validUntil: formatProjectDate(quote.validUntil),
+    lineItems,
+    projectId: quote.project?.id,
+    projectName: quote.project?.name,
+    status: normalizeQuoteStatus(quote.status || "PENDING", quote.validUntil),
+    subtotal: moneyText(quote.subtotal),
+    tax: normalizeString(quote.tax),
+    taxAmount: moneyText(quote.taxAmount),
+    title: quote.title || quote.name || quote.quoteId || "Untitled quote",
+    total: moneyText(quote.total),
+    uid: quote.uid || quote.quoteId || quote.id,
+    validUntil,
   };
 }
 
@@ -781,7 +979,7 @@ function mapBackendInvoice(invoice: BackendInvoiceResponse): InvoiceItem {
 function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   return {
     amount: moneyText(payment.amount),
-    date: formatProjectDate(payment.date),
+    date: formatProjectDate(payment.date ?? payment.createdAt),
     id: payment.id,
     invoice: projectName(payment.invoice, payment.id),
     method: normalizePaymentMethod(payment.method || "ACH"),
@@ -790,8 +988,38 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   };
 }
 
-function normalizeQuoteStatus(status: string) {
-  if (["Draft", "Sent", "Accepted", "Expired", "Rejected"].includes(status)) {
+function normalizeQuoteStatus(status: string, validUntil?: string | null) {
+  if (validUntil) {
+    const expiry = new Date(validUntil);
+
+    if (!Number.isNaN(expiry.getTime()) && expiry.getTime() < Date.now()) {
+      return "Expired";
+    }
+  }
+
+  const normalized = status.trim().toUpperCase();
+
+  if (normalized === "APPROVED") {
+    return "Approved";
+  }
+
+  if (normalized === "REJECTED") {
+    return "Rejected";
+  }
+
+  if (normalized === "EXPIRED") {
+    return "Expired";
+  }
+
+  if (normalized === "PENDING") {
+    return "Sent";
+  }
+
+  if (normalized === "IN_REVIEW") {
+    return "Draft";
+  }
+
+  if (["Draft", "Sent", "Approved", "Expired", "Rejected"].includes(status)) {
     return status as QuoteListItem["status"];
   }
 
@@ -822,6 +1050,14 @@ function normalizePaymentMethod(method: string) {
   return "ACH";
 }
 
+function toBackendPaymentMethod(method: PaymentItem["method"]): PaymentMethodInput {
+  if (method === "Wire") return "WIRE";
+  if (method === "Credit Card") return "CREDIT_CARD";
+  if (method === "Check") return "CHECK";
+
+  return "ACH";
+}
+
 function normalizeDocumentType(type: string) {
   if (["Shop drawing", "CAD File", "Spec Sheet", "Photo"].includes(type)) {
     return type as DocumentItem["type"];
@@ -838,18 +1074,18 @@ function normalizeDocumentType(type: string) {
 
 function buildProjectMetrics(projectList: ProjectListItem[]) {
   return [
-    { icon: "projects", label: "Team Projects", tone: "danger", value: `${projectList.length}` },
+    { icon: "projects", label: "Quoted", tone: "danger", value: `${projectList.filter((project) => project.status === "Quoted").length}` },
     {
       icon: "projects",
-      label: "In Progress",
+      label: "Lost",
       tone: "danger",
-      value: `${projectList.filter((project) => ["In Progress", "In Design", "In Fabrication"].includes(project.status)).length}`,
+      value: `${projectList.filter((project) => project.status === "Lost").length}`,
     },
     {
       icon: "projects",
-      label: "Pending Start",
+      label: "In Production",
       tone: "danger",
-      value: `${projectList.filter((project) => project.status === "Pending").length}`,
+      value: `${projectList.filter((project) => project.status === "In Production").length}`,
     },
     {
       icon: "projects",
@@ -881,9 +1117,9 @@ function buildQuoteMetrics(quoteList: QuoteListItem[]) {
     },
     {
       icon: "check",
-      label: "Accepted",
+      label: "Approved",
       tone: "danger",
-      value: `${quoteList.filter((quote) => quote.status === "Accepted").length}`,
+      value: `${quoteList.filter((quote) => quote.status === "Approved").length}`,
     },
     { icon: "documents", label: "Total Quotes", tone: "danger", value: `${quoteList.length}` },
   ] as Metric[];
@@ -894,8 +1130,8 @@ function toBackendProjectStatus(status?: ProjectListItem["status"]) {
     return "COMPLETED";
   }
 
-  if (status === "In Progress" || status === "In Design" || status === "In Fabrication") {
-    return "IN_PROGRESS";
+  if (status === "In Progress" || status === "In Design" || status === "In Fabrication" || status === "In Production") {
+    return "IN_PRODUCTION";
   }
 
   return "PENDING";
@@ -1022,6 +1258,71 @@ export async function updateProjectStatus(projectId: string, input: UpdateProjec
   return mapBackendProject(response.project);
 }
 
+export async function getCatalogItems() {
+  return portalRequest<CatalogItem[]>("/services", {}, true);
+}
+
+export async function updateCatalogItem(id: string, input: UpdateCatalogItemInput) {
+  const response = await portalRequest<{ item: CatalogItem; message: string }>(
+    `/services/${encodeURIComponent(id)}`,
+    {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    },
+    true,
+  );
+
+  return response;
+}
+
+export async function importCatalogItems(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return portalRequest<CatalogImportResponse>("/services/import", {
+    body,
+    method: "POST",
+  }, true);
+}
+
+export async function createQuote(input: CreateQuoteInput) {
+  const response = await portalRequest<BackendCreateQuoteResponse>("/quotes", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
+
+  return mapBackendQuote(response.quote);
+}
+
+export async function updateQuote(id: string, input: UpdateQuoteInput) {
+  const response = await portalRequest<BackendCreateQuoteResponse>(
+    `/quotes/${encodeURIComponent(id)}`,
+    {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    },
+    true,
+  );
+
+  return mapBackendQuote(response.quote);
+}
+
+export async function respondToQuote(id: string, status: QuoteDecisionStatus, comment?: string) {
+  const response = await portalRequest<BackendCreateQuoteResponse>(
+    `/quotes/${encodeURIComponent(id)}/respond`,
+    {
+      body: JSON.stringify({
+        comment: comment || "",
+        status,
+      }),
+      method: "PATCH",
+    },
+    true,
+  );
+
+  return mapBackendQuote(response.quote);
+}
+
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
     const mappedQuotes = (await portalRequest<BackendQuoteResponse[]>("/quotes", {}, true)).map(mapBackendQuote);
@@ -1036,6 +1337,12 @@ export async function getQuotes(): Promise<QuoteResponse> {
       quotes,
     };
   }
+}
+
+export async function getQuotesForProject(projectId: string) {
+  const data = await getQuotes();
+
+  return data.quotes.filter((quote) => quote.projectId === projectId);
 }
 
 export async function getDashboard(): Promise<DashboardResponse> {
@@ -1075,10 +1382,8 @@ export async function getDashboard(): Promise<DashboardResponse> {
   };
 }
 
-export async function acceptQuote(uid: string): Promise<void> {
-  await portalRequest(`/quotes/${encodeURIComponent(uid)}/accept`, {
-    method: "POST",
-  }, true);
+export async function acceptQuote(uid: string, comment = ""): Promise<QuoteListItem> {
+  return respondToQuote(uid, "APPROVED", comment);
 }
 
 export async function getDocuments(): Promise<DocumentResponse> {
@@ -1121,7 +1426,16 @@ export async function getInvoices(): Promise<InvoiceResponse> {
 
 export async function getPayments(): Promise<PaymentResponse> {
   try {
-    const mappedPayments = (await portalRequest<BackendPaymentResponse[]>("/payments", {}, true)).map(mapBackendPayment);
+    const currentUser = getCurrentPortalUser();
+    const paymentSource =
+      currentUser?.role === "client" && currentUser.clientItemId
+        ? (await portalRequest<BackendClientPaymentsResponse>(
+            `/payments/client/${encodeURIComponent(currentUser.clientItemId)}`,
+            {},
+            true,
+          )).payments
+        : await portalRequest<BackendPaymentResponse[]>("/payments", {}, true);
+    const mappedPayments = paymentSource.map(mapBackendPayment);
     const total = mappedPayments.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
 
     return {
@@ -1139,6 +1453,41 @@ export async function getPayments(): Promise<PaymentResponse> {
     };
   }
 }
+
+export async function getProjectPayments(projectId: string): Promise<ProjectPaymentSummary> {
+  const response = await portalRequest<BackendProjectPaymentsResponse>(
+    `/payments/project/${encodeURIComponent(projectId)}`,
+    {},
+    true,
+  );
+
+  return {
+    amountDue: moneyText(response.amountDue),
+    amountPaid: moneyText(response.amountPaid),
+    paymentStatus: response.paymentStatus,
+    payments: response.payments.map(mapBackendPayment),
+    projectId: response.projectId,
+  };
+}
+
+export async function createPayment(input: CreatePaymentInput): Promise<ProjectPaymentSummary> {
+  const response = await portalRequest<BackendCreatePaymentResponse>("/payments", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
+
+  const summary = await getProjectPayments(input.projectId).catch(() => ({
+    amountDue: moneyText(response.amountDue),
+    amountPaid: moneyText(response.amountPaid),
+    paymentStatus: response.paymentStatus,
+    payments: [mapBackendPayment(response.payment)],
+    projectId: input.projectId,
+  }));
+
+  return summary;
+}
+
+export { toBackendPaymentMethod };
 
 export async function getClients(): Promise<ClientRecord[]> {
   const data = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
@@ -1237,8 +1586,33 @@ export async function getProjectDetail(id: string): Promise<{ project: ProjectLi
 }
 
 export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem | undefined, details: QuoteDetailInfo | undefined }> {
-  const quote = quotes.find((q) => q.id === id || q.uid === id);
-  const details = quoteDetails[id] || quoteDetails["quote-0892"];
+  let quote: QuoteListItem | undefined;
+
+  try {
+    quote = mapBackendQuote(
+      await portalRequest<BackendQuoteResponse>(`/quotes/${encodeURIComponent(id)}`, {}, true),
+    );
+  } catch {
+    const quoteData = await getQuotes().catch(() => ({ metrics: quoteMetrics, quotes }));
+    quote = quoteData.quotes.find((q) => q.id === id || q.uid === id);
+  }
+
+  const details = quote
+    ? {
+        lineItems: quote.lineItems?.length ? quote.lineItems : quoteDetails[id]?.lineItems ?? [],
+        linkedProject: {
+          category: "Project",
+          estCompletion: "",
+          id: quote.projectId || "",
+          location: "",
+          title: quote.projectName || quote.description || "Linked project",
+        },
+        specifications: quote.description || "Quote created for this project.",
+        subtotal: quote.subtotal || "$0.00",
+        tax: quote.taxAmount || "$0.00",
+        total: quote.total || quote.amount,
+      }
+    : quoteDetails[id] || quoteDetails["quote-0892"];
 
   return { quote, details };
 }

@@ -4,7 +4,7 @@ import { PortalIcon } from './PortalIcon';
 import StatusBadge from './StatusBadge';
 
 const quoteStatusTone = {
-  Accepted: 'info',
+  Approved: 'info',
   Draft: 'neutral',
   Expired: 'warning',
   Rejected: 'neutral',
@@ -12,12 +12,13 @@ const quoteStatusTone = {
 } as const;
 
 type QuoteCardProps = {
-  onAccept: (quoteId: string) => void;
+  onRespond: (quote: QuoteListItem, status: "APPROVED" | "REJECTED" | "IN_REVIEW") => void;
   quote: QuoteListItem;
 };
 
-function QuoteCard({ onAccept, quote }: QuoteCardProps) {
+function QuoteCard({ onRespond, quote }: QuoteCardProps) {
   const navigate = useNavigate();
+  const canRespond = quote.status === "Sent" || quote.status === "Draft";
 
   return (
     <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
@@ -42,9 +43,19 @@ function QuoteCard({ onAccept, quote }: QuoteCardProps) {
         </div>
       </div>
       <div className="quote-card__actions">
-        <button className="accept-button" onClick={(e) => { e.stopPropagation(); onAccept(quote.uid); }} type="button">
-          Accept
-        </button>
+        {canRespond ? (
+          <>
+            <button className="accept-button" onClick={(e) => { e.stopPropagation(); onRespond(quote, "APPROVED"); }} type="button">
+              Approve
+            </button>
+            <button className="request-revision-btn quote-card__small-action" onClick={(e) => { e.stopPropagation(); onRespond(quote, "IN_REVIEW"); }} type="button">
+              Review
+            </button>
+            <button className="secondary-action-btn quote-card__small-action" onClick={(e) => { e.stopPropagation(); onRespond(quote, "REJECTED"); }} type="button">
+              Reject
+            </button>
+          </>
+        ) : null}
         <button className="record-card__arrow" type="button" aria-label={`Open ${quote.title}`}>
           <PortalIcon name="right" />
         </button>

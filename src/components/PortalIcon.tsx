@@ -5,6 +5,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CreditCardOutlined,
+  DeleteOutlined,
   DownOutlined,
   DownloadOutlined,
   DollarOutlined,
@@ -22,6 +23,7 @@ import {
   RightOutlined,
   SearchOutlined,
   ToolOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 
 const icons = {
@@ -29,6 +31,7 @@ const icons = {
   calendar: CalendarOutlined,
   check: CheckCircleOutlined,
   clock: ClockCircleOutlined,
+  delete: DeleteOutlined,
   documents: FileTextOutlined,
   down: DownOutlined,
   download: DownloadOutlined,
@@ -49,6 +52,7 @@ const icons = {
   right: RightOutlined,
   search: SearchOutlined,
   tool: ToolOutlined,
+  upload: UploadOutlined,
 } as const;
 
 export type PortalIconName = keyof typeof icons;

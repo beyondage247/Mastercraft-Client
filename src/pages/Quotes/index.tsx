@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Modal } from "antd";
 import FilterToolbar from "../../components/FilterToolbar";
 import PageHeader from "../../components/PageHeader";
 import QuoteCard from "../../components/QuoteCard";
@@ -9,7 +10,8 @@ import {
   quotes as quoteSeed,
 } from "../../data/portal";
 import type { QuoteFilter, QuoteListItem } from "../../data/portal";
-import { acceptQuote, getQuotes } from "../../services/portalApi";
+import { getQuotes, respondToQuote, type QuoteDecisionStatus } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 function matchesQuoteFilter(quote: QuoteListItem, filter: QuoteFilter) {
   return filter === "All" || quote.status === filter;
@@ -18,6 +20,10 @@ function matchesQuoteFilter(quote: QuoteListItem, filter: QuoteFilter) {
 function Quotes() {
   const [activeFilter, setActiveFilter] = useState<QuoteFilter>("All");
   const [metrics, setMetrics] = useState(quoteMetrics);
+  const [comment, setComment] = useState("");
+  const [respondingQuote, setRespondingQuote] = useState<QuoteListItem | null>(null);
+  const [responseStatus, setResponseStatus] = useState<QuoteDecisionStatus>("APPROVED");
+  const [isResponding, setIsResponding] = useState(false);
   const [search, setSearch] = useState("");
   const [quotes, setQuotes] = useState<QuoteListItem[]>(quoteSeed);
 
@@ -51,19 +57,38 @@ function Quotes() {
     });
   }, [activeFilter, quotes, search]);
 
-  async function handleAccept(uid: string) {
-    const previousQuotes = quotes;
+  function openResponseModal(quote: QuoteListItem, status: QuoteDecisionStatus) {
+    setRespondingQuote(quote);
+    setResponseStatus(status);
+    setComment("");
+  }
 
-    setQuotes((currentQuotes) =>
-      currentQuotes.map((quote) =>
-        quote.uid === uid ? { ...quote, status: "Accepted" } : quote,
-      ),
-    );
+  async function handleRespond() {
+    if (!respondingQuote) {
+      return;
+    }
+
+    if ((responseStatus === "REJECTED" || responseStatus === "IN_REVIEW") && !comment.trim()) {
+      showRequestToast("quote-response-validation", "Checking response...").error(
+        "Please add a comment for a rejection or review request.",
+      );
+      return;
+    }
+
+    const toast = showRequestToast("quote-response", "Sending quote response...");
+    setIsResponding(true);
 
     try {
-      await acceptQuote(uid);
-    } catch {
-      setQuotes(previousQuotes);
+      const updatedQuote = await respondToQuote(respondingQuote.id, responseStatus, comment.trim());
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((quote) => (quote.id === updatedQuote.id ? updatedQuote : quote)),
+      );
+      toast.success("Quote response was sent.");
+      setRespondingQuote(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to send quote response.");
+    } finally {
+      setIsResponding(false);
     }
   }
 
@@ -94,13 +119,41 @@ function Quotes() {
 
       <section className="record-list" aria-label="Quotes">
         {filteredQuotes.map((quote) => (
-          <QuoteCard key={quote.uid} onAccept={handleAccept} quote={quote} />
+          <QuoteCard key={quote.uid} onRespond={openResponseModal} quote={quote} />
         ))}
       </section>
 
       <p className="result-count">
         Showing {filteredQuotes.length} of {quotes.length} quotes
       </p>
+
+      <Modal
+        okButtonProps={{ loading: isResponding }}
+        okText="Send response"
+        onCancel={() => setRespondingQuote(null)}
+        onOk={handleRespond}
+        open={Boolean(respondingQuote)}
+        title={
+          responseStatus === "APPROVED"
+            ? "Approve quote"
+            : responseStatus === "REJECTED"
+              ? "Reject quote"
+              : "Request quote review"
+        }
+      >
+        <div className="admin-modal-form">
+          <div className="form-group">
+            <label htmlFor="quoteResponseComment">Comment</label>
+            <textarea
+              id="quoteResponseComment"
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="Add a note for the team"
+              rows={4}
+              value={comment}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

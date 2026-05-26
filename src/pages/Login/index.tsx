@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Input } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import { savePortalSession } from "../../auth/session";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -76,12 +77,11 @@ function Login() {
           </div>
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
+            <Input.Password
               autoComplete="current-password"
               id="password"
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
-              type="password"
               value={password}
             />
           </div>

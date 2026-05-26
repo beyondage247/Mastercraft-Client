@@ -48,7 +48,7 @@ function Home() {
         <h1>Welcome, {name}</h1>
         <p>
           Welcome to the Mastercraft Products client portal. Track your
-          fabrication projects, review quotes, and manage approvals all in one
+          projects, review quotes, and manage approvals all in one
           place.
         </p>
         <div className="hero-panel__actions">
@@ -77,19 +77,7 @@ function Home() {
 
       <section className="dashboard-grid">
         <div className="dashboard-stack">
-          <section className="panel">
-            {/* <h2>Quick Actions</h2>
-            <div className="quick-actions">
-              <Link className="quick-action quick-action--primary" to="/new">
-                <PortalIcon name="plus" />
-                <span>Submit Project Request</span>
-              </Link>
-              <Link className="quick-action" to="/quotes">
-                <PortalIcon name="plus" />
-                <span>Review Quote Request</span>
-              </Link>
-            </div> */}
-          </section>
+        
 
           <section className="panel active-projects-panel">
             <div className="panel__header">

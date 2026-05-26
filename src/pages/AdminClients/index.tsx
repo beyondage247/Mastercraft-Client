@@ -1,7 +1,9 @@
-import { Dropdown, message, Modal, Pagination, Tabs, type MenuProps } from "antd";
+import { Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
+import AdminPaymentModal from "../../components/AdminPaymentModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
 import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
@@ -101,10 +103,12 @@ function AdminClients() {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isLoadingClientProjects, setIsLoadingClientProjects] = useState(false);
+  const [paymentProject, setPaymentProject] = useState<ProjectListItem | null>(null);
   const [projectForm, setProjectForm] = useState<ProjectFormState>(initialProjectForm);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignStaffId, setReassignStaffId] = useState("");
   const [editingProject, setEditingProject] = useState<ProjectListItem | null>(null);
+  const [quoteProject, setQuoteProject] = useState<ProjectListItem | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectListItem | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
   const [selectedClientProjects, setSelectedClientProjects] = useState<ProjectListItem[]>([]);
@@ -259,7 +263,7 @@ function AdminClients() {
   }
 
   function handleCreateQuote(project: ProjectListItem) {
-    message.info(`Quote creation for ${project.title} will be connected when the quote endpoint is available.`);
+    setQuoteProject(project);
   }
 
   function handleProjectSaved(project: ProjectListItem) {
@@ -680,6 +684,7 @@ function AdminClients() {
                     emptyMessage="No projects have been attached to this client yet."
                     onCreateQuote={handleCreateQuote}
                     onEdit={setEditingProject}
+                    onRecordPayment={setPaymentProject}
                     onView={setSelectedProject}
                     projects={selectedClientProjects}
                   />
@@ -704,7 +709,7 @@ function AdminClients() {
         width={760}
       >
         <div className="admin-modal-form">
-          <div className="form-row">
+          <div className="form-group  ">
             <div className="form-group">
               <label htmlFor="projectName">Project name</label>
               <input
@@ -715,7 +720,7 @@ function AdminClients() {
                 value={projectForm.name}
               />
             </div>
-            <div className="form-group">
+            {/* <div className="form-group">
               <label htmlFor="projectStatus">Status</label>
               <select
                 id="projectStatus"
@@ -726,7 +731,7 @@ function AdminClients() {
                 <option>In Progress</option>
                 <option>Completed</option>
               </select>
-            </div>
+            </div> */}
           </div>
           <div className="form-group">
             <label htmlFor="projectLocation">Location</label>
@@ -862,6 +867,21 @@ function AdminClients() {
         onSaved={handleProjectSaved}
         open={Boolean(editingProject)}
         project={editingProject}
+      />
+      <AdminQuoteModal
+        onClose={() => setQuoteProject(null)}
+        onCreated={() => {
+          if (selectedClient) {
+            loadProjectsForClient(selectedClient);
+          }
+        }}
+        open={Boolean(quoteProject)}
+        project={quoteProject}
+      />
+      <AdminPaymentModal
+        onClose={() => setPaymentProject(null)}
+        open={Boolean(paymentProject)}
+        project={paymentProject}
       />
     </div>
   );

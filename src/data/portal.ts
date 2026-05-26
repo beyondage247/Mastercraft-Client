@@ -27,9 +27,9 @@ export type ActivityItem = {
   time: string;
 };
 
-export type ProjectStatus = 'Pending' | 'In Progress' | 'In Design' | 'In Fabrication' | 'Completed';
+export type ProjectStatus = 'Pending' | 'Quoted' | 'Lost' | 'In Progress' | 'In Design' | 'In Fabrication' | 'In Production' | 'Completed';
 
-export type ProjectFilter = 'All' | 'Pending' | 'In Progress' | 'Completed';
+export type ProjectFilter = 'All' | 'Quoted' | 'Lost' | 'In Production' | 'Completed';
 
 export type ProjectStageType = 'MIL' | 'BUILD_ASSEMBLE' | 'FINISHING' | 'DELIVERY' | 'INSTALL';
 
@@ -65,16 +65,25 @@ export type ProjectListItem = {
   title: string;
 };
 
-export type QuoteStatus = 'Draft' | 'Sent' | 'Accepted' | 'Expired' | 'Rejected';
+export type QuoteStatus = 'Draft' | 'Sent' | 'Approved' | 'Expired' | 'Rejected';
 
 export type QuoteFilter = 'All' | QuoteStatus;
 
 export type QuoteListItem = {
   amount: string;
+  clientComment?: string;
+  dateIssued?: string;
   description: string;
   id: string;
+  lineItems?: LineItem[];
+  projectId?: string;
+  projectName?: string;
+  subtotal?: string;
   status: QuoteStatus;
+  tax?: string;
+  taxAmount?: string;
   title: string;
+  total?: string;
   uid: string;
   validUntil: string;
 };
@@ -191,8 +200,9 @@ export const projectMetrics: Metric[] = [
 
 export const projectFilters: Array<{ label: string; value: ProjectFilter }> = [
   { label: 'All', value: 'All' },
-  { label: 'Pending', value: 'Pending' },
-  { label: 'In Progress', value: 'In Progress' },
+  { label: 'Quoted', value: 'Quoted' },
+  { label: 'Lost', value: 'Lost' },
+  { label: 'In Production', value: 'In Production' },
   { label: 'Completed', value: 'Completed' },
 ];
 
@@ -285,7 +295,7 @@ export const projectDetails: Record<string, ProjectDetailInfo> = {
 export const quoteMetrics: Metric[] = [
   { icon: 'dollar', label: 'Total Value', tone: 'danger', value: '$93,890' },
   { icon: 'clock', label: 'Pending', tone: 'danger', value: '2' },
-  { icon: 'check', label: 'Accepted', tone: 'danger', value: '1' },
+  { icon: 'check', label: 'Approved', tone: 'danger', value: '1' },
   { icon: 'documents', label: 'Total Quotes', tone: 'danger', value: '5' },
 ];
 
@@ -293,7 +303,7 @@ export const quoteFilters: Array<{ label: string; value: QuoteFilter }> = [
   { label: 'All', value: 'All' },
   { label: 'Draft', value: 'Draft' },
   { label: 'Sent', value: 'Sent' },
-  { label: 'Accepted', value: 'Accepted' },
+  { label: 'Approved', value: 'Approved' },
   { label: 'Expired', value: 'Expired' },
   { label: 'Rejected', value: 'Rejected' },
 ];
@@ -312,7 +322,7 @@ export const quotes: QuoteListItem[] = [
     amount: '$ 32,600.00',
     description: 'Access control systems and camera installation for parking garage.',
     id: 'QT-2024-0885',
-    status: 'Accepted',
+    status: 'Approved',
     title: 'Tech Park Security Upgrade',
     uid: 'quote-0885-security',
     validUntil: '12/4/2023',

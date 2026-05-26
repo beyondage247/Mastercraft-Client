@@ -166,7 +166,7 @@ function ProjectDetail() {
                 <p>Initial millwork package including kitchen and built-ins</p>
                 <div className="quote-footer">
                   <span className="quote-amount">$45,000</span>
-                  <span className="quote-status">Accepted</span>
+                  <span className="quote-status">Approved</span>
                 </div>
               </div>
             </div>

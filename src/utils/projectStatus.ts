@@ -6,12 +6,16 @@ export function projectStatusTone(status: ProjectListItem["status"]): BadgeTone 
     return "success";
   }
 
-  if (status === "In Progress" || status === "In Fabrication") {
+  if (status === "In Progress" || status === "In Fabrication" || status === "In Production") {
     return "info";
   }
 
-  if (status === "In Design") {
+  if (status === "In Design" || status === "Quoted") {
     return "warning";
+  }
+
+  if (status === "Lost") {
+    return "danger";
   }
 
   return "danger";

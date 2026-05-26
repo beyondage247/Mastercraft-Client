@@ -41,7 +41,7 @@ function editableStatus(status?: ProjectListItem["status"]): EditableProjectStat
     return "Completed";
   }
 
-  if (status === "In Progress" || status === "In Design" || status === "In Fabrication") {
+  if (status === "In Progress" || status === "In Design" || status === "In Fabrication" || status === "In Production") {
     return "In Progress";
   }
 

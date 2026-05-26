@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
+import { Modal } from 'antd';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
-import { getQuoteDetail } from '../../services/portalApi';
+import { getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
 import type { QuoteListItem, QuoteDetailInfo } from '../../data/portal';
+import { showRequestToast } from '../../utils/portalToast';
 
 function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [quote, setQuote] = useState<QuoteListItem | null>(null);
   const [details, setDetails] = useState<QuoteDetailInfo | null>(null);
+  const [comment, setComment] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [responseStatus, setResponseStatus] = useState<QuoteDecisionStatus | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -35,6 +40,38 @@ function QuoteDetail() {
         <div className="panel">Quote not found</div>
       </div>
     );
+  }
+
+  function openResponse(status: QuoteDecisionStatus) {
+    setResponseStatus(status);
+    setComment('');
+  }
+
+  async function handleRespond() {
+    if (!quote || !responseStatus) {
+      return;
+    }
+
+    if ((responseStatus === 'REJECTED' || responseStatus === 'IN_REVIEW') && !comment.trim()) {
+      showRequestToast('quote-detail-response-validation', 'Checking response...').error(
+        'Please add a comment for a rejection or review request.',
+      );
+      return;
+    }
+
+    const toast = showRequestToast('quote-detail-response', 'Sending quote response...');
+    setIsResponding(true);
+
+    try {
+      const updatedQuote = await respondToQuote(quote.id, responseStatus, comment.trim());
+      setQuote(updatedQuote);
+      toast.success('Quote response was sent.');
+      setResponseStatus(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to send quote response.');
+    } finally {
+      setIsResponding(false);
+    }
   }
 
   return (
@@ -93,8 +130,9 @@ function QuoteDetail() {
             </div>
 
             <div className="action-buttons-bottom">
-              <button className="accept-quote-btn">Accept Quote</button>
-              <button className="request-revision-btn">Request Revision</button>
+              <button className="accept-quote-btn" onClick={() => openResponse('APPROVED')} type="button">Approve Quote</button>
+              <button className="request-revision-btn" onClick={() => openResponse('IN_REVIEW')} type="button">Request Revision</button>
+              <button className="secondary-action-btn" onClick={() => openResponse('REJECTED')} type="button">Reject Quote</button>
             </div>
           </div>
         </div>
@@ -141,6 +179,34 @@ function QuoteDetail() {
           </div>
         </div>
       </div>
+
+      <Modal
+        okButtonProps={{ loading: isResponding }}
+        okText="Send response"
+        onCancel={() => setResponseStatus(null)}
+        onOk={handleRespond}
+        open={Boolean(responseStatus)}
+        title={
+          responseStatus === 'APPROVED'
+            ? 'Approve quote'
+            : responseStatus === 'REJECTED'
+              ? 'Reject quote'
+              : 'Request quote review'
+        }
+      >
+        <div className="admin-modal-form">
+          <div className="form-group">
+            <label htmlFor="quoteDetailResponseComment">Comment</label>
+            <textarea
+              id="quoteDetailResponseComment"
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="Add a note for the team"
+              rows={4}
+              value={comment}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

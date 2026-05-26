@@ -1,15 +1,38 @@
 import { useEffect, useState } from "react";
+import type { PaymentItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
-import {
-  listBackOfficePayments,
-  type BackOfficePayment,
-} from "../../services/backOfficeStore";
+import { getPayments } from "../../services/portalApi";
 
 function AdminPayments() {
-  const [payments, setPayments] = useState<BackOfficePayment[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
 
   useEffect(() => {
-    setPayments(listBackOfficePayments());
+    let isMounted = true;
+
+    getPayments()
+      .then((data) => {
+        if (isMounted) {
+          setPayments(data.payments);
+          setError("");
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setPayments([]);
+          setError(requestError.message || "Unable to load payments.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -24,17 +47,21 @@ function AdminPayments() {
         <div className="admin-record-table admin-record-table--payments">
           <div className="admin-record-table__head">
             <span>Reference</span>
-            <span>Client</span>
+            <span>Invoice/Record</span>
             <span>Project</span>
             <span>Amount</span>
             <span>Method</span>
           </div>
-          {payments.length ? (
+          {isLoading ? (
+            <div className="admin-empty-row">Loading payments...</div>
+          ) : error ? (
+            <div className="admin-empty-row">{error}</div>
+          ) : payments.length ? (
             payments.map((payment) => (
               <article className="admin-record-table__row" key={payment.id}>
                 <strong>{payment.reference}</strong>
-                <span>{payment.clientName}</span>
-                <span>{payment.projectName}</span>
+                <span>{payment.invoice}</span>
+                <span>{payment.project}</span>
                 <span>{payment.amount}</span>
                 <span>{payment.method}</span>
               </article>
@@ -49,4 +76,3 @@ function AdminPayments() {
 }
 
 export default AdminPayments;
-

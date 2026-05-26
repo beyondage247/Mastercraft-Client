@@ -30,9 +30,11 @@ const secondaryNavItems: NavItem[] = [
 const backOfficeNavItems: NavItem[] = [
   { label: "Clients", to: "/admin/clients", icon: "home", route: true },
   { label: "Projects", to: "/admin/projects", icon: "projects", route: true },
+  { label: "Products", to: "/admin/products-services", icon: "tool", route: true },
   { label: "Quotes", to: "/admin/quotes", icon: "quotes", route: true },
   { label: "Invoices", to: "/admin/invoices", icon: "invoices", route: true },
   { label: "Payments", to: "/admin/payments", icon: "payments", route: true },
+  { label: "Reports", to: "/admin/reports", icon: "review", route: true },
   { label: "Staff", to: "/admin/staff", icon: "projects", route: true },
 ] as const;
 

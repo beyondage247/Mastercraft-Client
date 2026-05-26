@@ -13,10 +13,6 @@ function matchesProjectFilter(project: ProjectListItem, filter: ProjectFilter) {
     return true;
   }
 
-  if (filter === "In Progress") {
-    return ["In Progress", "In Design", "In Fabrication"].includes(project.status);
-  }
-
   return project.status === filter;
 }
 
@@ -80,7 +76,7 @@ function Projects() {
       <PageHeader
         //   actionLabel="New Project"
         onAction={() => navigate("/new")}
-        subtitle="Millwork & Fabrication Portal"
+        subtitle="Project portal"
         title="Projects"
       />
 
