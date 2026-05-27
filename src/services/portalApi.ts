@@ -705,14 +705,14 @@ export async function getClientDetails(id: string) {
 }
 
 export async function requestPasswordResetOtp(email: string) {
-  return portalRequest<PortalMessageResponse>("/users/password-reset/request-otp", {
+  return portalRequest<PortalMessageResponse>("/auth/password-reset/request-otp", {
     body: JSON.stringify({ email }),
     method: "POST",
   });
 }
 
 export async function verifyPasswordResetOtp(email: string, otp: string) {
-  return portalRequest<VerifyPasswordResetOtpResponse>("/users/password-reset/verify-otp", {
+  return portalRequest<VerifyPasswordResetOtpResponse>("/auth/password-reset/verify-otp", {
     body: JSON.stringify({ email, otp }),
     method: "POST",
   });
@@ -723,7 +723,7 @@ export async function confirmPasswordReset(
   newPassword: string,
   confirmPassword: string,
 ) {
-  return portalRequest<PortalMessageResponse>("/users/password-reset/confirm", {
+  return portalRequest<PortalMessageResponse>("/auth/password-reset/confirm", {
     body: JSON.stringify({ confirmPassword, newPassword, resetToken }),
     method: "POST",
   });
@@ -735,7 +735,7 @@ export async function resetUserPassword(
   newPassword: string,
   confirmPassword: string,
 ) {
-  return portalRequest<PortalMessageResponse>("/users/reset-password", {
+  return portalRequest<PortalMessageResponse>("/auth/reset-password", {
     body: JSON.stringify({ confirmPassword, currentPassword, email, newPassword }),
     method: "POST",
   });
