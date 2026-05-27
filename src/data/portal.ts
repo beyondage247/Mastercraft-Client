@@ -43,9 +43,29 @@ export type ProjectStageItem = {
   startDateValue?: string;
 };
 
+export type ProjectCommentItem = {
+  createdAt: string;
+  id: string;
+  message: string;
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
+};
+
+export type ProjectUploadItem = {
+  id: string;
+  name: string;
+  size: number;
+};
+
 export type ProjectListItem = {
   id: string;
   category: string;
+  assignedStaffEmail?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
   clientEmail?: string;
   clientId?: string;
   clientName?: string;
@@ -58,6 +78,10 @@ export type ProjectListItem = {
   fabricationCompleted?: boolean;
   location: string;
   progress: number;
+  comments?: ProjectCommentItem[];
+  attachment?: {
+    uploads: ProjectUploadItem[];
+  } | null;
   stages?: ProjectStageItem[];
   startDate?: string;
   startDateValue?: string;

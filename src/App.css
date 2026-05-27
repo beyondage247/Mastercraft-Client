@@ -808,6 +808,16 @@
   line-height: 1.2;
 }
 
+.record-card__staff {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #656565;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+
 .record-card__details {
   display: flex;
   flex-wrap: wrap;

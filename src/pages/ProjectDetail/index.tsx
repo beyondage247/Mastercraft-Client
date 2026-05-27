@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { PortalIcon } from "../../components/PortalIcon";
+import ProjectAttachmentsPanel from "../../components/ProjectAttachmentsPanel";
+import ProjectCommentsPanel from "../../components/ProjectCommentsPanel";
 import StatusBadge from "../../components/StatusBadge";
 import { getProjectDetail, getProjectPayments, type ProjectPaymentSummary } from "../../services/portalApi";
 import type { ProjectListItem, ProjectDetailInfo } from "../../data/portal";
@@ -18,7 +20,7 @@ function ProjectDetail() {
   const [project, setProject] = useState<ProjectListItem | null>(null);
   const [details, setDetails] = useState<ProjectDetailInfo | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "Overview" | "Document" | "Activity" | "Payment"
+    "Overview" | "Document" | "Activity" | "Payment" | "Comments"
   >("Overview");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -89,6 +91,9 @@ function ProjectDetail() {
     );
   }
 
+  const assignedStaffName = project.assignedStaffName || "Not assigned";
+  const assignedStaffEmail = project.assignedStaffEmail || "";
+
   return (
     <div className="page-stack">
       <button className="back-link" onClick={() => navigate("/projects")}>
@@ -139,6 +144,12 @@ function ProjectDetail() {
         >
           Payment
         </button>
+        <button
+          className={`detail-tab ${activeTab === "Comments" ? "active" : ""}`}
+          onClick={() => setActiveTab("Comments")}
+        >
+          Comments
+        </button>
       </div>
 
       {activeTab === "Overview" && details && (
@@ -160,6 +171,12 @@ function ProjectDetail() {
                 <div className="spec-item" style={{ gridColumn: "1 / -1" }}>
                   <span className="spec-label">SITE ADDRESS</span>
                   <span className="spec-value">{details.siteAddress}</span>
+                </div>
+                <div className="spec-item" style={{ gridColumn: "1 / -1" }}>
+                  <span className="spec-label">ASSIGNED STAFF</span>
+                  <span className="spec-value">
+                    {assignedStaffEmail ? `${assignedStaffName} (${assignedStaffEmail})` : assignedStaffName}
+                  </span>
                 </div>
               </div>
               <div className="spec-notes">
@@ -232,6 +249,7 @@ function ProjectDetail() {
       {activeTab === "Document" && (
         <div className="detail-panel">
           <h3>Project Documents</h3>
+          <ProjectAttachmentsPanel project={project} />
           <div className="document-list">
             <div className="document-row">
               <div className="document-icon">
@@ -384,6 +402,13 @@ function ProjectDetail() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {activeTab === "Comments" && (
+        <div className="detail-panel">
+          <h3>Project Comments</h3>
+          <ProjectCommentsPanel project={project} />
         </div>
       )}
     </div>

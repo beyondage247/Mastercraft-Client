@@ -80,6 +80,7 @@ function AdminProjects() {
 
       <AdminProjectDetailModal
         onClose={() => setActiveProject(null)}
+        onProjectUpdated={handleProjectSaved}
         open={Boolean(activeProject)}
         project={activeProject}
       />

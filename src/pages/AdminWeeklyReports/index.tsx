@@ -1,5 +1,5 @@
 import { Modal, Tabs } from "antd";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -7,17 +7,15 @@ import ProgressBar from "../../components/ProgressBar";
 import StatusBadge from "../../components/StatusBadge";
 import {
   currentWeekStart,
-  findWeeklyReport,
   formatReportDate,
-  listWeeklyReports,
   reportCompletionScore,
   reportGoalPercent,
   reportMetCustomerGoal,
   reportWeekLabel,
-  saveWeeklyReport,
   weeklyReportGoals,
   type WeeklyReport,
 } from "../../services/weeklyReportsStore";
+import { createReport, getReports, type ReportRecord } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 
 type WeeklyReportFormState = {
@@ -59,6 +57,57 @@ function reportFormDefaults(report?: WeeklyReport): WeeklyReportFormState {
 
 function numberValue(value: string) {
   return Number(value) || 0;
+}
+
+function dateInputToReportDate(value: string) {
+  const [year, month, day] = value.split("-");
+
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+function dateInputFromApi(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+}
+
+function addDaysInput(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  date.setDate(date.getDate() + days);
+
+  return date.toISOString().slice(0, 10);
+}
+
+function reportFromApi(report: ReportRecord): WeeklyReport {
+  const weekStart = dateInputFromApi(report.startDate);
+
+  return {
+    coldCalls: Number(report.coldCalls) || 0,
+    coffeeLunch: Number(report.coffeeLunch) || 0,
+    coldEmails: Number(report.coldEmails) || 0,
+    createdAt: report.createdAt,
+    id: report.id,
+    networkingEvents: report.networkingEvent || "",
+    newCustomers: Number(report.newCustomers) || 0,
+    notes: report.notes || "",
+    siteVisits: Number(report.siteVisit) || 0,
+    socialPosts: Number(report.socialMedia) || 0,
+    staffEmail: report.user.email,
+    staffId: report.user.id,
+    staffName: report.user.name,
+    updatedAt: report.updatedAt,
+    weekEnd: dateInputFromApi(report.endDate) || addDaysInput(weekStart, 6),
+    weekStart,
+  };
 }
 
 function goalTone(value: number, goal: number) {
@@ -132,11 +181,29 @@ function AdminWeeklyReports() {
   const currentUser = getCurrentPortalUser();
   const isAdmin = currentUser?.role === "admin";
   const staffId = currentUser?.clientItemId || currentUser?.email || "staff";
-  const [allReports, setAllReports] = useState<WeeklyReport[]>(() => listWeeklyReports());
-  const [form, setForm] = useState<WeeklyReportFormState>(() =>
-    reportFormDefaults(findWeeklyReport(staffId, currentWeekStart())),
-  );
+  const [allReports, setAllReports] = useState<WeeklyReport[]>([]);
+  const [form, setForm] = useState<WeeklyReportFormState>(() => reportFormDefaults());
   const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getReports()
+      .then((reports) => {
+        if (isMounted) {
+          setAllReports(reports.map(reportFromApi));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAllReports([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const ownReports = useMemo(
     () => allReports.filter((report) => report.staffId === staffId),
@@ -157,7 +224,7 @@ function AdminWeeklyReports() {
   }
 
   function handleWeekChange(value: string) {
-    const existing = findWeeklyReport(staffId, value);
+    const existing = allReports.find((report) => report.staffId === staffId && report.weekStart === value);
 
     setForm({
       ...reportFormDefaults(existing ?? undefined),
@@ -165,7 +232,7 @@ function AdminWeeklyReports() {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!currentUser) {
@@ -177,24 +244,31 @@ function AdminWeeklyReports() {
     }
 
     const toast = showRequestToast("weekly-report", "Saving weekly report...");
-    const report = saveWeeklyReport({
-      coldCalls: numberValue(form.coldCalls),
-      coffeeLunch: numberValue(form.coffeeLunch),
-      coldEmails: numberValue(form.coldEmails),
-      networkingEvents: form.networkingEvents.trim(),
-      newCustomers: numberValue(form.newCustomers),
-      notes: form.notes.trim(),
-      siteVisits: numberValue(form.siteVisits),
-      socialPosts: numberValue(form.socialPosts),
-      staffEmail: currentUser.email,
-      staffId,
-      staffName: currentUser.name,
-      weekStart: form.weekStart,
-    });
 
-    setAllReports(listWeeklyReports());
-    setForm(reportFormDefaults(report));
-    toast.success("Weekly report saved.");
+    try {
+      const report = await createReport({
+        coldCalls: String(numberValue(form.coldCalls)),
+        coffeeLunch: String(numberValue(form.coffeeLunch)),
+        coldEmails: String(numberValue(form.coldEmails)),
+        endDate: dateInputToReportDate(addDaysInput(form.weekStart, 6)),
+        networkingEvent: form.networkingEvents.trim(),
+        newCustomers: String(numberValue(form.newCustomers)),
+        notes: form.notes.trim(),
+        siteVisit: String(numberValue(form.siteVisits)),
+        socialMedia: String(numberValue(form.socialPosts)),
+        startDate: dateInputToReportDate(form.weekStart),
+      });
+      const mappedReport = reportFromApi(report);
+
+      setAllReports((current) => [
+        mappedReport,
+        ...current.filter((item) => item.id !== mappedReport.id),
+      ]);
+      setForm(reportFormDefaults(mappedReport));
+      toast.success("Weekly report saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save weekly report.");
+    }
   }
 
   return (

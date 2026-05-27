@@ -844,6 +844,7 @@ function AdminClients() {
 
       <AdminProjectDetailModal
         onClose={() => setSelectedProject(null)}
+        onProjectUpdated={handleProjectSaved}
         open={Boolean(selectedProject)}
         project={selectedProject}
       />

@@ -21,6 +21,9 @@ type ProjectCardProps = {
 
 function ProjectCard({ project }: ProjectCardProps) {
   const navigate = useNavigate();
+  const assignedStaff = project.assignedStaffEmail
+    ? `${project.assignedStaffName || "Assigned staff"} (${project.assignedStaffEmail})`
+    : project.assignedStaffName || "Not assigned";
 
   return (
     <article 
@@ -34,6 +37,10 @@ function ProjectCard({ project }: ProjectCardProps) {
          {/* <StatusBadge tone="neutral">{project.category}</StatusBadge> */}
         </div>
         <h2>{project.title}</h2>
+        <p className="record-card__staff">
+          <PortalIcon name="tool" />
+          <span>{assignedStaff}</span>
+        </p>
         <div className="record-card__details">
           <span>
             <PortalIcon name="location" />

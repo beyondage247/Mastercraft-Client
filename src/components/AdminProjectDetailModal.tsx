@@ -7,6 +7,8 @@ import AdminQuoteDetailModal from "./AdminQuoteDetailModal";
 import AdminQuoteModal from "./AdminQuoteModal";
 import AdminQuoteTable from "./AdminQuoteTable";
 import ProgressBar from "./ProgressBar";
+import ProjectAttachmentsPanel from "./ProjectAttachmentsPanel";
+import ProjectCommentsPanel from "./ProjectCommentsPanel";
 import StatusBadge from "./StatusBadge";
 
 const stageLabels: Record<ProjectStageType, string> = {
@@ -23,12 +25,15 @@ function stageLabel(stage: ProjectStageItem) {
 
 type AdminProjectDetailModalProps = {
   onClose: () => void;
+  onProjectUpdated?: (project: ProjectListItem) => void;
   open: boolean;
   project: ProjectListItem | null;
 };
 
-function AdminProjectDetailModal({ onClose, open, project }: AdminProjectDetailModalProps) {
+function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: AdminProjectDetailModalProps) {
   const fabrication = project ? project.fabrication ?? project.progress : 0;
+  const assignedStaffName = project?.assignedStaffName || "Not assigned";
+  const assignedStaffEmail = project?.assignedStaffEmail || "";
   const [editingQuote, setEditingQuote] = useState<QuoteListItem | null>(null);
   const [error, setError] = useState("");
   const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
@@ -105,8 +110,8 @@ function AdminProjectDetailModal({ onClose, open, project }: AdminProjectDetailM
                         <strong>{project.title}</strong>
                       </div>
                       <div>
-                        <span>Client</span>
-                        <strong>{project.clientName || "Not set"}</strong>
+                        <span>Staff</span>
+                        <strong>{assignedStaffEmail ? `${assignedStaffName} (${assignedStaffEmail})` : assignedStaffName}</strong>
                       </div>
                       <div>
                         <span>Location</span>
@@ -160,6 +165,22 @@ function AdminProjectDetailModal({ onClose, open, project }: AdminProjectDetailM
                     </div>
                   </div>
                 ),
+              },
+              {
+                key: "documents",
+                label: "Documents",
+                children: (
+                  <ProjectAttachmentsPanel
+                    canUpload
+                    onProjectUpdated={onProjectUpdated}
+                    project={project}
+                  />
+                ),
+              },
+              {
+                key: "comments",
+                label: "Comments",
+                children: <ProjectCommentsPanel project={project} />,
               },
               {
                 key: "quotes",

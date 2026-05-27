@@ -1,4 +1,4 @@
-import { Modal } from "antd";
+import { Input, Modal } from "antd";
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { getCurrentPortalUser } from "../../auth/session";
@@ -216,12 +216,11 @@ function ResetPassword() {
             </div>
             <div className="form-group">
               <label htmlFor="currentPassword">Current password</label>
-              <input
+              <Input.Password
                 autoComplete="current-password"
                 id="currentPassword"
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 placeholder="Current or temporary password"
-                type="password"
                 value={currentPassword}
               />
             </div>
@@ -356,25 +355,23 @@ function PasswordFields({
     <>
       <div className="form-group">
         <label htmlFor="newPassword">New password</label>
-        <input
+        <Input.Password
           autoComplete="new-password"
           id="newPassword"
           minLength={6}
           onChange={(event) => setNewPassword(event.target.value)}
           placeholder="At least 6 characters"
-          type="password"
           value={newPassword}
         />
       </div>
       <div className="form-group">
         <label htmlFor="confirmPassword">Confirm password</label>
-        <input
+        <Input.Password
           autoComplete="new-password"
           id="confirmPassword"
           minLength={6}
           onChange={(event) => setConfirmPassword(event.target.value)}
           placeholder="Repeat new password"
-          type="password"
           value={confirmPassword}
         />
       </div>

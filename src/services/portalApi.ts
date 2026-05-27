@@ -24,6 +24,8 @@ import type {
   ProjectStageItem,
   ProjectStageType,
   ProjectListItem,
+  ProjectCommentItem,
+  ProjectUploadItem,
   QuoteDetailInfo,
   QuoteListItem,
 } from "../data/portal";
@@ -184,9 +186,21 @@ type BackendProjectClientResponse = {
   name?: unknown;
 };
 
+type BackendProjectStaffResponse = {
+  email?: string;
+  id?: string;
+  name?: unknown;
+};
+
 type BackendProjectResponse = {
+  accountPartner?: BackendProjectStaffResponse | null;
+  attachment?: {
+    uploads?: BackendProjectUploadResponse[];
+  } | null;
+  assignedStaff?: BackendProjectStaffResponse | null;
   client?: BackendProjectClientResponse;
   clientId?: string;
+  comments?: BackendProjectCommentResponse[];
   description?: string;
   endDate?: string | null;
   fabrication?: number;
@@ -197,7 +211,28 @@ type BackendProjectResponse = {
   name?: string;
   startDate?: string | null;
   stages?: BackendProjectStageResponse[];
+  staff?: BackendProjectStaffResponse | null;
+  staffEmail?: string;
+  staffId?: string;
+  staffName?: unknown;
   status?: string;
+};
+
+type BackendProjectCommentResponse = {
+  createdAt?: string;
+  id: string;
+  message?: string;
+  user?: {
+    id?: string;
+    name?: string;
+    role?: string;
+  };
+};
+
+type BackendProjectUploadResponse = {
+  id: string;
+  name?: string;
+  size?: number;
 };
 
 type BackendProjectStageResponse = {
@@ -244,6 +279,16 @@ export type UpdateProjectStatusInput = {
 };
 
 type BackendUpdateProjectResponse = {
+  message: string;
+  project: BackendProjectResponse;
+};
+
+type BackendProjectCommentCreateResponse = {
+  comment: BackendProjectCommentResponse;
+  message: string;
+};
+
+type BackendProjectAttachmentResponse = {
   message: string;
   project: BackendProjectResponse;
 };
@@ -380,6 +425,45 @@ type BackendCreatePaymentResponse = {
 type BackendClientPaymentsResponse = {
   amountPaid: string;
   payments: BackendPaymentResponse[];
+};
+
+export type ReportRecord = {
+  coldCalls: number;
+  coffeeLunch: number;
+  coldEmails: number;
+  createdAt: string;
+  endDate: string;
+  id: string;
+  networkingEvent: string;
+  newCustomers: number;
+  notes: string;
+  siteVisit: number;
+  socialMedia: number;
+  startDate: string;
+  updatedAt: string;
+  user: {
+    email: string;
+    id: string;
+    name: string;
+  };
+};
+
+export type CreateReportInput = {
+  coldCalls: string;
+  coffeeLunch: string;
+  coldEmails: string;
+  endDate: string;
+  networkingEvent: string;
+  newCustomers: string;
+  notes: string;
+  siteVisit: string;
+  socialMedia: string;
+  startDate: string;
+};
+
+type BackendCreateReportResponse = {
+  message: string;
+  report: ReportRecord;
 };
 
 export type StaffRecord = {
@@ -814,6 +898,27 @@ function normalizeProjectStage(stage: BackendProjectStageResponse): ProjectStage
   };
 }
 
+function normalizeProjectComment(comment: BackendProjectCommentResponse): ProjectCommentItem {
+  return {
+    createdAt: comment.createdAt ? formatProjectDate(comment.createdAt) : "",
+    id: comment.id,
+    message: comment.message || "",
+    user: {
+      id: comment.user?.id || "",
+      name: comment.user?.name || "Unknown user",
+      role: comment.user?.role || "USER",
+    },
+  };
+}
+
+function normalizeProjectUpload(upload: BackendProjectUploadResponse): ProjectUploadItem {
+  return {
+    id: upload.id,
+    name: upload.name || "Uploaded file",
+    size: Number(upload.size) || 0,
+  };
+}
+
 function stageByType(stages: ProjectStageItem[], stage: ProjectStageType) {
   return stages.find((item) => item.stage === stage);
 }
@@ -846,9 +951,13 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
   const startDate = formatProjectDate(project.startDate);
   const stages = (project.stages ?? []).map(normalizeProjectStage);
   const fabrication = projectFabrication(project, stages);
+  const assignedStaff = project.accountPartner ?? project.assignedStaff ?? project.staff;
 
   return {
     category: "Fabrication",
+    assignedStaffEmail: assignedStaff?.email ?? project.staffEmail,
+    assignedStaffId: assignedStaff?.id ?? project.staffId,
+    assignedStaffName: normalizeString(assignedStaff?.name ?? project.staffName),
     clientEmail: project.client?.email,
     clientId: project.clientId ?? project.client?.id,
     clientName: normalizeString(project.client?.name),
@@ -862,6 +971,10 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
     id: project.id,
     location: project.location || "",
     progress: projectProgress(status, project.fabricationCompleted, fabrication),
+    attachment: project.attachment
+      ? { uploads: (project.attachment.uploads ?? []).map(normalizeProjectUpload) }
+      : null,
+    comments: (project.comments ?? []).map(normalizeProjectComment),
     stages,
     startDate,
     startDateValue: formatDateInputValue(project.startDate),
@@ -1256,6 +1369,48 @@ export async function updateProjectStatus(projectId: string, input: UpdateProjec
   return mapBackendProject(response.project);
 }
 
+export async function addProjectComment(projectId: string, message: string) {
+  const response = await portalRequest<BackendProjectCommentCreateResponse>(
+    "/projects/comments",
+    {
+      body: JSON.stringify({ message, projectId }),
+      method: "POST",
+    },
+    true,
+  );
+
+  return normalizeProjectComment(response.comment);
+}
+
+export async function uploadFile(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await portalRequest<{ uploadId: string }>("/uploads", {
+    body,
+    method: "POST",
+  }, true);
+
+  return response.uploadId;
+}
+
+export function uploadDownloadUrl(uploadId: string) {
+  return `${portalApiUrl}/uploads/download/${encodeURIComponent(uploadId)}`;
+}
+
+export async function attachProjectUploads(projectId: string, uploadIds: string[]) {
+  const response = await portalRequest<BackendProjectAttachmentResponse>(
+    `/projects/${encodeURIComponent(projectId)}/attachment`,
+    {
+      body: JSON.stringify({ attachment: { uploadIds } }),
+      method: "PATCH",
+    },
+    true,
+  );
+
+  return mapBackendProject(response.project);
+}
+
 export async function getCatalogItems() {
   return portalRequest<CatalogItem[]>("/services", {}, true);
 }
@@ -1487,6 +1642,19 @@ export async function createPayment(input: CreatePaymentInput): Promise<ProjectP
 
 export { toBackendPaymentMethod };
 
+export async function getReports() {
+  return portalRequest<ReportRecord[]>("/reports", {}, true);
+}
+
+export async function createReport(input: CreateReportInput) {
+  const response = await portalRequest<BackendCreateReportResponse>("/reports", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
+
+  return response.report;
+}
+
 export async function getClients(): Promise<ClientRecord[]> {
   const data = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
 
@@ -1558,8 +1726,14 @@ export async function getProjectDetail(id: string): Promise<{ project: ProjectLi
         notes: project.description || "No project notes have been added yet.",
         siteAddress: project.location || "Not provided",
         startDate: project.startDate || "Pending",
-        team: project.clientName
-          ? [{ initials: project.clientName.slice(0, 2).toUpperCase(), name: project.clientName, role: "Client" }]
+        team: project.assignedStaffName || project.assignedStaffEmail
+          ? [
+              {
+                initials: (project.assignedStaffName || project.assignedStaffEmail || "ST").slice(0, 2).toUpperCase(),
+                name: project.assignedStaffName || "Assigned staff",
+                role: project.assignedStaffEmail || "Staff",
+              },
+            ]
           : [],
         timeline: [
           {

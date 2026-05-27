@@ -26,6 +26,10 @@ function AdminProjectTable({
   onView,
   projects,
 }: AdminProjectTableProps) {
+  function assignedStaffText(project: ProjectListItem) {
+    return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
+  }
+
   function actionMenu(project: ProjectListItem): MenuProps {
     return {
       items: [
@@ -60,7 +64,7 @@ function AdminProjectTable({
       <div className="admin-record-table admin-record-table--projects">
       <div className="admin-record-table__head">
         <span>Project</span>
-        <span>Client</span>
+        <span>Staff</span>
         <span>Location</span>
         <span>Estimated Completion</span>
         <span>Fabrication</span>
@@ -78,7 +82,7 @@ function AdminProjectTable({
           return (
             <article className="admin-record-table__row" key={project.id}>
               <strong>{project.title}</strong>
-              <span>{project.clientName || "Not set"}</span>
+              <span>{assignedStaffText(project)}</span>
               <span>{project.location || "Not set"}</span>
               <span>{project.estimatedCompletion || project.dueDate || "Not set"}</span>
               <span className="admin-project-progress-cell">
