@@ -30,7 +30,7 @@ function AdminProjectTable({
     return {
       items: [
         { key: "view", label: "View" },
-        { key: "edit", label: "Edit" },
+        ...(project.status === "Completed" ? [] : [{ key: "edit", label: "Edit" }]),
         { key: "create-quote", label: "Create quote" },
         ...(onRecordPayment ? [{ key: "record-payment", label: "Record payment" }] : []),
       ],

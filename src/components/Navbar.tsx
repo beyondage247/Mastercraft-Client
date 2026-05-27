@@ -59,9 +59,13 @@ function Navbar() {
   const isAdmin = user?.role === "admin";
   const isBackOffice = user?.role === "admin" || user?.role === "staff";
   const navItems: NavItem[] = secondaryNavItems;
+  const backOfficeVisibleItems = backOfficeNavItems.filter((item) => item.to !== "/admin/staff" || isAdmin);
+  const backOfficePrimaryItems = backOfficeVisibleItems.slice(0, 4);
+  const backOfficeMoreItems = backOfficeVisibleItems.slice(4);
   const isMoreActive = secondaryNavItems.some(
     (item) => item.route && item.to === location.pathname,
   );
+  const isBackOfficeMoreActive = backOfficeMoreItems.some((item) => item.to === location.pathname);
   const profileMenu: MenuProps = {
     items: [
       { key: "reset-password", label: "Reset password" },
@@ -168,9 +172,7 @@ function Navbar() {
           </nav>
         ) : (
           <nav className="app-nav" aria-label="Back office">
-            {backOfficeNavItems
-              .filter((item) => item.to !== "/admin/staff" || isAdmin)
-              .map((item) => (
+            {backOfficePrimaryItems.map((item) => (
                 <NavLink
                   className={({ isActive }) =>
                     `app-nav__link${isActive ? " is-active" : ""}`
@@ -182,6 +184,31 @@ function Navbar() {
                   <span>{item.label}</span>
                 </NavLink>
               ))}
+            {backOfficeMoreItems.length ? (
+              <div className="more-menu">
+                <button
+                  className={`app-nav__link more-menu__trigger${isBackOfficeMoreActive ? " is-active" : ""}`}
+                  type="button"
+                >
+                  <PortalIcon name="down" />
+                  <span>More</span>
+                </button>
+                <div className="more-menu__panel">
+                  {backOfficeMoreItems.map((item) => (
+                    <NavLink
+                      className={({ isActive }) =>
+                        `more-menu__item${isActive ? " is-active" : ""}`
+                      }
+                      key={item.label}
+                      to={item.to}
+                    >
+                      <PortalIcon name={item.icon} />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </nav>
         )}
         <div className="user-chip" aria-label={`Signed in as ${displayName}`}>

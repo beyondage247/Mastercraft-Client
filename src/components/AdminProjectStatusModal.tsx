@@ -9,8 +9,6 @@ import {
 } from "../services/portalApi";
 import { showRequestToast } from "../utils/portalToast";
 
-type EditableProjectStatus = "Pending" | "In Progress" | "Completed";
-
 type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
 
 type StageFormState = {
@@ -25,7 +23,6 @@ type ProjectStatusFormState = {
   finishing: StageFormState;
   install: StageFormState;
   mil: StageFormState;
-  status: EditableProjectStatus;
 };
 
 const stageFields: Array<{ key: ProjectStageKey; label: string; stage: ProjectStageType }> = [
@@ -35,18 +32,6 @@ const stageFields: Array<{ key: ProjectStageKey; label: string; stage: ProjectSt
   { key: "delivery", label: "Delivery", stage: "DELIVERY" },
   { key: "install", label: "Install", stage: "INSTALL" },
 ];
-
-function editableStatus(status?: ProjectListItem["status"]): EditableProjectStatus {
-  if (status === "Completed") {
-    return "Completed";
-  }
-
-  if (status === "In Progress" || status === "In Design" || status === "In Fabrication" || status === "In Production") {
-    return "In Progress";
-  }
-
-  return "Pending";
-}
 
 function emptyStage(project?: ProjectListItem): StageFormState {
   return {
@@ -77,7 +62,6 @@ function formFromProject(project: ProjectListItem | null): ProjectStatusFormStat
     finishing: stageForm(project, "FINISHING"),
     install: stageForm(project, "INSTALL"),
     mil: stageForm(project, "MIL"),
-    status: editableStatus(project?.status),
   };
 }
 
@@ -115,11 +99,13 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
   const [feedback, setFeedback] = useState("");
   const [form, setForm] = useState<ProjectStatusFormState>(() => formFromProject(project));
   const [isSaving, setIsSaving] = useState(false);
+  const [markCompleted, setMarkCompleted] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(formFromProject(project));
       setFeedback("");
+      setMarkCompleted(false);
     }
   }, [open, project]);
 
@@ -176,7 +162,7 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
         finishing: toStageInput(form.finishing),
         install: toStageInput(form.install),
         mil: toStageInput(form.mil),
-        status: form.status,
+        ...(markCompleted && project.status === "In Production" ? { status: "Completed" as const } : {}),
       });
 
       onSaved(updatedProject);
@@ -204,23 +190,16 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
     >
       <div className="admin-modal-form">
         <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="editProjectStatus">Status</label>
-            <select
-              id="editProjectStatus"
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  status: event.target.value as EditableProjectStatus,
-                }))
-              }
-              value={form.status}
-            >
-              <option>Pending</option>
-              <option>In Progress</option>
-              <option>Completed</option>
-            </select>
-          </div>
+          {project?.status === "In Production" ? (
+            <label className="admin-complete-toggle">
+              <input
+                checked={markCompleted}
+                onChange={(event) => setMarkCompleted(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Mark project as completed</span>
+            </label>
+          ) : null}
           <div className="admin-stage-summary">
             <span>Fabrication</span>
             <strong>{fabricationProgress}%</strong>

@@ -58,7 +58,6 @@ type ProjectFormState = {
   mil: ProjectStageFormState;
   name: string;
   startDate: string;
-  status: ProjectListItem["status"];
 };
 
 type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
@@ -80,7 +79,6 @@ const initialProjectForm: ProjectFormState = {
   mil: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
   name: "",
   startDate: "",
-  status: "Pending",
 };
 
 const projectStageFields: Array<{ key: ProjectStageKey; label: string }> = [
@@ -405,7 +403,6 @@ function AdminClients() {
         mil: stageInput("mil"),
         name: projectName,
         startDate: projectForm.startDate,
-        status: projectForm.status,
       });
 
       setSelectedClientProjects((current) => [
@@ -720,18 +717,6 @@ function AdminClients() {
                 value={projectForm.name}
               />
             </div>
-            {/* <div className="form-group">
-              <label htmlFor="projectStatus">Status</label>
-              <select
-                id="projectStatus"
-                onChange={(event) => updateProjectField("status", event.target.value)}
-                value={projectForm.status}
-              >
-                <option>Pending</option>
-                <option>In Progress</option>
-                <option>Completed</option>
-              </select>
-            </div> */}
           </div>
           <div className="form-group">
             <label htmlFor="projectLocation">Location</label>

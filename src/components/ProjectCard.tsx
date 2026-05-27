@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { ProjectListItem } from '../data/portal';
 import { PortalIcon } from './PortalIcon';
+import ProgressBar from './ProgressBar';
 import StatusBadge from './StatusBadge';
 
 const projectStatusTone = {
@@ -42,6 +43,13 @@ function ProjectCard({ project }: ProjectCardProps) {
             <PortalIcon name="calendar" />
             Due: {project.dueDate}
           </span>
+        </div>
+        <div className="progress-summary">
+          <div>
+            <span>Fabrication Progress</span>
+            <strong>{project.progress}%</strong>
+          </div>
+          <ProgressBar value={project.progress} />
         </div>
       </div>
       <button className="record-card__arrow" type="button" aria-label={`Open ${project.title}`}>

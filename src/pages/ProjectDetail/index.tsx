@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
-import { getProjectDetail } from "../../services/portalApi";
+import { getProjectDetail, getProjectPayments, type ProjectPaymentSummary } from "../../services/portalApi";
 import type { ProjectListItem, ProjectDetailInfo } from "../../data/portal";
 
 // const projectStatusTone = {
@@ -18,10 +18,12 @@ function ProjectDetail() {
   const [project, setProject] = useState<ProjectListItem | null>(null);
   const [details, setDetails] = useState<ProjectDetailInfo | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "Overview" | "Document" | "Activity"
+    "Overview" | "Document" | "Activity" | "Payment"
   >("Overview");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [paymentSummary, setPaymentSummary] = useState<ProjectPaymentSummary | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -41,6 +43,36 @@ function ProjectDetail() {
         });
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!project) {
+      return;
+    }
+
+    let isMounted = true;
+    setPaymentLoading(true);
+
+    getProjectPayments(project.id)
+      .then((summary) => {
+        if (isMounted) {
+          setPaymentSummary(summary);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setPaymentSummary(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setPaymentLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [project]);
 
   if (loading) {
     return <div className="page-stack">Loading...</div>;
@@ -100,6 +132,12 @@ function ProjectDetail() {
           onClick={() => setActiveTab("Activity")}
         >
           Activity <span className="detail-tab-count">4</span>
+        </button>
+        <button
+          className={`detail-tab ${activeTab === "Payment" ? "active" : ""}`}
+          onClick={() => setActiveTab("Payment")}
+        >
+          Payment
         </button>
       </div>
 
@@ -293,6 +331,59 @@ function ProjectDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === "Payment" && (
+        <div className="detail-panel">
+          <h3>Payment Summary</h3>
+          {paymentLoading ? (
+            <p className="admin-empty-copy">Loading payment summary...</p>
+          ) : (
+            <>
+              <section className="billing-metrics project-payment-metrics" aria-label="Project payment summary">
+                <article className="billing-metric">
+                  <div>
+                    <span>Total paid</span>
+                    <strong>{paymentSummary?.amountPaid || "$0.00"}</strong>
+                  </div>
+                  <span className="icon-tile icon-tile--danger">
+                    <PortalIcon name="check" />
+                  </span>
+                </article>
+                <article className="billing-metric">
+                  <div>
+                    <span>Amount due</span>
+                    <strong>{paymentSummary?.amountDue || "$0.00"}</strong>
+                  </div>
+                  <span className="icon-tile icon-tile--danger">
+                    <PortalIcon name="dollar" />
+                  </span>
+                </article>
+              </section>
+
+              <div className="payments-table project-payment-table">
+                <div className="payments-table__head">
+                  <span>PAYMENT DATE</span>
+                  <span>METHOD</span>
+                  <span>REFERENCE</span>
+                  <span>AMOUNT</span>
+                </div>
+                {paymentSummary?.payments.length ? (
+                  paymentSummary.payments.map((payment) => (
+                    <article className="payments-table__row" key={payment.id}>
+                      <span>{payment.date}</span>
+                      <StatusBadge tone="neutral">{payment.method}</StatusBadge>
+                      <span>{payment.reference}</span>
+                      <strong>{payment.amount}</strong>
+                    </article>
+                  ))
+                ) : (
+                  <div className="admin-empty-row">No payments have been recorded for this project yet.</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

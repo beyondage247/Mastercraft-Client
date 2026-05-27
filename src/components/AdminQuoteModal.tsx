@@ -31,7 +31,6 @@ type QuoteLineDraft = {
 type QuoteFormState = {
   dateIssued: string;
   name: string;
-  quoteId: string;
   tax: number;
   validUntil: string;
 };
@@ -51,10 +50,6 @@ function dateInputValue(value?: string) {
   const date = new Date(value);
 
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
-}
-
-function nextQuoteId() {
-  return `QT-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
 }
 
 function emptyLine(): QuoteLineDraft {
@@ -130,7 +125,6 @@ function AdminQuoteModal({
   const [form, setForm] = useState<QuoteFormState>({
     dateIssued: dateValue(),
     name: "",
-    quoteId: nextQuoteId(),
     tax: 0,
     validUntil: dateValue(14),
   });
@@ -179,7 +173,6 @@ function AdminQuoteModal({
       setForm({
         dateIssued: dateInputValue(quote.dateIssued) || dateValue(),
         name: quote.title,
-        quoteId: quote.uid || quote.id,
         tax: numberFromPrice(quote.tax),
         validUntil: dateInputValue(quote.validUntil) || dateValue(14),
       });
@@ -196,7 +189,6 @@ function AdminQuoteModal({
       setForm({
         dateIssued: dateValue(),
         name: `${project.title} Quote`,
-        quoteId: nextQuoteId(),
         tax: 0,
         validUntil: dateValue(14),
       });
@@ -281,9 +273,9 @@ function AdminQuoteModal({
 
     const selectedLines = lines.filter((line) => line.catalogItemId);
 
-    if (!form.name.trim() || !form.quoteId.trim() || !form.dateIssued || !form.validUntil) {
+    if (!form.name.trim() || !form.dateIssued || !form.validUntil) {
       showRequestToast("quote-validation", "Checking quote...").error(
-        "Quote name, quote ID, issue date, and valid until date are required.",
+        "Quote name, issue date, and valid until date are required.",
       );
       return;
     }
@@ -309,7 +301,6 @@ function AdminQuoteModal({
         serviceId: line.catalogItemId,
       })),
       name: form.name.trim(),
-      quoteId: form.quoteId.trim(),
       subtotal,
       tax: Math.max(0, Number(form.tax) || 0),
       taxAmount,
@@ -367,14 +358,6 @@ function AdminQuoteModal({
               id="quoteName"
               onChange={(event) => updateForm("name", event.target.value)}
               value={form.name}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="quoteId">Quote ID</label>
-            <input
-              id="quoteId"
-              onChange={(event) => updateForm("quoteId", event.target.value)}
-              value={form.quoteId}
             />
           </div>
         </div>

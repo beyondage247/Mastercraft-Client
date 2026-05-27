@@ -227,7 +227,6 @@ export type CreateProjectInput = {
   mil: ProjectStageInput;
   name: string;
   startDate: string;
-  status?: ProjectListItem["status"];
 };
 
 type BackendCreateProjectResponse = {
@@ -289,7 +288,6 @@ export type CreateQuoteInput = {
   }>;
   name: string;
   projectId: string;
-  quoteId: string;
   subtotal: number;
   tax: number;
   taxAmount: number;
@@ -1074,6 +1072,7 @@ function normalizeDocumentType(type: string) {
 
 function buildProjectMetrics(projectList: ProjectListItem[]) {
   return [
+    { icon: "projects", label: "All", tone: "danger", value: `${projectList.length}` },
     { icon: "projects", label: "Quoted", tone: "danger", value: `${projectList.filter((project) => project.status === "Quoted").length}` },
     {
       icon: "projects",
@@ -1179,7 +1178,6 @@ function createProjectPayload(input: CreateProjectInput) {
     mil,
     name: input.name,
     startDate: toApiDate(input.startDate),
-    status: toBackendProjectStatus(input.status),
   };
 }
 
