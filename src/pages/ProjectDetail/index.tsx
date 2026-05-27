@@ -240,7 +240,7 @@ function ProjectDetail() {
                   </button>
                 </div>
               ))}
-              <button className="manage-team-btn">Manage Team</button>
+              {/* <button className="manage-team-btn">Manage Team</button> */}
             </div>
           </div>
         </div>
