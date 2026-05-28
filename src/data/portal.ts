@@ -82,6 +82,24 @@ export type ProjectListItem = {
   attachment?: {
     uploads: ProjectUploadItem[];
   } | null;
+  invoice?: {
+    id: string;
+    invoiceId: string;
+    dateIssued?: string;
+    lineItems?: LineItem[];
+    status: string;
+    subtotal?: string;
+    tax?: string;
+    taxAmount?: string;
+    total?: string;
+    validUntil?: string;
+  } | null;
+  quote?: {
+    id: string;
+    quoteId: string;
+    status: string;
+    validUntil?: string;
+  } | null;
   stages?: ProjectStageItem[];
   startDate?: string;
   startDateValue?: string;
@@ -116,6 +134,7 @@ export type DocumentType = 'Shop drawing' | 'CAD File' | 'Spec Sheet' | 'Photo';
 
 export type DocumentItem = {
   date: string;
+  downloadUrl?: string;
   id: string;
   imageUrl?: string;
   project: string;
@@ -123,15 +142,25 @@ export type DocumentItem = {
   type: DocumentType;
 };
 
-export type InvoiceStatus = 'Paid' | 'Overdue' | 'Draft';
+export type InvoiceStatus = 'Paid' | 'Overdue' | 'Draft' | 'Approved';
 
 export type InvoiceItem = {
   amount: string;
+  clientEmail?: string;
+  clientName?: string;
   dueDate: string;
   id: string;
+  invoiceId?: string;
   issuedDate: string;
+  lineItems?: LineItem[];
   project: string;
+  projectId?: string;
+  quoteReference?: string;
   status: InvoiceStatus;
+  subtotal?: string;
+  tax?: string;
+  taxAmount?: string;
+  total?: string;
 };
 
 export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check';
@@ -143,6 +172,7 @@ export type PaymentItem = {
   invoice: string;
   method: PaymentMethod;
   project: string;
+  projectId?: string;
   reference: string;
 };
 

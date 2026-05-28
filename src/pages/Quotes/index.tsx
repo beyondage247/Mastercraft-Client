@@ -48,7 +48,7 @@ function Quotes() {
     return quotes.filter((quote) => {
       const matchesSearch =
         !normalizedSearch ||
-        [quote.id, quote.title, quote.description, quote.status]
+        [quote.id, quote.uid, quote.title, quote.description, quote.status]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);

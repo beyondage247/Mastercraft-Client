@@ -84,6 +84,7 @@ const router = createBrowserRouter([
       { path: 'quotes', element: <AdminQuotes /> },
       { path: 'invoices', element: <AdminInvoices /> },
       { path: 'payments', element: <AdminPayments /> },
+      { path: 'documents', element: <Documents /> },
       { path: 'reports', element: <AdminWeeklyReports /> },
       { path: 'staff', element: <RequireAdminPage><AdminStaff /></RequireAdminPage> },
       { path: '*', element: <Navigate to="/admin/clients" replace /> },

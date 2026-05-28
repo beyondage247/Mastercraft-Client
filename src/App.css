@@ -731,6 +731,7 @@
   min-width: 40px;
   flex: 0 0 auto;
   border: 0;
+  border-radius: 10px;
   background: transparent;
   color: #333;
   font-size: 14px;
@@ -751,6 +752,7 @@
   align-items: center;
   gap: 12px;
   border: 1px solid #d0d0d0;
+  border-radius: 14px;
   background: #fff;
   color: var(--color-danger-deep);
   padding: 0 14px;
@@ -941,6 +943,7 @@
   min-height: 60px;
   align-items: center;
   border: 1px solid #d0d0d0;
+  border-radius: 14px;
   background: #fff;
 }
 
@@ -1037,7 +1040,8 @@
   padding: 26px 26px 32px;
 }
 
-.document-card h2 {
+.document-card h2,
+.document-card h3 {
   margin: 0 0 24px;
   color: var(--color-text);
   font-size: 24px;
@@ -1052,6 +1056,35 @@
   color: #656565;
   font-size: 20px;
   font-weight: 600;
+}
+
+.document-project-groups {
+  display: grid;
+  gap: 30px;
+}
+
+.document-project-group {
+  display: grid;
+  gap: 16px;
+}
+
+.document-project-group__header {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.document-project-group__header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.document-project-group__header span {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .billing-metrics {
@@ -1227,7 +1260,7 @@
   display: grid;
   align-items: center;
   gap: 18px;
-  grid-template-columns: 145px 145px minmax(250px, 1fr) 145px 145px 120px 30px;
+  grid-template-columns: 145px minmax(190px, 0.85fr) minmax(250px, 1fr) 145px minmax(220px, 0.95fr) 120px 30px;
   padding: 0 0 0 0;
 }
 
@@ -2139,6 +2172,10 @@
   border: 1px solid #ffcccc;
 }
 
+.project-invoice-row {
+  margin-top: 14px;
+}
+
 .team-row {
   display: flex;
   align-items: center;
@@ -2690,7 +2727,12 @@
 .admin-client-table__row {
   display: grid;
   gap: 18px;
-  grid-template-columns: 1fr 1fr 1.2fr 0.8fr 1fr 0.7fr;
+  grid-template-columns: 1fr 1fr 1.2fr 0.8fr 0.75fr 1fr 0.7fr;
+}
+
+.admin-client-table--staff .admin-client-table__head,
+.admin-client-table--staff .admin-client-table__row {
+  grid-template-columns: 1fr 1.2fr 0.7fr 0.8fr 0.7fr;
 }
 
 .admin-client-table__head {
@@ -3383,8 +3425,81 @@
   padding-bottom: 4px;
 }
 
+.admin-table-search {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  margin: 18px 0;
+  max-width: 420px;
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.admin-table-search input {
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  outline: 0;
+}
+
+.admin-table-search input::placeholder {
+  color: var(--color-muted);
+}
+
 .admin-record-table {
   min-width: 1160px;
+}
+
+.admin-record-table--payments .admin-record-table__head,
+.admin-record-table--payments .admin-record-table__row {
+  grid-template-columns: minmax(220px, 1.15fr) minmax(220px, 1.15fr) 1fr 0.7fr 0.7fr;
+}
+
+.project-comments-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.project-comments-list {
+  display: grid;
+  gap: 12px;
+}
+
+.project-comment {
+  background: #f7f7f7;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  justify-self: start;
+  max-width: min(680px, 100%);
+  padding: 12px 14px;
+}
+
+.project-comment--own {
+  background: #fff2f2;
+  border-color: #ffd0d0;
+  justify-self: end;
+  text-align: right;
+}
+
+.project-comment div {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-comment strong {
+  color: var(--color-text);
+}
+
+.project-comment p {
+  margin: 8px 0 0;
+  color: #333;
+  line-height: 1.5;
 }
 
 .admin-record-table--projects .admin-record-table__head,

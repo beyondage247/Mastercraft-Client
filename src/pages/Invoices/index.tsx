@@ -9,8 +9,9 @@ import { getInvoices } from "../../services/portalApi";
 
 type InvoiceFilter = "All" | InvoiceStatus;
 
-const statusFilters: InvoiceFilter[] = ["All", "Paid", "Overdue", "Draft"];
+const statusFilters: InvoiceFilter[] = ["All", "Approved", "Paid", "Overdue", "Draft"];
 const invoiceStatusTone = {
+  Approved: "success",
   Draft: "neutral",
   Overdue: "danger",
   Paid: "success",
@@ -59,7 +60,7 @@ function Invoices() {
         projectFilter === "All" || invoice.project === projectFilter;
       const matchesSearch =
         !normalizedSearch ||
-        [invoice.id, invoice.project, invoice.amount, invoice.status]
+        [invoice.id, invoice.invoiceId, invoice.project, invoice.amount, invoice.status]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
@@ -149,50 +150,54 @@ function Invoices() {
       </section>
 
       <section className="record-list" aria-label="Invoices">
-        {filteredInvoices.map((invoice, index) => (
-          <article
-            className="invoice-card"
-            key={`${invoice.id}-${invoice.status}-${index}`}
-            onClick={() => navigate(`/invoices/${invoice.id}`)}
-            style={{ cursor: "pointer" }}
-          >
-            <div>
-              <div className="invoice-card__idline">
-                <span>{invoice.id}</span>
-                <StatusBadge
-                  icon={invoice.status === "Paid" ? "check" : "clock"}
-                  tone={invoiceStatusTone[invoice.status]}
+        {filteredInvoices.map((invoice, index) => {
+          const displayInvoiceId = invoice.invoiceId || invoice.id;
+
+          return (
+            <article
+              className="invoice-card"
+              key={`${invoice.id}-${invoice.status}-${index}`}
+              onClick={() => navigate(`/invoices/${invoice.id}`)}
+              style={{ cursor: "pointer" }}
+            >
+              <div>
+                <div className="invoice-card__idline">
+                  <span>{displayInvoiceId}</span>
+                  <StatusBadge
+                    icon={invoice.status === "Paid" ? "check" : "clock"}
+                    tone={invoiceStatusTone[invoice.status]}
+                  >
+                    {invoice.status}
+                  </StatusBadge>
+                </div>
+                <h2>{invoice.project}</h2>
+                <div className="invoice-card__details">
+                  <span>{invoice.amount}</span>
+                  <span>
+                    <PortalIcon name="calendar" />
+                    Issued: {invoice.issuedDate}
+                  </span>
+                  <span>
+                    <PortalIcon name="clock" />
+                    Issued: {invoice.dueDate}
+                  </span>
+                </div>
+              </div>
+              <div className="invoice-card__actions">
+                <button
+                  type="button"
+                  aria-label={`Download ${displayInvoiceId}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {invoice.status}
-                </StatusBadge>
+                  <PortalIcon name="download" />
+                </button>
+                <button type="button" aria-label={`Open ${displayInvoiceId}`}>
+                  <PortalIcon name="right" />
+                </button>
               </div>
-              <h2>{invoice.project}</h2>
-              <div className="invoice-card__details">
-                <span>{invoice.amount}</span>
-                <span>
-                  <PortalIcon name="calendar" />
-                  Issued: {invoice.issuedDate}
-                </span>
-                <span>
-                  <PortalIcon name="clock" />
-                  Issued: {invoice.dueDate}
-                </span>
-              </div>
-            </div>
-            <div className="invoice-card__actions">
-              <button
-                type="button"
-                aria-label={`Download ${invoice.id}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <PortalIcon name="download" />
-              </button>
-              <button type="button" aria-label={`Open ${invoice.id}`}>
-                <PortalIcon name="right" />
-              </button>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </section>
 
       <p className="result-count">

@@ -183,6 +183,7 @@ function AdminWeeklyReports() {
   const staffId = currentUser?.clientItemId || currentUser?.email || "staff";
   const [allReports, setAllReports] = useState<WeeklyReport[]>([]);
   const [form, setForm] = useState<WeeklyReportFormState>(() => reportFormDefaults());
+  const [reportSearch, setReportSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
 
   useEffect(() => {
@@ -210,6 +211,29 @@ function AdminWeeklyReports() {
     [allReports, staffId],
   );
   const adminReports = useMemo(() => allReports, [allReports]);
+  const displayedReports = useMemo(() => {
+    const source = isAdmin ? adminReports : ownReports;
+    const normalizedSearch = reportSearch.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return source;
+    }
+
+    return source.filter((report) =>
+      [
+        report.staffName,
+        report.staffEmail,
+        report.weekStart,
+        report.weekEnd,
+        report.networkingEvents,
+        report.notes,
+        report.newCustomers,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [adminReports, isAdmin, ownReports, reportSearch]);
   const latestWeek = adminReports[0]?.weekStart || currentWeekStart();
   const latestWeekReports = adminReports.filter((report) => report.weekStart === latestWeek);
   const averageScore = latestWeekReports.length
@@ -383,8 +407,18 @@ function AdminWeeklyReports() {
               <section className="panel admin-client-list">
                 <div className="panel__header">
                   <h2>{isAdmin ? "Submitted Reports" : "Report History"}</h2>
-                  <span>{(isAdmin ? adminReports : ownReports).length} total</span>
+                  <span>{displayedReports.length} showing</span>
                 </div>
+                <label className="admin-table-search">
+                  <PortalIcon name="search" />
+                  <input
+                    aria-label="Search reports"
+                    onChange={(event) => setReportSearch(event.target.value)}
+                    placeholder="Search reports"
+                    type="search"
+                    value={reportSearch}
+                  />
+                </label>
                 <div className="weekly-report-table">
                   <div className="weekly-report-table__head">
                     <span>Staff</span>
@@ -394,8 +428,8 @@ function AdminWeeklyReports() {
                     <span>Status</span>
                     <span>Action</span>
                   </div>
-                  {(isAdmin ? adminReports : ownReports).length ? (
-                    (isAdmin ? adminReports : ownReports).map((report) => (
+                  {displayedReports.length ? (
+                    displayedReports.map((report) => (
                       <article className="weekly-report-table__row" key={report.id}>
                         <strong>{report.staffName}</strong>
                         <span>{reportWeekLabel(report)}</span>

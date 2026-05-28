@@ -62,7 +62,16 @@ function Projects() {
     return projectList.filter((project) => {
       const matchesSearch =
         !normalizedSearch ||
-        [project.title, project.location, project.category, project.status]
+        [
+          project.title,
+          project.location,
+          project.category,
+          project.status,
+          project.assignedStaffName,
+          project.assignedStaffEmail,
+          project.quote?.quoteId,
+          project.invoice?.invoiceId,
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);

@@ -9,6 +9,7 @@ import {
   type CreateStaffInput,
   type StaffRecord,
 } from "../../services/portalApi";
+import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
 
 type StaffFormState = CreateStaffInput;
@@ -19,29 +20,12 @@ const initialForm: StaffFormState = {
   name: "",
 };
 
-function formatDate(value?: string) {
-  if (!value) {
-    return "Not set";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
 function AdminStaff() {
   const currentUser = getCurrentPortalUser();
   const [feedback, setFeedback] = useState("");
   const [form, setForm] = useState<StaffFormState>(initialForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
 
   const canManageStaff = currentUser?.role === "admin";
@@ -70,13 +54,19 @@ function AdminStaff() {
     };
   }, [canManageStaff]);
 
-  const sortedStaff = useMemo(
-    () =>
-      [...staffList].sort((left, right) =>
-        left.name.localeCompare(right.name),
-      ),
-    [staffList],
-  );
+  const sortedStaff = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const filteredStaff = normalizedSearch
+      ? staffList.filter((staff) =>
+          [staff.name, staff.email, staff.role, staff.createdAt]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedSearch),
+        )
+      : staffList;
+
+    return [...filteredStaff].sort((left, right) => left.name.localeCompare(right.name));
+  }, [staffList, search]);
 
   function updateField<Field extends keyof StaffFormState>(
     field: Field,
@@ -205,7 +195,17 @@ function AdminStaff() {
           <h2>Staff Accounts</h2>
           <span>{sortedStaff.length} total</span>
         </div>
-        <div className="admin-client-table">
+        <label className="admin-table-search">
+          <PortalIcon name="search" />
+          <input
+            aria-label="Search staff"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search staff"
+            type="search"
+            value={search}
+          />
+        </label>
+        <div className="admin-client-table admin-client-table--staff">
           <div className="admin-client-table__head">
             <span>Name</span>
             <span>Email</span>
@@ -218,7 +218,7 @@ function AdminStaff() {
               <strong>{staff.name}</strong>
               <span>{staff.email}</span>
               <span>{staff.isAdmin || staff.role === "ADMIN" ? "ADMIN" : "STAFF"}</span>
-              <span>{formatDate(staff.createdAt)}</span>
+              <span>{formatPortalDateOrFallback(staff.createdAt)}</span>
               <span>Active</span>
             </article>
           ))}

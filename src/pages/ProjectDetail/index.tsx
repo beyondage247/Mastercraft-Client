@@ -93,6 +93,8 @@ function ProjectDetail() {
 
   const assignedStaffName = project.assignedStaffName || "Not assigned";
   const assignedStaffEmail = project.assignedStaffEmail || "";
+  const relatedQuoteId = project.quote?.quoteId || project.quote?.id;
+  const relatedInvoiceId = project.invoice?.invoiceId || project.invoice?.id;
 
   return (
     <div className="page-stack">
@@ -130,7 +132,7 @@ function ProjectDetail() {
           className={`detail-tab ${activeTab === "Document" ? "active" : ""}`}
           onClick={() => setActiveTab("Document")}
         >
-          Document <span className="detail-tab-count">4</span>
+          Document <span className="detail-tab-count">{project.attachment?.uploads.length ?? 0}</span>
         </button>
         <button
           className={`detail-tab ${activeTab === "Activity" ? "active" : ""}`}
@@ -216,19 +218,33 @@ function ProjectDetail() {
               <h3>
                 Related Quotes <Link to="#">View all</Link>
               </h3>
-              <div className="quote-row">
-                <h4>QT-2024-0089</h4>
-                <p>Initial millwork package including kitchen and built-ins</p>
-                <div className="quote-footer">
-                  <span className="quote-amount">$45,000</span>
-                  <span className="quote-status">Approved</span>
+              {relatedQuoteId ? (
+                <div className="quote-row">
+                  <h4>{relatedQuoteId}</h4>
+                  <p>{project.description || "Quote linked to this project."}</p>
+                  <div className="quote-footer">
+                    <span className="quote-amount">{project.invoice?.total || "Pending total"}</span>
+                    <span className="quote-status">{project.quote?.status || "Pending"}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="admin-empty-copy">No quote has been linked to this project yet.</p>
+              )}
+              {relatedInvoiceId ? (
+                <div className="quote-row project-invoice-row">
+                  <h4>{relatedInvoiceId}</h4>
+                  <p>Invoice generated from the approved quote.</p>
+                  <div className="quote-footer">
+                    <span className="quote-amount">{project.invoice?.total || "Pending total"}</span>
+                    <span className="quote-status">{project.invoice?.status || "Pending"}</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="detail-panel">
               <h3>Project Team</h3>
-              {details.team.map((member, index) => (
+              {details.team.length ? details.team.map((member, index) => (
                 <div className="team-row" key={index}>
                   <div className="team-avatar">{member.initials}</div>
                   <div className="team-info">
@@ -239,7 +255,9 @@ function ProjectDetail() {
                     <PortalIcon name="messages" />
                   </button>
                 </div>
-              ))}
+              )) : (
+                <p className="admin-empty-copy">No account partner has been assigned yet.</p>
+              )}
               {/* <button className="manage-team-btn">Manage Team</button> */}
             </div>
           </div>
@@ -249,8 +267,8 @@ function ProjectDetail() {
       {activeTab === "Document" && (
         <div className="detail-panel">
           <h3>Project Documents</h3>
-          <ProjectAttachmentsPanel project={project} />
-          <div className="document-list">
+          <ProjectAttachmentsPanel canUpload onProjectUpdated={setProject} project={project} />
+          {/* <div className="document-list">
             <div className="document-row">
               <div className="document-icon">
                 <PortalIcon name="file" />
@@ -315,7 +333,7 @@ function ProjectDetail() {
                 <button className="document-more">⋮</button>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       )}
 

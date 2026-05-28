@@ -6,24 +6,18 @@ import { PortalIcon } from "../../components/PortalIcon";
 import {
   confirmPasswordReset,
   requestPasswordResetOtp,
-  resetUserPassword,
-  verifyPasswordResetOtp,
 } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 
-type ResetMode = "current" | "otp";
 type OtpStep = "email" | "otp" | "password";
 
 const emptyMessage = "";
 
 function ResetPassword() {
   const user = getCurrentPortalUser();
-  const [mode, setMode] = useState<ResetMode>(user ? "current" : "otp");
   const [otpStep, setOtpStep] = useState<OtpStep>("email");
   const [email, setEmail] = useState(user?.email ?? "");
-  const [currentPassword, setCurrentPassword] = useState("");
   const [otp, setOtp] = useState("");
-  const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [feedback, setFeedback] = useState(emptyMessage);
@@ -42,39 +36,6 @@ function ResetPassword() {
     }
 
     return true;
-  }
-
-  async function submitCurrentPasswordReset(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFeedback(emptyMessage);
-
-    if (!email.trim() || !currentPassword || !validateNewPassword()) {
-      return;
-    }
-
-    const toast = showRequestToast("reset-current-password", "Resetting password...");
-
-    try {
-      setLoading(true);
-      const response = await resetUserPassword(
-        email.trim(),
-        currentPassword,
-        newPassword,
-        confirmPassword,
-      );
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setSuccessMessage(response.message || "Password reset successful.");
-      toast.success(response.message || "Password reset successful.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to reset password.";
-
-      setFeedback(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function requestOtp(event: FormEvent<HTMLFormElement>) {
@@ -112,29 +73,14 @@ function ResetPassword() {
       return;
     }
 
-    const toast = showRequestToast("verify-password-otp", "Verifying OTP...");
-
-    try {
-      setLoading(true);
-      const response = await verifyPasswordResetOtp(email.trim(), otp.trim());
-      setResetToken(response.resetToken);
-      setOtpStep("password");
-      toast.success("OTP verified.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to verify OTP.";
-
-      setFeedback(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+    setOtpStep("password");
   }
 
   async function submitOtpPasswordReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(emptyMessage);
 
-    if (!resetToken || !validateNewPassword()) {
+    if (!email.trim() || !otp.trim() || !validateNewPassword()) {
       return;
     }
 
@@ -143,12 +89,11 @@ function ResetPassword() {
     try {
       setLoading(true);
       const response = await confirmPasswordReset(
-        resetToken,
+        email.trim(),
+        otp.trim(),
         newPassword,
-        confirmPassword,
       );
       setOtp("");
-      setResetToken("");
       setNewPassword("");
       setConfirmPassword("");
       setOtpStep("email");
@@ -162,11 +107,6 @@ function ResetPassword() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function switchMode(nextMode: ResetMode) {
-    setMode(nextMode);
-    setFeedback(emptyMessage);
   }
 
   return (
@@ -184,64 +124,7 @@ function ResetPassword() {
           <p>Update access for your portal account.</p>
         </div>
 
-        <div className="reset-mode-toggle" aria-label="Password reset mode">
-          <button
-            className={mode === "current" ? "is-active" : ""}
-            onClick={() => switchMode("current")}
-            type="button"
-          >
-            Current password
-          </button>
-          <button
-            className={mode === "otp" ? "is-active" : ""}
-            onClick={() => switchMode("otp")}
-            type="button"
-          >
-            OTP
-          </button>
-        </div>
-
-        {mode === "current" ? (
-          <form className="login-form" onSubmit={submitCurrentPasswordReset}>
-            <div className="form-group">
-              <label htmlFor="currentResetEmail">Email</label>
-              <input
-                autoComplete="email"
-                id="currentResetEmail"
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@company.com"
-                type="email"
-                value={email}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="currentPassword">Current password</label>
-              <Input.Password
-                autoComplete="current-password"
-                id="currentPassword"
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                placeholder="Current or temporary password"
-                value={currentPassword}
-              />
-            </div>
-            <PasswordFields
-              confirmPassword={confirmPassword}
-              newPassword={newPassword}
-              setConfirmPassword={setConfirmPassword}
-              setNewPassword={setNewPassword}
-            />
-            <button
-              className="primary-action login-button"
-              disabled={loading}
-              type="submit"
-            >
-              <PortalIcon name="check" />
-              <span>{loading ? "Saving..." : "Save Password"}</span>
-            </button>
-          </form>
-        ) : null}
-
-        {mode === "otp" && otpStep === "email" ? (
+        {otpStep === "email" ? (
           <form className="login-form" onSubmit={requestOtp}>
             <div className="form-group">
               <label htmlFor="otpResetEmail">Email</label>
@@ -265,7 +148,7 @@ function ResetPassword() {
           </form>
         ) : null}
 
-        {mode === "otp" && otpStep === "otp" ? (
+        {otpStep === "otp" ? (
           <form className="login-form" onSubmit={verifyOtp}>
             <div className="form-group">
               <label htmlFor="otpCode">OTP</label>
@@ -285,12 +168,12 @@ function ResetPassword() {
               type="submit"
             >
               <PortalIcon name="check" />
-              <span>{loading ? "Verifying..." : "Verify OTP"}</span>
+              <span>Continue</span>
             </button>
           </form>
         ) : null}
 
-        {mode === "otp" && otpStep === "password" ? (
+        {otpStep === "password" ? (
           <form className="login-form" onSubmit={submitOtpPasswordReset}>
             <PasswordFields
               confirmPassword={confirmPassword}

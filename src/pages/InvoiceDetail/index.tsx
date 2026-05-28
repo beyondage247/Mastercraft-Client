@@ -37,6 +37,8 @@ function InvoiceDetail() {
     );
   }
 
+  const displayInvoiceId = invoice.invoiceId || invoice.id;
+
   return (
     <div className="page-stack quote-detail-page invoice-detail-page">
       <button className="back-link" onClick={() => navigate('/invoices')}>
@@ -45,7 +47,7 @@ function InvoiceDetail() {
 
       <div className="billing-header">
         <div className="billing-header-title">
-          <h1>{invoice.id} <StatusBadge tone={invoice.status === 'Paid' ? 'success' : invoice.status === 'Overdue' ? 'danger' : 'neutral'}>{invoice.status}</StatusBadge></h1>
+          <h1>{displayInvoiceId} <StatusBadge tone={invoice.status === 'Paid' ? 'success' : invoice.status === 'Overdue' ? 'danger' : 'neutral'}>{invoice.status}</StatusBadge></h1>
           <p>Issued <strong>{invoice.issuedDate}</strong></p>
         </div>
         <div className="billing-header-actions">

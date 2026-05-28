@@ -1,4 +1,5 @@
 import { Dropdown, type MenuProps } from "antd";
+import { useMemo, useState } from "react";
 import type { ProjectListItem } from "../data/portal";
 import ProgressBar from "./ProgressBar";
 import { PortalIcon } from "./PortalIcon";
@@ -26,6 +27,31 @@ function AdminProjectTable({
   onView,
   projects,
 }: AdminProjectTableProps) {
+  const [search, setSearch] = useState("");
+  const visibleProjects = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return projects;
+    }
+
+    return projects.filter((project) =>
+      [
+        project.title,
+        project.assignedStaffName,
+        project.assignedStaffEmail,
+        project.location,
+        project.estimatedCompletion,
+        project.dueDate,
+        project.status,
+        project.clientName,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [projects, search]);
+
   function assignedStaffText(project: ProjectListItem) {
     return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
   }
@@ -61,6 +87,16 @@ function AdminProjectTable({
 
   return (
     <div className="admin-project-table-wrap">
+      <label className="admin-table-search">
+        <PortalIcon name="search" />
+        <input
+          aria-label="Search projects"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search projects"
+          type="search"
+          value={search}
+        />
+      </label>
       <div className="admin-record-table admin-record-table--projects">
       <div className="admin-record-table__head">
         <span>Project</span>
@@ -75,8 +111,8 @@ function AdminProjectTable({
         <div className="admin-empty-row">Loading projects...</div>
       ) : error ? (
         <div className="admin-empty-row">{error}</div>
-      ) : projects.length ? (
-        projects.map((project) => {
+      ) : visibleProjects.length ? (
+        visibleProjects.map((project) => {
           const fabrication = project.fabrication ?? project.progress;
 
           return (

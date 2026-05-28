@@ -1,3 +1,5 @@
+import { formatPortalDateOrFallback } from "../utils/dateFormat";
+
 export type WeeklyReportInput = {
   coldCalls: number;
   coffeeLunch: number;
@@ -74,21 +76,7 @@ export function currentWeekStart() {
 }
 
 export function formatReportDate(value?: string) {
-  if (!value) {
-    return "Not set";
-  }
-
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatPortalDateOrFallback(value ? `${value}T00:00:00` : value);
 }
 
 export function reportWeekLabel(report: Pick<WeeklyReport, "weekEnd" | "weekStart">) {

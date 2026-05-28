@@ -1,4 +1,5 @@
 import { Dropdown, type MenuProps } from "antd";
+import { useMemo, useState } from "react";
 import type { QuoteListItem } from "../data/portal";
 import { PortalIcon } from "./PortalIcon";
 import StatusBadge from "./StatusBadge";
@@ -27,6 +28,30 @@ function AdminQuoteTable({
   onView,
   quotes,
 }: AdminQuoteTableProps) {
+  const [search, setSearch] = useState("");
+  const visibleQuotes = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return quotes;
+    }
+
+    return quotes.filter((quote) =>
+      [
+        quote.title,
+        quote.projectName,
+        quote.description,
+        quote.total,
+        quote.amount,
+        quote.validUntil,
+        quote.status,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [quotes, search]);
+
   function actionMenu(quote: QuoteListItem): MenuProps {
     return {
       items: [
@@ -46,6 +71,16 @@ function AdminQuoteTable({
 
   return (
     <div className="admin-project-table-wrap">
+      <label className="admin-table-search">
+        <PortalIcon name="search" />
+        <input
+          aria-label="Search quotes"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search quotes"
+          type="search"
+          value={search}
+        />
+      </label>
       <div className="admin-record-table admin-record-table--quotes">
         <div className="admin-record-table__head">
           <span>Quote</span>
@@ -59,8 +94,8 @@ function AdminQuoteTable({
           <div className="admin-empty-row">Loading quotes...</div>
         ) : error ? (
           <div className="admin-empty-row">{error}</div>
-        ) : quotes.length ? (
-          quotes.map((quote) => (
+        ) : visibleQuotes.length ? (
+          visibleQuotes.map((quote) => (
             <article className="admin-record-table__row" key={quote.id}>
               <strong>{quote.title}</strong>
               <span>{quote.projectName || quote.description || "Not set"}</span>

@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PaymentItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
+import { PortalIcon } from "../../components/PortalIcon";
 import { getPayments } from "../../services/portalApi";
 
 function AdminPayments() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -35,6 +37,21 @@ function AdminPayments() {
     };
   }, []);
 
+  const visiblePayments = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return payments;
+    }
+
+    return payments.filter((payment) =>
+      [payment.reference, payment.invoice, payment.project, payment.amount, payment.method, payment.date]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [payments, search]);
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Payments recorded against invoices" title="Payments" />
@@ -42,8 +59,18 @@ function AdminPayments() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Payment List</h2>
-          <span>{payments.length} total</span>
+          <span>{visiblePayments.length} showing</span>
         </div>
+        <label className="admin-table-search">
+          <PortalIcon name="search" />
+          <input
+            aria-label="Search payments"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search payments"
+            type="search"
+            value={search}
+          />
+        </label>
         <div className="admin-record-table admin-record-table--payments">
           <div className="admin-record-table__head">
             <span>Reference</span>
@@ -56,8 +83,8 @@ function AdminPayments() {
             <div className="admin-empty-row">Loading payments...</div>
           ) : error ? (
             <div className="admin-empty-row">{error}</div>
-          ) : payments.length ? (
-            payments.map((payment) => (
+          ) : visiblePayments.length ? (
+            visiblePayments.map((payment) => (
               <article className="admin-record-table__row" key={payment.id}>
                 <strong>{payment.reference}</strong>
                 <span>{payment.invoice}</span>

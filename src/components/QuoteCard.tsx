@@ -19,12 +19,13 @@ type QuoteCardProps = {
 function QuoteCard({ onRespond, quote }: QuoteCardProps) {
   const navigate = useNavigate();
   const canRespond = quote.status === "Sent" || quote.status === "Draft";
+  const displayQuoteId = quote.uid || quote.id;
 
   return (
     <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
       <div className="record-card__body">
         <div className="quote-card__idline">
-          <span>{quote.id}</span>
+          <span>{displayQuoteId}</span>
           <StatusBadge icon={quote.status === 'Sent' ? 'clock' : 'check'} tone={quoteStatusTone[quote.status]}>
             {quote.status}
           </StatusBadge>

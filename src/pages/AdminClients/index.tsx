@@ -23,6 +23,7 @@ import {
   type StaffRecord,
 } from "../../services/portalApi";
 import type { ProjectListItem } from "../../data/portal";
+import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
 
 type ClientFormState = {
@@ -110,6 +111,7 @@ function AdminClients() {
   const [selectedProject, setSelectedProject] = useState<ProjectListItem | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
   const [selectedClientProjects, setSelectedClientProjects] = useState<ProjectListItem[]>([]);
+  const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
   const [viewClientOpen, setViewClientOpen] = useState(false);
 
@@ -142,7 +144,29 @@ function AdminClients() {
     };
   }, [isAdmin]);
 
-  const clients = useMemo(() => clientList, [clientList]);
+  const clients = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return clientList;
+    }
+
+    return clientList.filter((client) =>
+      [
+        client.name,
+        client.company,
+        client.email,
+        client.phone,
+        client.createdAt,
+        client.accountPartner?.name,
+        client.accountPartner?.email,
+        client.contactName,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [clientList, search]);
   const visibleClients = useMemo(() => {
     const start = (page - 1) * 25;
 
@@ -283,6 +307,21 @@ function AdminClients() {
     }
 
     return `${staff.name}${staff.isAdmin || staff.role === "ADMIN" ? " (Admin)" : ""}`;
+  }
+
+  function staffAssignment(client: ClientRecord) {
+    const partnerName = client.accountPartner?.name;
+    const partnerEmail = client.accountPartner?.email;
+
+    if (partnerName && partnerEmail) {
+      return `${partnerName} (${partnerEmail})`;
+    }
+
+    if (partnerName || partnerEmail) {
+      return partnerName || partnerEmail || "Not assigned";
+    }
+
+    return isAdmin ? staffName(client.accountPartnerId) : assignmentName();
   }
 
   function assignmentName() {
@@ -583,12 +622,26 @@ function AdminClients() {
           <h2>Recent Clients</h2>
           <span>{clients.length} total</span>
         </div>
+        <label className="admin-table-search">
+          <PortalIcon name="search" />
+          <input
+            aria-label="Search clients"
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search clients"
+            type="search"
+            value={search}
+          />
+        </label>
         <div className="admin-client-table">
           <div className="admin-client-table__head">
             <span>Name</span>
             <span>Company</span>
             <span>Email</span>
             <span>Phone</span>
+            <span>Created</span>
             <span>Assignment</span>
             <span>Action</span>
           </div>
@@ -598,7 +651,8 @@ function AdminClients() {
               <span>{client.company || "Not set"}</span>
               <span>{client.email || "Not set"}</span>
               <span>{client.phone || "Not set"}</span>
-              <span>{isAdmin ? staffName(client.accountPartnerId) : assignmentName()}</span>
+              <span>{formatPortalDateOrFallback(client.createdAt)}</span>
+              <span>{staffAssignment(client)}</span>
               <span>
                 <Dropdown menu={actionMenu(client)} placement="bottomRight">
                   <button className="table-action-button" type="button">
@@ -665,8 +719,8 @@ function AdminClients() {
                       <strong>{selectedClient.clientCredit || "Not set"}</strong>
                     </div>
                     <div>
-                      <span>Account partner</span>
-                      <strong>{staffName(selectedClient.accountPartnerId)}</strong>
+                      <span>Team Project</span>
+                      <strong>{staffAssignment(selectedClient)}</strong>
                     </div>
                   </div>
                 ),

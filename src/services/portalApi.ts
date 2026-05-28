@@ -30,6 +30,7 @@ import type {
   QuoteListItem,
 } from "../data/portal";
 import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
+import { formatPortalDate } from "../utils/dateFormat";
 
 type ProjectResponse = {
   activeProjects: HomeProject[];
@@ -59,6 +60,11 @@ type PaymentResponse = {
 export type ClientRecord = {
   additionalEmail?: string;
   additionalPhone?: string;
+  accountPartner?: {
+    email?: string;
+    id?: string;
+    name?: string;
+  };
   accountPartnerId?: string;
   clientId?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT";
@@ -116,6 +122,10 @@ type PortalMessageResponse = {
   message: string;
 };
 
+type DeleteUploadsResponse = {
+  count: number;
+};
+
 export type CatalogAvailabilityStatus = "EMAIL_FOR_QUOTE" | "IN_STOCK" | "SPECIAL_ORDER";
 
 export type CatalogItem = {
@@ -156,16 +166,13 @@ export type CatalogImportResponse = {
   skippedRows: CatalogImportIssue[];
 };
 
-type VerifyPasswordResetOtpResponse = PortalMessageResponse & {
-  resetToken: string;
-};
-
 type BackendUserResponse = {
   additionalEmail?: unknown;
   additionalName?: unknown;
   additionalNumber?: unknown;
   additionalContact?: unknown;
   accountPartnerId?: unknown;
+  accountPartner?: BackendProjectStaffResponse | null;
   clientItemId?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT" | null;
   company?: unknown;
@@ -181,6 +188,8 @@ type BackendUserResponse = {
 };
 
 type BackendProjectClientResponse = {
+  accountPartner?: BackendProjectStaffResponse | null;
+  accountPartnerId?: unknown;
   email?: string;
   id?: string;
   name?: unknown;
@@ -209,6 +218,31 @@ type BackendProjectResponse = {
   id: string;
   location?: string;
   name?: string;
+  quote?: {
+    id: string;
+    quoteId?: string;
+    status?: string;
+    validUntil?: string | null;
+  } | null;
+  invoice?: {
+    id: string;
+    clientComment?: unknown;
+    dateIssued?: string | null;
+    invoiceId?: string;
+    lineItems?: Array<{
+      id: string;
+      ourPrice?: string | number | null;
+      productName?: string;
+      quantity?: number;
+      lineTotal?: string | number | null;
+    }>;
+    status?: string;
+    subtotal?: string | number;
+    tax?: string | number;
+    taxAmount?: string | number;
+    total?: string | number;
+    validUntil?: string | null;
+  } | null;
   startDate?: string | null;
   stages?: BackendProjectStageResponse[];
   staff?: BackendProjectStaffResponse | null;
@@ -347,26 +381,6 @@ export type QuoteDecisionStatus = "APPROVED" | "REJECTED" | "IN_REVIEW";
 type BackendCreateQuoteResponse = {
   message: string;
   quote: BackendQuoteResponse;
-};
-
-type BackendDocumentResponse = {
-  createdAt?: string;
-  date?: string;
-  id: string;
-  name?: string;
-  project?: string | { name?: string; title?: string };
-  title?: string;
-  type?: string;
-};
-
-type BackendInvoiceResponse = {
-  amount?: string | number;
-  dueDate?: string | null;
-  id: string;
-  issuedDate?: string | null;
-  project?: string | { name?: string; title?: string };
-  status?: string;
-  total?: string | number;
 };
 
 type BackendPaymentResponse = {
@@ -550,6 +564,13 @@ function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): Cl
   return {
     additionalEmail: normalizeString(data.additionalEmail),
     additionalPhone: normalizeString(data.additionalNumber),
+    accountPartner: data.accountPartner
+      ? {
+          email: data.accountPartner.email,
+          id: data.accountPartner.id,
+          name: normalizeString(data.accountPartner.name),
+        }
+      : undefined,
     accountPartnerId: normalizeString(data.accountPartnerId),
     clientCredit: data.clientCredit ?? undefined,
     company: normalizeString(data.company),
@@ -695,48 +716,30 @@ export async function getCurrentUserProfile() {
 }
 
 export async function getClientDetails(id: string) {
-  const data = await portalRequest<BackendUserResponse>(
-    `/users/clients/${encodeURIComponent(id)}`,
-    {},
-    true,
-  );
+  const clients = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
+  const data = clients.find((client) => client.id === id || client.clientItemId === id);
+
+  if (!data) {
+    throw new Error("Client was not found.");
+  }
 
   return normalizeClientRecord(data);
 }
 
 export async function requestPasswordResetOtp(email: string) {
-  return portalRequest<PortalMessageResponse>("/auth/password-reset/request-otp", {
+  return portalRequest<PortalMessageResponse>("/auth/forgot-password", {
     body: JSON.stringify({ email }),
     method: "POST",
   });
 }
 
-export async function verifyPasswordResetOtp(email: string, otp: string) {
-  return portalRequest<VerifyPasswordResetOtpResponse>("/auth/password-reset/verify-otp", {
-    body: JSON.stringify({ email, otp }),
-    method: "POST",
-  });
-}
-
 export async function confirmPasswordReset(
-  resetToken: string,
-  newPassword: string,
-  confirmPassword: string,
-) {
-  return portalRequest<PortalMessageResponse>("/auth/password-reset/confirm", {
-    body: JSON.stringify({ confirmPassword, newPassword, resetToken }),
-    method: "POST",
-  });
-}
-
-export async function resetUserPassword(
   email: string,
-  currentPassword: string,
+  otp: string,
   newPassword: string,
-  confirmPassword: string,
 ) {
   return portalRequest<PortalMessageResponse>("/auth/reset-password", {
-    body: JSON.stringify({ confirmPassword, currentPassword, email, newPassword }),
+    body: JSON.stringify({ email, newPassword, otp }),
     method: "POST",
   });
 }
@@ -784,21 +787,7 @@ function normalizeProjectStatus(status: string) {
 }
 
 function formatProjectDate(value?: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatPortalDate(value);
 }
 
 function formatDateInputValue(value?: string | null) {
@@ -951,7 +940,7 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
   const startDate = formatProjectDate(project.startDate);
   const stages = (project.stages ?? []).map(normalizeProjectStage);
   const fabrication = projectFabrication(project, stages);
-  const assignedStaff = project.accountPartner ?? project.assignedStaff ?? project.staff;
+  const assignedStaff = project.client?.accountPartner ?? project.accountPartner ?? project.assignedStaff ?? project.staff;
 
   return {
     category: "Fabrication",
@@ -975,6 +964,28 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
       ? { uploads: (project.attachment.uploads ?? []).map(normalizeProjectUpload) }
       : null,
     comments: (project.comments ?? []).map(normalizeProjectComment),
+    invoice: project.invoice
+      ? {
+          dateIssued: formatProjectDate(project.invoice.dateIssued),
+          id: project.invoice.id,
+          invoiceId: project.invoice.invoiceId || project.invoice.id,
+          lineItems: normalizeLineItems(project.invoice.lineItems),
+          status: normalizeString(project.invoice.status),
+          subtotal: moneyText(project.invoice.subtotal),
+          tax: normalizeString(project.invoice.tax),
+          taxAmount: moneyText(project.invoice.taxAmount),
+          total: moneyText(project.invoice.total),
+          validUntil: formatProjectDate(project.invoice.validUntil),
+        }
+      : null,
+    quote: project.quote
+      ? {
+          id: project.quote.id,
+          quoteId: project.quote.quoteId || project.quote.id,
+          status: normalizeString(project.quote.status),
+          validUntil: formatProjectDate(project.quote.validUntil),
+        }
+      : null,
     stages,
     startDate,
     startDateValue: formatDateInputValue(project.startDate),
@@ -1031,9 +1042,15 @@ function projectName(value: unknown, fallback = "") {
   return fallback;
 }
 
-function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
-  const validUntil = formatProjectDate(quote.validUntil);
-  const lineItems = (quote.lineItems ?? []).map((item) => {
+function normalizeLineItems(
+  lineItems?: Array<{
+    lineTotal?: string | number | null;
+    ourPrice?: string | number | null;
+    productName?: string;
+    quantity?: number;
+  }>,
+) {
+  return (lineItems ?? []).map((item) => {
     const rate = moneyText(item.ourPrice);
     const quantity = Number(item.quantity) || 1;
     const lineTotal = numberFromDecimal(item.lineTotal) || numberFromDecimal(item.ourPrice) * quantity;
@@ -1045,6 +1062,11 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
       rate,
     };
   });
+}
+
+function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
+  const validUntil = formatProjectDate(quote.validUntil);
+  const lineItems = normalizeLineItems(quote.lineItems);
 
   return {
     amount: moneyText(quote.amount ?? quote.total),
@@ -1066,28 +1088,9 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
   };
 }
 
-function mapBackendDocument(document: BackendDocumentResponse): DocumentItem {
-  return {
-    date: formatProjectDate(document.date ?? document.createdAt),
-    id: document.id,
-    project: projectName(document.project, ""),
-    title: document.title || document.name || "Untitled document",
-    type: normalizeDocumentType(document.type || "Spec Sheet"),
-  };
-}
-
-function mapBackendInvoice(invoice: BackendInvoiceResponse): InvoiceItem {
-  return {
-    amount: moneyText(invoice.amount ?? invoice.total),
-    dueDate: formatProjectDate(invoice.dueDate),
-    id: invoice.id,
-    issuedDate: formatProjectDate(invoice.issuedDate),
-    project: projectName(invoice.project, ""),
-    status: normalizeInvoiceStatus(invoice.status || "Draft"),
-  };
-}
-
 function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
+  const project = payment.project && typeof payment.project === "object" ? payment.project : undefined;
+
   return {
     amount: moneyText(payment.amount),
     date: formatProjectDate(payment.date ?? payment.createdAt),
@@ -1095,6 +1098,7 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
     invoice: projectName(payment.invoice, payment.id),
     method: normalizePaymentMethod(payment.method || "ACH"),
     project: projectName(payment.project, ""),
+    projectId: payment.projectId ?? project?.id,
     reference: payment.reference || payment.id,
   };
 }
@@ -1138,7 +1142,13 @@ function normalizeQuoteStatus(status: string, validUntil?: string | null) {
 }
 
 function normalizeInvoiceStatus(status: string) {
-  if (["Paid", "Overdue", "Draft"].includes(status)) {
+  const normalized = status.trim().toUpperCase();
+
+  if (normalized === "APPROVED") {
+    return "Approved";
+  }
+
+  if (["Paid", "Overdue", "Draft", "Approved"].includes(status)) {
     return status as InvoiceItem["status"];
   }
 
@@ -1181,6 +1191,17 @@ function normalizeDocumentType(type: string) {
   if (normalized.includes("shop")) return "Shop drawing";
 
   return "Spec Sheet";
+}
+
+function documentFromProjectUpload(project: ProjectListItem, upload: ProjectUploadItem): DocumentItem {
+  return {
+    date: project.startDate || project.dueDate || project.estimatedCompletion || "",
+    downloadUrl: uploadDownloadUrl(upload.id),
+    id: `${project.id}-${upload.id}`,
+    project: project.title,
+    title: upload.name || "Uploaded file",
+    type: normalizeDocumentType(upload.name || "Spec Sheet"),
+  };
 }
 
 function buildProjectMetrics(projectList: ProjectListItem[]) {
@@ -1235,6 +1256,76 @@ function buildQuoteMetrics(quoteList: QuoteListItem[]) {
     },
     { icon: "documents", label: "Total Quotes", tone: "danger", value: `${quoteList.length}` },
   ] as Metric[];
+}
+
+function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
+  const outstanding = invoiceList
+    .filter((invoice) => invoice.status !== "Paid")
+    .reduce((sum, invoice) => sum + amountNumber(invoice.amount), 0);
+
+  return [
+    { icon: "dollar", label: "Total Outstanding", tone: "danger", value: `$${outstanding.toLocaleString()}` },
+    { icon: "documents", label: "Invoices Sent", tone: "danger", value: `${invoiceList.length}` },
+    {
+      icon: "check",
+      label: "Paid This Month",
+      tone: "danger",
+      value: `${invoiceList.filter((invoice) => invoice.status === "Paid").length}`,
+    },
+  ] as Metric[];
+}
+
+function invoiceFromProject(project: ProjectListItem): InvoiceItem | null {
+  if (!project.invoice) {
+    return null;
+  }
+
+  return {
+    amount: project.invoice.total || "$0.00",
+    clientEmail: project.clientEmail,
+    clientName: project.clientName,
+    dueDate: project.invoice.validUntil || project.dueDate,
+    id: project.invoice.id,
+    invoiceId: project.invoice.invoiceId,
+    issuedDate: project.invoice.dateIssued || project.startDate || "",
+    lineItems: project.invoice.lineItems,
+    project: project.title,
+    projectId: project.id,
+    quoteReference: project.quote?.quoteId,
+    status: normalizeInvoiceStatus(project.invoice.status || "Approved"),
+    subtotal: project.invoice.subtotal,
+    tax: project.invoice.tax,
+    taxAmount: project.invoice.taxAmount,
+    total: project.invoice.total,
+  };
+}
+
+async function getProjectInvoices() {
+  const projectData = await getProjects();
+
+  return projectData.projects
+    .map(invoiceFromProject)
+    .filter((invoice): invoice is InvoiceItem => Boolean(invoice));
+}
+
+function paymentsWithInvoiceIds(payments: PaymentItem[], invoices: InvoiceItem[]) {
+  const invoiceByProject = new Map(
+    invoices
+      .filter((invoice) => invoice.projectId)
+      .map((invoice) => [invoice.projectId, invoice] as const),
+  );
+
+  return payments.map((payment) => {
+    const invoice = payment.projectId ? invoiceByProject.get(payment.projectId) : undefined;
+
+    return invoice
+      ? {
+          ...payment,
+          invoice: invoice.invoiceId || invoice.id,
+          project: payment.project || invoice.project,
+        }
+      : payment;
+  });
 }
 
 function toBackendProjectStatus(status?: ProjectListItem["status"]) {
@@ -1394,6 +1485,29 @@ export async function uploadFile(file: File) {
   return response.uploadId;
 }
 
+export async function uploadFileWithId(uploadId: string, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await portalRequest<{ uploadId: string }>(
+    `/uploads/${encodeURIComponent(uploadId)}`,
+    {
+      body,
+      method: "POST",
+    },
+    true,
+  );
+
+  return response.uploadId;
+}
+
+export async function deleteUploads(uploadIds: string[]) {
+  return portalRequest<DeleteUploadsResponse>("/uploads", {
+    body: JSON.stringify({ ids: uploadIds }),
+    method: "DELETE",
+  }, true);
+}
+
 export function uploadDownloadUrl(uploadId: string) {
   return `${portalApiUrl}/uploads/download/${encodeURIComponent(uploadId)}`;
 }
@@ -1413,6 +1527,10 @@ export async function attachProjectUploads(projectId: string, uploadIds: string[
 
 export async function getCatalogItems() {
   return portalRequest<CatalogItem[]>("/services", {}, true);
+}
+
+export async function getCatalogItem(id: string) {
+  return portalRequest<CatalogItem>(`/services/${encodeURIComponent(id)}`, {}, true);
 }
 
 export async function updateCatalogItem(id: string, input: UpdateCatalogItemInput) {
@@ -1541,7 +1659,10 @@ export async function acceptQuote(uid: string, comment = ""): Promise<QuoteListI
 
 export async function getDocuments(): Promise<DocumentResponse> {
   try {
-    const mappedDocuments = (await portalRequest<BackendDocumentResponse[]>("/documents", {}, true)).map(mapBackendDocument);
+    const projectData = await getProjects();
+    const mappedDocuments = projectData.projects.flatMap((project) =>
+      (project.attachment?.uploads ?? []).map((upload) => documentFromProjectUpload(project, upload)),
+    );
 
     return { documents: mappedDocuments.length ? mappedDocuments : documents };
   } catch {
@@ -1551,23 +1672,11 @@ export async function getDocuments(): Promise<DocumentResponse> {
 
 export async function getInvoices(): Promise<InvoiceResponse> {
   try {
-    const mappedInvoices = (await portalRequest<BackendInvoiceResponse[]>("/invoices", {}, true)).map(mapBackendInvoice);
-    const outstanding = mappedInvoices
-      .filter((invoice) => invoice.status !== "Paid")
-      .reduce((sum, invoice) => sum + amountNumber(invoice.amount), 0);
+    const projectInvoices = await getProjectInvoices();
 
     return {
-      invoices: mappedInvoices.length ? mappedInvoices : invoices,
-      metrics: [
-        { icon: "dollar", label: "Total Outstanding", tone: "danger", value: `$${outstanding.toLocaleString()}` },
-        { icon: "documents", label: "Invoices Sent", tone: "danger", value: `${mappedInvoices.length}` },
-        {
-          icon: "check",
-          label: "Paid This Month",
-          tone: "danger",
-          value: `${mappedInvoices.filter((invoice) => invoice.status === "Paid").length}`,
-        },
-      ],
+      invoices: projectInvoices.length ? projectInvoices : invoices,
+      metrics: projectInvoices.length ? buildInvoiceMetrics(projectInvoices) : invoiceMetrics,
     };
   } catch {
     return {
@@ -1589,15 +1698,17 @@ export async function getPayments(): Promise<PaymentResponse> {
           )).payments
         : await portalRequest<BackendPaymentResponse[]>("/payments", {}, true);
     const mappedPayments = paymentSource.map(mapBackendPayment);
-    const total = mappedPayments.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
+    const projectInvoices = await getProjectInvoices().catch(() => []);
+    const displayPayments = paymentsWithInvoiceIds(mappedPayments, projectInvoices);
+    const total = displayPayments.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
 
     return {
       metrics: [
         { icon: "documents", label: "TOTAL PAID (YTD)", tone: "danger", value: `$${total.toLocaleString()}` },
         { icon: "documents", label: "LAST 30 DAYS", tone: "danger", value: `$${total.toLocaleString()}` },
-        { icon: "check", label: "TOTAL PAYMENTS", tone: "danger", value: `${mappedPayments.length}` },
+        { icon: "check", label: "TOTAL PAYMENTS", tone: "danger", value: `${displayPayments.length}` },
       ],
-      payments: mappedPayments.length ? mappedPayments : payments,
+      payments: displayPayments.length ? displayPayments : payments,
     };
   } catch {
     return {
@@ -1618,7 +1729,10 @@ export async function getProjectPayments(projectId: string): Promise<ProjectPaym
     amountDue: moneyText(response.amountDue),
     amountPaid: moneyText(response.amountPaid),
     paymentStatus: response.paymentStatus,
-    payments: response.payments.map(mapBackendPayment),
+    payments: paymentsWithInvoiceIds(
+      response.payments.map((payment) => mapBackendPayment({ ...payment, projectId })),
+      await getProjectInvoices().catch(() => []),
+    ),
     projectId: response.projectId,
   };
 }
@@ -1790,8 +1904,29 @@ export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem
 }
 
 export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceItem | undefined, details: InvoiceDetailInfo | undefined }> {
-  const invoice = invoices.find((item) => item.id === id);
-  const details = invoiceDetails[id] || invoiceDetails["INV - 2024- 001"];
+  const invoiceData = await getInvoices().catch(() => ({ invoices, metrics: invoiceMetrics }));
+  const invoice = invoiceData.invoices.find((item) => item.id === id || item.invoiceId === id);
+  const details = invoice
+    ? {
+        billToAddress1: "",
+        billToAddress2: "",
+        billToEmail: invoice.clientEmail || "",
+        billToName: invoice.clientName || "Client",
+        lineItems: invoice.lineItems?.length ? invoice.lineItems : invoiceDetails["INV - 2024- 001"].lineItems,
+        linkedProject: {
+          category: "Project",
+          estCompletion: invoice.dueDate,
+          id: invoice.projectId || "",
+          location: "",
+          title: invoice.project,
+        },
+        projectReference: invoice.project,
+        quoteReference: invoice.quoteReference || "Not set",
+        subtotal: invoice.subtotal || invoice.amount,
+        tax: invoice.taxAmount || "$0.00",
+        total: invoice.total || invoice.amount,
+      }
+    : invoiceDetails[id] || invoiceDetails["INV - 2024- 001"];
 
   return { invoice, details };
 }

@@ -14,6 +14,7 @@ import {
   type CatalogItem,
   type UpdateCatalogItemInput,
 } from "../../services/portalApi";
+import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
 
 type CatalogFormState = {
@@ -141,21 +142,7 @@ function moneyText(value?: string) {
 }
 
 function dateText(value?: string) {
-  if (!value) {
-    return "Not set";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatPortalDateOrFallback(value);
 }
 
 function availabilityLabel(value: CatalogAvailabilityStatus) {

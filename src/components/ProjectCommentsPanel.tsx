@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { getCurrentPortalUser } from "../auth/session";
 import type { ProjectCommentItem, ProjectListItem } from "../data/portal";
 import { addProjectComment } from "../services/portalApi";
 import { showRequestToast } from "../utils/portalToast";
@@ -9,6 +10,7 @@ type ProjectCommentsPanelProps = {
 };
 
 function ProjectCommentsPanel({ project }: ProjectCommentsPanelProps) {
+  const currentUser = getCurrentPortalUser();
   const [comments, setComments] = useState<ProjectCommentItem[]>(project.comments ?? []);
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -42,15 +44,27 @@ function ProjectCommentsPanel({ project }: ProjectCommentsPanelProps) {
     }
   }
 
+  function isOwnComment(comment: ProjectCommentItem) {
+    const userId = comment.user.id?.toLowerCase();
+    const userName = comment.user.name?.toLowerCase();
+    const currentId = currentUser?.clientItemId?.toLowerCase();
+    const currentName = currentUser?.name?.toLowerCase();
+
+    return Boolean(
+      (userId && currentId && userId === currentId) ||
+      (userName && currentName && userName === currentName),
+    );
+  }
+
   return (
     <div className="project-comments-panel">
       <div className="project-comments-list">
         {comments.length ? (
           comments.map((comment) => (
-            <article className="project-comment" key={comment.id}>
+            <article className={`project-comment${isOwnComment(comment) ? " project-comment--own" : ""}`} key={comment.id}>
               <div>
                 <strong>{comment.user.name}</strong>
-                <span>{comment.user.role} • {comment.createdAt || "Just now"}</span>
+                <span>{' '}({comment.user.role}) • {comment.createdAt || "Just now"}</span>
               </div>
               <p>{comment.message}</p>
             </article>
