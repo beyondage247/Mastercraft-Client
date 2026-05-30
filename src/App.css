@@ -3383,7 +3383,9 @@
 }
 
 .quote-line-table__row input,
-.quote-total-panel input {
+.quote-total-panel input,
+.quote-schedule-table input,
+.quote-schedule-table select {
   width: 100%;
 }
 
@@ -3409,6 +3411,84 @@
 .quote-total-panel__grand strong {
   color: var(--color-danger);
   font-size: 20px;
+}
+
+.quote-schedule-section,
+.quote-schedule-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.quote-schedule-section > .ant-btn {
+  justify-self: start;
+}
+
+.quote-schedule-panel {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.quote-schedule-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.quote-schedule-options label {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.quote-schedule-options input {
+  accent-color: var(--color-danger);
+}
+
+.quote-schedule-table {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  display: grid;
+  overflow-x: auto;
+}
+
+.quote-schedule-table--split {
+  margin-top: 4px;
+}
+
+.quote-schedule-table--split > .ant-btn {
+  justify-self: start;
+  margin: 12px;
+}
+
+.quote-schedule-table__head,
+.quote-schedule-table__row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(140px, 0.8fr) minmax(220px, 1fr) minmax(210px, 1fr);
+  min-width: 640px;
+}
+
+.quote-schedule-table__head {
+  background: #f8fafc;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 12px 14px;
+  text-transform: uppercase;
+}
+
+.quote-schedule-table__row {
+  border-top: 1px solid var(--color-border-soft);
+  padding: 12px 14px;
+}
+
+.quote-schedule-amount-field {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 84px minmax(0, 1fr);
 }
 
 .project-payment-metrics {

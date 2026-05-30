@@ -30,9 +30,22 @@ type QuoteLineDraft = {
 
 type QuoteFormState = {
   dateIssued: string;
+  discount: number;
   name: string;
+  shippingFee: number;
   tax: number;
   validUntil: string;
+};
+
+type ScheduleAmountType = "fixed" | "percentage";
+
+type ScheduleRowDraft = {
+  amount: number;
+  amountType: ScheduleAmountType;
+  date: string;
+  key: string;
+  name: string;
+  readOnlyDate?: boolean;
 };
 
 function dateValue(offsetDays = 0) {
@@ -72,6 +85,17 @@ function numberFromPrice(value: unknown) {
   }
 
   return 0;
+}
+
+function emptyScheduleRow(name: string, readOnlyDate = false): ScheduleRowDraft {
+  return {
+    amount: 0,
+    amountType: "percentage",
+    date: "",
+    key: crypto.randomUUID(),
+    name,
+    readOnlyDate,
+  };
 }
 
 function money(value: number) {
@@ -124,13 +148,25 @@ function AdminQuoteModal({
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [form, setForm] = useState<QuoteFormState>({
     dateIssued: dateValue(),
+    discount: 0,
     name: "",
+    shippingFee: 0,
     tax: 0,
     validUntil: dateValue(14),
   });
+  const [isPaymentScheduleOpen, setIsPaymentScheduleOpen] = useState(false);
   const [isCatalogLoading, setIsCatalogLoading] = useState(false);
+  const [isDepositRequested, setIsDepositRequested] = useState(false);
+  const [isBalanceSplit, setIsBalanceSplit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lines, setLines] = useState<QuoteLineDraft[]>([emptyLine()]);
+  const [balanceRow, setBalanceRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Balance"));
+  const [depositRow, setDepositRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Deposit", true));
+  const [fullPaymentRow, setFullPaymentRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Amount"));
+  const [splitRows, setSplitRows] = useState<ScheduleRowDraft[]>(() => [
+    emptyScheduleRow("Payment 1"),
+    emptyScheduleRow("Payment 2"),
+  ]);
   const [subcategoryFilter, setSubcategoryFilter] = useState("");
 
   useEffect(() => {
@@ -172,7 +208,9 @@ function AdminQuoteModal({
     if (isEdit) {
       setForm({
         dateIssued: dateInputValue(quote.dateIssued) || dateValue(),
+        discount: 0,
         name: quote.title,
+        shippingFee: 0,
         tax: numberFromPrice(quote.tax),
         validUntil: dateInputValue(quote.validUntil) || dateValue(14),
       });
@@ -182,18 +220,30 @@ function AdminQuoteModal({
           : [emptyLine()],
       );
       setSubcategoryFilter("");
+      setIsPaymentScheduleOpen(false);
+      setIsDepositRequested(false);
+      setIsBalanceSplit(false);
       return;
     }
 
     if (project) {
       setForm({
         dateIssued: dateValue(),
+        discount: 0,
         name: `${project.title} Quote`,
+        shippingFee: 0,
         tax: 0,
         validUntil: dateValue(14),
       });
       setLines([emptyLine()]);
       setSubcategoryFilter("");
+      setIsPaymentScheduleOpen(false);
+      setIsDepositRequested(false);
+      setIsBalanceSplit(false);
+      setDepositRow(emptyScheduleRow("Deposit", true));
+      setBalanceRow(emptyScheduleRow("Balance"));
+      setFullPaymentRow(emptyScheduleRow("Amount"));
+      setSplitRows([emptyScheduleRow("Payment 1"), emptyScheduleRow("Payment 2")]);
     }
   }, [catalogItems, isEdit, open, project, quote]);
 
@@ -233,8 +283,11 @@ function AdminQuoteModal({
       ),
     [lines],
   );
-  const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * subtotal;
-  const total = subtotal + taxAmount;
+  const discount = Math.max(0, Number(form.discount) || 0);
+  const shippingFee = Math.max(0, Number(form.shippingFee) || 0);
+  const taxableBase = Math.max(0, subtotal - discount + shippingFee);
+  const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * taxableBase;
+  const total = taxableBase + taxAmount;
 
   function updateForm<K extends keyof QuoteFormState>(key: K, value: QuoteFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -264,6 +317,35 @@ function AdminQuoteModal({
     setLines((current) =>
       current.length > 1 ? current.filter((line) => line.key !== key) : current,
     );
+  }
+
+  function updateScheduleRow(
+    row: ScheduleRowDraft,
+    patch: Partial<ScheduleRowDraft>,
+    updater: (row: ScheduleRowDraft) => void,
+  ) {
+    updater({ ...row, ...patch });
+  }
+
+  function updateSplitRow(key: string, patch: Partial<ScheduleRowDraft>) {
+    setSplitRows((current) =>
+      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
+  }
+
+  function addSplitRow() {
+    setSplitRows((current) => [
+      ...current,
+      emptyScheduleRow(`Payment ${current.length + 1}`),
+    ]);
+  }
+
+  function toggleDepositRequest(checked: boolean) {
+    setIsDepositRequested(checked);
+
+    if (!checked) {
+      setIsBalanceSplit(false);
+    }
   }
 
   async function handleSubmit() {
@@ -386,7 +468,7 @@ function AdminQuoteModal({
         <div className="quote-line-section">
           <div className="quote-line-section__header">
             <h3>Line items</h3>
-            <div className="quote-line-section__tools">
+          <div className="quote-line-section__tools">
               <Select
                 onChange={setSubcategoryFilter}
                 options={subcategoryOptions}
@@ -462,10 +544,38 @@ function AdminQuoteModal({
               value={form.tax}
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="quoteDiscount">Discount</label>
+            <input
+              id="quoteDiscount"
+              min="0"
+              onChange={(event) => updateForm("discount", numberFromPrice(event.target.value))}
+              type="number"
+              value={form.discount}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="quoteShippingFee">Shipping Fee</label>
+            <input
+              id="quoteShippingFee"
+              min="0"
+              onChange={(event) => updateForm("shippingFee", numberFromPrice(event.target.value))}
+              type="number"
+              value={form.shippingFee}
+            />
+          </div>
           <div className="quote-total-panel__summary">
             <div>
               <span>Subtotal</span>
               <strong>{money(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Discount</span>
+              <strong>-{money(discount)}</strong>
+            </div>
+            <div>
+              <span>Shipping</span>
+              <strong>{money(shippingFee)}</strong>
             </div>
             <div>
               <span>Tax amount</span>
@@ -476,6 +586,175 @@ function AdminQuoteModal({
               <strong>{money(total)}</strong>
             </div>
           </div>
+        </div>
+
+        <div className="quote-schedule-section">
+          <Button onClick={() => setIsPaymentScheduleOpen((current) => !current)} type="default">
+            Payment Schedule
+          </Button>
+
+          {isPaymentScheduleOpen ? (
+            <div className="quote-schedule-panel">
+              <div className="quote-schedule-options">
+                <label>
+                  <input
+                    checked={isDepositRequested}
+                    onChange={(event) => toggleDepositRequest(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>Request Deposit Payment</span>
+                </label>
+                <label>
+                  <input
+                    checked={isBalanceSplit}
+                    disabled={!isDepositRequested}
+                    onChange={(event) => setIsBalanceSplit(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>Split Balance</span>
+                </label>
+              </div>
+
+              {!isDepositRequested ? (
+                <div className="quote-schedule-table quote-schedule-table--full">
+                  <div className="quote-schedule-table__head">
+                    <span>Name</span>
+                    <span>Amount</span>
+                    <span>Date</span>
+                  </div>
+                  <div className="quote-schedule-table__row">
+                    <strong>Amount</strong>
+                    <span className="quote-schedule-amount-field">
+                      <select
+                        aria-label="Full payment amount type"
+                        onChange={(event) =>
+                          updateScheduleRow(
+                            fullPaymentRow,
+                            { amountType: event.target.value as ScheduleAmountType },
+                            setFullPaymentRow,
+                          )
+                        }
+                        value={fullPaymentRow.amountType}
+                      >
+                        <option value="percentage">%</option>
+                        <option value="fixed">Fixed</option>
+                      </select>
+                      <input
+                        aria-label="Full payment amount"
+                        onChange={(event) =>
+                          updateScheduleRow(fullPaymentRow, { amount: numberFromPrice(event.target.value) }, setFullPaymentRow)
+                        }
+                        type="number"
+                        value={fullPaymentRow.amount || total}
+                      />
+                    </span>
+                    <input
+                      aria-label="Full payment date"
+                      onChange={(event) =>
+                        updateScheduleRow(fullPaymentRow, { date: event.target.value }, setFullPaymentRow)
+                      }
+                      type="date"
+                      value={fullPaymentRow.date}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="quote-schedule-table">
+                    <div className="quote-schedule-table__head">
+                      <span>Name</span>
+                      <span>Amount</span>
+                      <span>Date</span>
+                    </div>
+                    {[
+                      { row: depositRow, setRow: setDepositRow },
+                      { row: balanceRow, setRow: setBalanceRow },
+                    ].map(({ row, setRow }) => (
+                      <div className="quote-schedule-table__row" key={row.key}>
+                        <strong>{row.name}</strong>
+                        <span className="quote-schedule-amount-field">
+                          <select
+                            aria-label={`${row.name} amount type`}
+                            onChange={(event) =>
+                              updateScheduleRow(row, { amountType: event.target.value as ScheduleAmountType }, setRow)
+                            }
+                            value={row.amountType}
+                          >
+                            <option value="percentage">%</option>
+                            <option value="fixed">Fixed</option>
+                          </select>
+                          <input
+                            aria-label={`${row.name} amount`}
+                            onChange={(event) =>
+                              updateScheduleRow(row, { amount: numberFromPrice(event.target.value) }, setRow)
+                            }
+                            type="number"
+                            value={row.amount}
+                          />
+                        </span>
+                        {row.readOnlyDate ? (
+                          <input readOnly type="text" value="Date of Invoice Generation" />
+                        ) : (
+                          <input
+                            aria-label={`${row.name} date`}
+                            onChange={(event) => updateScheduleRow(row, { date: event.target.value }, setRow)}
+                            type="date"
+                            value={row.date}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {isBalanceSplit ? (
+                    <div className="quote-schedule-table quote-schedule-table--split">
+                      <div className="quote-schedule-table__head">
+                        <span>Name</span>
+                        <span>Amount</span>
+                        <span>Date</span>
+                      </div>
+                      {splitRows.map((row) => (
+                        <div className="quote-schedule-table__row" key={row.key}>
+                          <input
+                            aria-label={`${row.name} name`}
+                            onChange={(event) => updateSplitRow(row.key, { name: event.target.value })}
+                            value={row.name}
+                          />
+                          <span className="quote-schedule-amount-field">
+                            <select
+                              aria-label={`${row.name} amount type`}
+                              onChange={(event) =>
+                                updateSplitRow(row.key, { amountType: event.target.value as ScheduleAmountType })
+                              }
+                              value={row.amountType}
+                            >
+                              <option value="percentage">%</option>
+                              <option value="fixed">Fixed</option>
+                            </select>
+                            <input
+                              aria-label={`${row.name} amount`}
+                              onChange={(event) => updateSplitRow(row.key, { amount: numberFromPrice(event.target.value) })}
+                              type="number"
+                              value={row.amount}
+                            />
+                          </span>
+                          <input
+                            aria-label={`${row.name} date`}
+                            onChange={(event) => updateSplitRow(row.key, { date: event.target.value })}
+                            type="date"
+                            value={row.date}
+                          />
+                        </div>
+                      ))}
+                      <Button onClick={addSplitRow} type="default">
+                        Split Balance
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </Modal>
