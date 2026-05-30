@@ -1,4 +1,6 @@
-import { Button, Modal, Select } from "antd";
+import { Button, DatePicker, InputNumber, Modal, Segmented, Select, Switch, Table } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import type { ProjectListItem, QuoteListItem } from "../data/portal";
 import {
@@ -45,6 +47,15 @@ type ScheduleRowDraft = {
   date: string;
   key: string;
   name: string;
+};
+
+type ScheduleDisplayRow = {
+  amount: number;
+  amountPercent: number;
+  date: string;
+  key: string;
+  name: string;
+  readOnlyAmount?: boolean;
   readOnlyDate?: boolean;
 };
 
@@ -87,15 +98,44 @@ function numberFromPrice(value: unknown) {
   return 0;
 }
 
-function emptyScheduleRow(name: string, readOnlyDate = false): ScheduleRowDraft {
+function emptyScheduleRow(name: string): ScheduleRowDraft {
   return {
     amount: 0,
-    amountType: "percentage",
+    amountType: "fixed",
     date: "",
     key: crypto.randomUUID(),
     name,
-    readOnlyDate,
   };
+}
+
+function clampAmount(value: number, max: number) {
+  return Math.min(Math.max(0, value), Math.max(0, max));
+}
+
+function percentFromAmount(amount: number, sourceAmount: number) {
+  return sourceAmount > 0 ? (amount / sourceAmount) * 100 : 0;
+}
+
+function amountFromPercent(percent: number, sourceAmount: number) {
+  return (Math.max(0, percent) / 100) * Math.max(0, sourceAmount);
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function scheduleDateValue(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, day, month] = value.split("/");
+
+  if (year && day && month) {
+    return dayjs(`${year}-${month}-${day}`);
+  }
+
+  return dayjs(value);
 }
 
 function money(value: number) {
@@ -161,7 +201,7 @@ function AdminQuoteModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lines, setLines] = useState<QuoteLineDraft[]>([emptyLine()]);
   const [balanceRow, setBalanceRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Balance"));
-  const [depositRow, setDepositRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Deposit", true));
+  const [depositRow, setDepositRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Deposit"));
   const [fullPaymentRow, setFullPaymentRow] = useState<ScheduleRowDraft>(() => emptyScheduleRow("Amount"));
   const [splitRows, setSplitRows] = useState<ScheduleRowDraft[]>(() => [
     emptyScheduleRow("Payment 1"),
@@ -240,7 +280,7 @@ function AdminQuoteModal({
       setIsPaymentScheduleOpen(false);
       setIsDepositRequested(false);
       setIsBalanceSplit(false);
-      setDepositRow(emptyScheduleRow("Deposit", true));
+      setDepositRow(emptyScheduleRow("Deposit"));
       setBalanceRow(emptyScheduleRow("Balance"));
       setFullPaymentRow(emptyScheduleRow("Amount"));
       setSplitRows([emptyScheduleRow("Payment 1"), emptyScheduleRow("Payment 2")]);
@@ -288,6 +328,42 @@ function AdminQuoteModal({
   const taxableBase = Math.max(0, subtotal - discount + shippingFee);
   const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * taxableBase;
   const total = taxableBase + taxAmount;
+  const depositAmount =
+    depositRow.amountType === "percentage"
+      ? amountFromPercent(depositRow.amount, total)
+      : depositRow.amount;
+  const normalizedDepositAmount = roundMoney(clampAmount(depositAmount, total));
+  const depositPercentage =
+    depositRow.amountType === "percentage"
+      ? clampAmount(depositRow.amount, 100)
+      : percentFromAmount(normalizedDepositAmount, total);
+  const balanceAmount = roundMoney(Math.max(0, total - normalizedDepositAmount));
+  const balancePercentage = Math.max(0, 100 - depositPercentage);
+  const splitSourceAmount = isDepositRequested ? balanceAmount : total;
+
+  function normalizeSplitRows(rows: ScheduleRowDraft[], sourceAmount: number, editedKey?: string) {
+    if (!rows.length) {
+      return rows;
+    }
+
+    if (rows.length === 1) {
+      return [{ ...rows[0], amount: roundMoney(sourceAmount) }];
+    }
+
+    const absorberIndex =
+      rows[rows.length - 1].key === editedKey ? rows.length - 2 : rows.length - 1;
+    const nonAbsorberTotal = rows.reduce((sum, row, index) => (
+      index === absorberIndex ? sum : sum + clampAmount(row.amount, sourceAmount)
+    ), 0);
+    const absorberAmount = roundMoney(Math.max(0, sourceAmount - nonAbsorberTotal));
+
+    return rows.map((row, index) => ({
+      ...row,
+      amount: index === absorberIndex ? absorberAmount : roundMoney(clampAmount(row.amount, sourceAmount)),
+    }));
+  }
+
+  const normalizedSplitRows = normalizeSplitRows(splitRows, splitSourceAmount);
 
   function updateForm<K extends keyof QuoteFormState>(key: K, value: QuoteFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -319,25 +395,62 @@ function AdminQuoteModal({
     );
   }
 
-  function updateScheduleRow(
-    row: ScheduleRowDraft,
-    patch: Partial<ScheduleRowDraft>,
-    updater: (row: ScheduleRowDraft) => void,
-  ) {
-    updater({ ...row, ...patch });
+  function updateDepositAmount(value: number | null) {
+    const inputValue = Number(value) || 0;
+    const amount = depositRow.amountType === "percentage"
+      ? clampAmount(inputValue, 100)
+      : clampAmount(inputValue, total);
+
+    setDepositRow((current) => ({ ...current, amount: roundMoney(amount) }));
   }
 
-  function updateSplitRow(key: string, patch: Partial<ScheduleRowDraft>) {
+  function updateSplitAmountType(key: string, amountType: ScheduleAmountType) {
     setSplitRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+      current.map((row) => (row.key === key ? { ...row, amountType } : row)),
+    );
+  }
+
+  function updateSplitAmount(key: string, value: number | null) {
+    const row = normalizedSplitRows.find((item) => item.key === key);
+    const rawValue = Number(value) || 0;
+    const nextAmount = row?.amountType === "percentage"
+      ? amountFromPercent(rawValue, splitSourceAmount)
+      : rawValue;
+
+    setSplitRows((current) => {
+      const targetIndex = current.findIndex((item) => item.key === key);
+      const absorberIndex =
+        targetIndex === current.length - 1 ? Math.max(0, current.length - 2) : current.length - 1;
+      const reservedAmount = current.reduce((sum, item, index) => (
+        index === targetIndex || index === absorberIndex ? sum : sum + item.amount
+      ), 0);
+      const maxAmount = Math.max(0, splitSourceAmount - reservedAmount);
+      const patchedRows = current.map((item) =>
+        item.key === key ? { ...item, amount: roundMoney(clampAmount(nextAmount, maxAmount)) } : item,
+      );
+
+      return normalizeSplitRows(patchedRows, splitSourceAmount, key);
+    });
+  }
+
+  function updateSplitDate(key: string, date: string) {
+    setSplitRows((current) =>
+      current.map((row) => (row.key === key ? { ...row, date } : row)),
     );
   }
 
   function addSplitRow() {
-    setSplitRows((current) => [
-      ...current,
-      emptyScheduleRow(`Payment ${current.length + 1}`),
-    ]);
+    setSplitRows((current) => {
+      const nextRows = [...current, emptyScheduleRow(`Payment ${current.length + 1}`)];
+      const amount = roundMoney(splitSourceAmount / nextRows.length);
+
+      return nextRows.map((row, index) => ({
+        ...row,
+        amount: index === nextRows.length - 1
+          ? roundMoney(splitSourceAmount - amount * (nextRows.length - 1))
+          : amount,
+      }));
+    });
   }
 
   function toggleDepositRequest(checked: boolean) {
@@ -347,6 +460,195 @@ function AdminQuoteModal({
       setIsBalanceSplit(false);
     }
   }
+
+  function scheduleDateFromPicker(date: dayjs.Dayjs | null) {
+    return date ? date.format("YYYY/DD/MM") : "";
+  }
+
+  const fullPaymentRows: ScheduleDisplayRow[] = [
+    {
+      amount: roundMoney(total),
+      amountPercent: 100,
+      date: fullPaymentRow.date,
+      key: "full-payment",
+      name: "Full Payment",
+      readOnlyAmount: true,
+    },
+  ];
+  const depositRows: ScheduleDisplayRow[] = [
+    {
+      amount: normalizedDepositAmount,
+      amountPercent: depositPercentage,
+      date: "Date of Invoice Generation",
+      key: "deposit",
+      name: "Deposit",
+      readOnlyDate: true,
+    },
+    ...(!isBalanceSplit
+      ? [
+          {
+            amount: balanceAmount,
+            amountPercent: balancePercentage,
+            date: balanceRow.date,
+            key: "balance",
+            name: "Balance",
+            readOnlyAmount: true,
+          },
+        ]
+      : []),
+  ];
+  const splitDisplayRows: ScheduleDisplayRow[] = normalizedSplitRows.map((row) => ({
+    amount: roundMoney(row.amount),
+    amountPercent: percentFromAmount(row.amount, splitSourceAmount),
+    date: row.date,
+    key: row.key,
+    name: row.name,
+  }));
+  const fullPaymentColumns: ColumnsType<ScheduleDisplayRow> = [
+    {
+      dataIndex: "name",
+      title: "Name",
+      width: 180,
+      render: (value: string) => <strong>{value}</strong>,
+    },
+    {
+      dataIndex: "amount",
+      title: "Amount",
+      render: (value: number) => <strong>{money(value)}</strong>,
+    },
+    {
+      dataIndex: "date",
+      title: "Date",
+      render: (_value, row) => (
+        <DatePicker
+          format="YYYY/DD/MM"
+          onChange={(date) =>
+            setFullPaymentRow((current) => ({
+              ...current,
+              date: scheduleDateFromPicker(date),
+            }))
+          }
+          value={scheduleDateValue(row.date)}
+        />
+      ),
+    },
+  ];
+  const depositColumns: ColumnsType<ScheduleDisplayRow> = [
+    {
+      dataIndex: "name",
+      title: "Name",
+      width: 180,
+      render: (value: string) => <strong>{value}</strong>,
+    },
+    {
+      dataIndex: "amount",
+      title: "Amount",
+      render: (_value, row) =>
+        row.key === "deposit" ? (
+          <div className="quote-schedule-editable-amount">
+            <Segmented
+              onChange={(value) =>
+                setDepositRow((current) => ({
+                  ...current,
+                  amount: value === "percentage" ? row.amountPercent : row.amount,
+                  amountType: value as ScheduleAmountType,
+                }))
+              }
+              options={[
+                { label: "%", value: "percentage" },
+                { label: "$", value: "fixed" },
+              ]}
+              size="small"
+              value={depositRow.amountType}
+            />
+            <InputNumber
+              min={0}
+              onChange={updateDepositAmount}
+              precision={2}
+              value={depositRow.amountType === "percentage" ? roundMoney(row.amountPercent) : row.amount}
+            />
+            <small>
+              {depositRow.amountType === "percentage"
+                ? money(row.amount)
+                : `${roundMoney(row.amountPercent)}%`}
+            </small>
+          </div>
+        ) : (
+          <strong>{money(row.amount)} ({roundMoney(row.amountPercent)}%)</strong>
+        ),
+    },
+    {
+      dataIndex: "date",
+      title: "Date",
+      render: (_value, row) =>
+        row.readOnlyDate ? (
+          <span className="quote-schedule-readonly-date">Date of Invoice Generation</span>
+        ) : (
+          <DatePicker
+            format="YYYY/DD/MM"
+            onChange={(date) =>
+              setBalanceRow((current) => ({
+                ...current,
+                date: scheduleDateFromPicker(date),
+              }))
+            }
+            value={scheduleDateValue(row.date)}
+          />
+        ),
+    },
+  ];
+  const splitColumns: ColumnsType<ScheduleDisplayRow> = [
+    {
+      dataIndex: "name",
+      title: "Name",
+      width: 180,
+      render: (value: string) => <strong>{value}</strong>,
+    },
+    {
+      dataIndex: "amount",
+      title: "Amount",
+      render: (_value, row) => {
+        const draft = normalizedSplitRows.find((item) => item.key === row.key);
+        const amountType = draft?.amountType ?? "fixed";
+
+        return (
+          <div className="quote-schedule-editable-amount">
+            <Segmented
+              onChange={(value) => updateSplitAmountType(row.key, value as ScheduleAmountType)}
+              options={[
+                { label: "%", value: "percentage" },
+                { label: "$", value: "fixed" },
+              ]}
+              size="small"
+              value={amountType}
+            />
+            <InputNumber
+              min={0}
+              onChange={(value) => updateSplitAmount(row.key, value)}
+              precision={2}
+              value={amountType === "percentage" ? roundMoney(row.amountPercent) : row.amount}
+            />
+            <small>
+              {amountType === "percentage"
+                ? money(row.amount)
+                : `${roundMoney(row.amountPercent)}%`}
+            </small>
+          </div>
+        );
+      },
+    },
+    {
+      dataIndex: "date",
+      title: "Date",
+      render: (_value, row) => (
+        <DatePicker
+          format="YYYY/DD/MM"
+          onChange={(date) => updateSplitDate(row.key, scheduleDateFromPicker(date))}
+          value={scheduleDateValue(row.date)}
+        />
+      ),
+    },
+  ];
 
   async function handleSubmit() {
     if (!project && !quote?.projectId) {
@@ -596,163 +898,71 @@ function AdminQuoteModal({
           {isPaymentScheduleOpen ? (
             <div className="quote-schedule-panel">
               <div className="quote-schedule-options">
-                <label>
-                  <input
-                    checked={isDepositRequested}
-                    onChange={(event) => toggleDepositRequest(event.target.checked)}
-                    type="checkbox"
-                  />
+                <label className="quote-schedule-switch">
                   <span>Request Deposit Payment</span>
-                </label>
-                <label>
-                  <input
-                    checked={isBalanceSplit}
-                    disabled={!isDepositRequested}
-                    onChange={(event) => setIsBalanceSplit(event.target.checked)}
-                    type="checkbox"
+                  <Switch
+                    checked={isDepositRequested}
+                    onChange={toggleDepositRequest}
                   />
-                  <span>Split Balance</span>
                 </label>
+                {isDepositRequested ? (
+                  <label className="quote-schedule-switch">
+                    <span>Split Balance</span>
+                    <Switch
+                      checked={isBalanceSplit}
+                      onChange={setIsBalanceSplit}
+                    />
+                  </label>
+                ) : null}
               </div>
 
-              {!isDepositRequested ? (
-                <div className="quote-schedule-table quote-schedule-table--full">
-                  <div className="quote-schedule-table__head">
-                    <span>Name</span>
-                    <span>Amount</span>
-                    <span>Date</span>
-                  </div>
-                  <div className="quote-schedule-table__row">
-                    <strong>Amount</strong>
-                    <span className="quote-schedule-amount-field">
-                      <select
-                        aria-label="Full payment amount type"
-                        onChange={(event) =>
-                          updateScheduleRow(
-                            fullPaymentRow,
-                            { amountType: event.target.value as ScheduleAmountType },
-                            setFullPaymentRow,
-                          )
-                        }
-                        value={fullPaymentRow.amountType}
-                      >
-                        <option value="percentage">%</option>
-                        <option value="fixed">Fixed</option>
-                      </select>
-                      <input
-                        aria-label="Full payment amount"
-                        onChange={(event) =>
-                          updateScheduleRow(fullPaymentRow, { amount: numberFromPrice(event.target.value) }, setFullPaymentRow)
-                        }
-                        type="number"
-                        value={fullPaymentRow.amount || total}
-                      />
-                    </span>
-                    <input
-                      aria-label="Full payment date"
-                      onChange={(event) =>
-                        updateScheduleRow(fullPaymentRow, { date: event.target.value }, setFullPaymentRow)
-                      }
-                      type="date"
-                      value={fullPaymentRow.date}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="quote-schedule-table">
-                    <div className="quote-schedule-table__head">
-                      <span>Name</span>
-                      <span>Amount</span>
-                      <span>Date</span>
-                    </div>
-                    {[
-                      { row: depositRow, setRow: setDepositRow },
-                      { row: balanceRow, setRow: setBalanceRow },
-                    ].map(({ row, setRow }) => (
-                      <div className="quote-schedule-table__row" key={row.key}>
-                        <strong>{row.name}</strong>
-                        <span className="quote-schedule-amount-field">
-                          <select
-                            aria-label={`${row.name} amount type`}
-                            onChange={(event) =>
-                              updateScheduleRow(row, { amountType: event.target.value as ScheduleAmountType }, setRow)
-                            }
-                            value={row.amountType}
-                          >
-                            <option value="percentage">%</option>
-                            <option value="fixed">Fixed</option>
-                          </select>
-                          <input
-                            aria-label={`${row.name} amount`}
-                            onChange={(event) =>
-                              updateScheduleRow(row, { amount: numberFromPrice(event.target.value) }, setRow)
-                            }
-                            type="number"
-                            value={row.amount}
-                          />
-                        </span>
-                        {row.readOnlyDate ? (
-                          <input readOnly type="text" value="Date of Invoice Generation" />
-                        ) : (
-                          <input
-                            aria-label={`${row.name} date`}
-                            onChange={(event) => updateScheduleRow(row, { date: event.target.value }, setRow)}
-                            type="date"
-                            value={row.date}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              {!isDepositRequested && !isBalanceSplit ? (
+                <Table
+                  className="quote-schedule-ant-table"
+                  columns={fullPaymentColumns}
+                  dataSource={fullPaymentRows}
+                  pagination={false}
+                  rowKey="key"
+                  size="small"
+                />
+              ) : null}
 
-                  {isBalanceSplit ? (
-                    <div className="quote-schedule-table quote-schedule-table--split">
-                      <div className="quote-schedule-table__head">
-                        <span>Name</span>
-                        <span>Amount</span>
-                        <span>Date</span>
-                      </div>
-                      {splitRows.map((row) => (
-                        <div className="quote-schedule-table__row" key={row.key}>
-                          <input
-                            aria-label={`${row.name} name`}
-                            onChange={(event) => updateSplitRow(row.key, { name: event.target.value })}
-                            value={row.name}
-                          />
-                          <span className="quote-schedule-amount-field">
-                            <select
-                              aria-label={`${row.name} amount type`}
-                              onChange={(event) =>
-                                updateSplitRow(row.key, { amountType: event.target.value as ScheduleAmountType })
-                              }
-                              value={row.amountType}
-                            >
-                              <option value="percentage">%</option>
-                              <option value="fixed">Fixed</option>
-                            </select>
-                            <input
-                              aria-label={`${row.name} amount`}
-                              onChange={(event) => updateSplitRow(row.key, { amount: numberFromPrice(event.target.value) })}
-                              type="number"
-                              value={row.amount}
-                            />
-                          </span>
-                          <input
-                            aria-label={`${row.name} date`}
-                            onChange={(event) => updateSplitRow(row.key, { date: event.target.value })}
-                            type="date"
-                            value={row.date}
-                          />
-                        </div>
-                      ))}
-                      <Button onClick={addSplitRow} type="default">
-                        Split Balance
-                      </Button>
-                    </div>
-                  ) : null}
-                </>
-              )}
+              {isDepositRequested ? (
+                <section className="quote-schedule-block">
+                  <h3>Deposit request</h3>
+                  <Table
+                    className="quote-schedule-ant-table"
+                    columns={depositColumns}
+                    dataSource={depositRows}
+                    pagination={false}
+                    rowKey="key"
+                    size="small"
+                  />
+                  <p>
+                    Request {money(normalizedDepositAmount)} deposit on {money(total)} invoice.
+                  </p>
+                </section>
+              ) : null}
+
+              {isBalanceSplit ? (
+                <section className="quote-schedule-block">
+                  <h3>Balance split</h3>
+                  <Table
+                    className="quote-schedule-ant-table"
+                    columns={splitColumns}
+                    dataSource={splitDisplayRows}
+                    pagination={false}
+                    rowKey="key"
+                    size="small"
+                  />
+                  <Button onClick={addSplitRow} type="link">
+                    Add Payment
+                  </Button>
+                  <p>
+                    Schedule {money(splitSourceAmount)} over {splitDisplayRows.length} payments.
+                  </p>
+                </section>
+              ) : null}
             </div>
           ) : null}
         </div>

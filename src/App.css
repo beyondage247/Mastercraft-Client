@@ -3430,20 +3430,67 @@
 }
 
 .quote-schedule-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  border-bottom: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
 }
 
-.quote-schedule-options label {
+.quote-schedule-switch {
   align-items: center;
-  display: inline-flex;
-  gap: 8px;
+  display: flex;
   font-weight: 800;
+  justify-content: space-between;
 }
 
-.quote-schedule-options input {
-  accent-color: var(--color-danger);
+.quote-schedule-switch .ant-switch.ant-switch-checked {
+  background: var(--color-danger);
+}
+
+.quote-schedule-block {
+  display: grid;
+  gap: 10px;
+}
+
+.quote-schedule-block h3 {
+  color: var(--color-text);
+  font-size: 14px;
+  margin: 0;
+}
+
+.quote-schedule-block p {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.quote-schedule-ant-table .ant-table {
+  font-size: 12px;
+}
+
+.quote-schedule-ant-table .ant-table-thead > tr > th,
+.quote-schedule-ant-table .ant-table-tbody > tr > td {
+  padding: 8px 10px;
+}
+
+.quote-schedule-ant-table .ant-picker,
+.quote-schedule-ant-table .ant-input-number {
+  width: 100%;
+}
+
+.quote-schedule-editable-amount {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 86px minmax(86px, 1fr) minmax(74px, 0.7fr);
+}
+
+.quote-schedule-editable-amount small,
+.quote-schedule-readonly-date {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .quote-schedule-table {
