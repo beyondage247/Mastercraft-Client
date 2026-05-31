@@ -1,7 +1,8 @@
 import { Modal } from "antd";
-import { useEffect, useMemo, useState } from "react";
-import type { QuoteListItem, QuotePaymentSchedule } from "../data/portal";
+import { useEffect, useState } from "react";
+import type { QuoteListItem } from "../data/portal";
 import { getQuoteDetail } from "../services/portalApi";
+import QuotePaymentSchedulePanel from "./QuotePaymentSchedulePanel";
 import StatusBadge from "./StatusBadge";
 
 type AdminQuoteDetailModalProps = {
@@ -18,85 +19,9 @@ function quoteTone(status: QuoteListItem["status"]) {
   return "warning";
 }
 
-function scheduleLabel(type: QuotePaymentSchedule["type"]) {
-  if (type === "FULL_PAYMENT") return "Full payment";
-  if (type === "DEPOSIT_AND_BALANCE") return "Deposit and balance";
-
-  return "Deposit and split balance";
-}
-
-function formatScheduleAmount(value?: number | null) {
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    style: "currency",
-  }).format(Number.isFinite(value ?? Number.NaN) ? Number(value) : 0);
-}
-
-function formatSchedulePercent(value?: number | null) {
-  const number = Number(value);
-
-  return `${Number.isFinite(number) ? Math.round(number * 100) / 100 : 0}%`;
-}
-
-type ScheduleRow = {
-  amount: number;
-  date?: string | null;
-  name: string;
-  percentage: number;
-};
-
-function scheduleRows(schedule?: QuotePaymentSchedule | null): ScheduleRow[] {
-  if (!schedule) {
-    return [];
-  }
-
-  if (schedule.type === "FULL_PAYMENT") {
-    return schedule.fullPayment
-      ? [{
-          amount: schedule.fullPayment.amount,
-          date: schedule.fullPayment.date,
-          name: schedule.fullPayment.name,
-          percentage: schedule.fullPayment.percentage,
-        }]
-      : [];
-  }
-
-  const rows: ScheduleRow[] = [];
-
-  if (schedule.deposit) {
-    rows.push({
-      amount: schedule.deposit.amount,
-      date: schedule.deposit.date,
-      name: schedule.deposit.name,
-      percentage: schedule.deposit.percentage,
-    });
-  }
-
-  if (schedule.balance?.split) {
-    rows.push(
-      ...(schedule.balance.payments ?? []).map((payment) => ({
-        amount: payment.amount,
-        date: payment.date,
-        name: payment.name,
-        percentage: payment.percentage,
-      })),
-    );
-  } else if (schedule.balance) {
-    rows.push({
-      amount: schedule.balance.amount,
-      date: schedule.balance.date,
-      name: schedule.balance.name || "Balance",
-      percentage: schedule.balance.percentage,
-    });
-  }
-
-  return rows;
-}
-
 function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalProps) {
   const [displayQuote, setDisplayQuote] = useState<QuoteListItem | null>(quote);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const rows = useMemo(() => scheduleRows(displayQuote?.paymentSchedule), [displayQuote?.paymentSchedule]);
   const lineTotal = displayQuote?.lineItems?.length ?? 0;
 
   useEffect(() => {
@@ -146,7 +71,7 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
               <span>Schedule</span>
               <strong>
                 {displayQuote.paymentSchedule
-                  ? scheduleLabel(displayQuote.paymentSchedule.type)
+                  ? "Configured"
                   : isRefreshing
                     ? "Loading..."
                     : "Not set"}
@@ -197,37 +122,11 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
             </div>
           ) : null}
 
-          <section className="admin-quote-detail__section">
-            <div className="admin-quote-detail__section-header">
-              <h3>Payment Schedule</h3>
-              {displayQuote.paymentSchedule ? (
-                <span>{formatScheduleAmount(displayQuote.paymentSchedule.totalAmount)} scheduled</span>
-              ) : null}
-            </div>
-
-            {rows.length ? (
-              <div className="admin-quote-schedule-table">
-                <div className="admin-quote-schedule-table__head">
-                  <span>Milestone</span>
-                  <span>Due date</span>
-                  <span>Percent</span>
-                  <span>Amount</span>
-                </div>
-                {rows.map((row, index) => (
-                  <article className="admin-quote-schedule-table__row" key={`${row.name}-${index}`}>
-                    <strong>{row.name}</strong>
-                    <span>{row.date || "Not set"}</span>
-                    <span>{formatSchedulePercent(row.percentage)}</span>
-                    <strong>{formatScheduleAmount(row.amount)}</strong>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-empty-row">
-                {isRefreshing ? "Loading payment schedule..." : "No payment schedule was returned for this quote."}
-              </div>
-            )}
-          </section>
+          <QuotePaymentSchedulePanel
+            className="admin-quote-detail__section"
+            isLoading={isRefreshing}
+            paymentSchedule={displayQuote.paymentSchedule}
+          />
 
           <section className="admin-quote-detail__section">
             <div className="admin-quote-detail__section-header">

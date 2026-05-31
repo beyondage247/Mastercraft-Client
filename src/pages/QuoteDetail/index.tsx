@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal } from 'antd';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
+import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
 import { getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
 import type { QuoteListItem, QuoteDetailInfo } from '../../data/portal';
@@ -128,6 +129,8 @@ function QuoteDetail() {
                 <span>{details.total}</span>
               </div>
             </div>
+
+            <QuotePaymentSchedulePanel paymentSchedule={quote.paymentSchedule} />
 
             <div className="action-buttons-bottom">
               <button className="accept-quote-btn" onClick={() => openResponse('APPROVED')} type="button">Approve Quote</button>
