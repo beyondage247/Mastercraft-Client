@@ -46,9 +46,13 @@ function AdminQuotes() {
   }, []);
 
   function handleQuoteSaved(savedQuote: QuoteListItem) {
-    setQuotes((current) =>
-      current.map((quote) => (quote.id === savedQuote.id ? savedQuote : quote)),
-    );
+    setQuotes((current) => {
+      const exists = current.some((quote) => quote.id === savedQuote.id);
+
+      return exists
+        ? current.map((quote) => (quote.id === savedQuote.id ? savedQuote : quote))
+        : [savedQuote, ...current];
+    });
     setEditingQuote(null);
   }
 

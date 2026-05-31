@@ -333,21 +333,15 @@ type BackendQuoteResponse = {
   description?: string;
   dateIssued?: string | null;
   id: string;
-  lineItems?: Array<{
-    id: string;
-    ourPrice?: string | number | null;
-    productName?: string;
-    quantity?: number;
-    lineTotal?: string | number | null;
-    serviceId?: string;
-  }>;
+  lineItems?: BackendQuoteLineItemResponse[];
   name?: string;
-  project?: {
+  project?: string | {
     clientId?: string;
     id?: string;
     name?: string;
     status?: string;
   };
+  projectId?: string;
   quoteId?: string;
   status?: string;
   title?: string;
@@ -357,6 +351,57 @@ type BackendQuoteResponse = {
   total?: string | number;
   uid?: string;
   validUntil?: string | null;
+  paymentSchedule?: BackendQuotePaymentScheduleResponse | null;
+};
+
+type BackendQuoteLineItemResponse = {
+  id?: string;
+  lineTotal?: string | number | null;
+  ourPrice?: string | number | null;
+  price?: string | number | null;
+  productName?: string;
+  quantity?: number | string;
+  service?: {
+    id?: string;
+    ourPrice?: string | number | null;
+    price?: string | number | null;
+    productName?: string;
+    name?: string;
+  } | null;
+  serviceId?: string;
+  total?: string | number | null;
+  unitPrice?: string | number | null;
+};
+
+export type QuotePaymentScheduleInput = {
+  balance?: {
+    amount: number;
+    date?: string | null;
+    name?: string;
+    payments?: Array<{
+      amount: number;
+      date: string;
+      name: string;
+      percentage: number;
+    }>;
+    percentage: number;
+    split?: boolean;
+  };
+  deposit?: {
+    amount: number;
+    amountType: "fixed" | "percentage";
+    date: string;
+    name: string;
+    percentage: number;
+  };
+  fullPayment?: {
+    amount: number;
+    date: string;
+    name: string;
+    percentage: number;
+  };
+  totalAmount: number;
+  type: "FULL_PAYMENT" | "DEPOSIT_AND_BALANCE" | "DEPOSIT_AND_SPLIT_BALANCE";
 };
 
 export type CreateQuoteInput = {
@@ -366,6 +411,7 @@ export type CreateQuoteInput = {
     serviceId: string;
   }>;
   name: string;
+  paymentSchedule: QuotePaymentScheduleInput;
   projectId: string;
   subtotal: number;
   tax: number;
@@ -381,6 +427,39 @@ export type QuoteDecisionStatus = "APPROVED" | "REJECTED" | "IN_REVIEW";
 type BackendCreateQuoteResponse = {
   message: string;
   quote: BackendQuoteResponse;
+};
+
+type BackendQuoteEnvelopeResponse = BackendCreateQuoteResponse | BackendQuoteResponse | {
+  data?: BackendCreateQuoteResponse | BackendQuoteResponse | BackendQuoteResponse[];
+  quotes?: BackendQuoteResponse[];
+};
+
+type BackendQuotePaymentSchedulePaymentResponse = {
+  amount?: string | number;
+  date?: string;
+  name?: string;
+  percentage?: string | number;
+};
+
+type BackendQuotePaymentScheduleResponse = {
+  balance?: {
+    amount?: string | number;
+    date?: string | null;
+    name?: string | null;
+    payments?: BackendQuotePaymentSchedulePaymentResponse[];
+    percentage?: string | number;
+    split?: boolean | null;
+  } | null;
+  deposit?: {
+    amount?: string | number;
+    amountType?: string;
+    date?: string;
+    name?: string;
+    percentage?: string | number;
+  } | null;
+  fullPayment?: BackendQuotePaymentSchedulePaymentResponse | null;
+  totalAmount?: string | number;
+  type?: string;
 };
 
 type BackendPaymentResponse = {
@@ -1043,25 +1122,102 @@ function projectName(value: unknown, fallback = "") {
 }
 
 function normalizeLineItems(
-  lineItems?: Array<{
-    lineTotal?: string | number | null;
-    ourPrice?: string | number | null;
-    productName?: string;
-    quantity?: number;
-  }>,
+  lineItems?: BackendQuoteLineItemResponse[],
 ) {
   return (lineItems ?? []).map((item) => {
-    const rate = moneyText(item.ourPrice);
+    const service = item.service ?? undefined;
+    const price = item.ourPrice ?? item.unitPrice ?? item.price ?? service?.ourPrice ?? service?.price;
+    const rate = moneyText(price);
     const quantity = Number(item.quantity) || 1;
-    const lineTotal = numberFromDecimal(item.lineTotal) || numberFromDecimal(item.ourPrice) * quantity;
+    const lineTotal = numberFromDecimal(item.lineTotal ?? item.total) || numberFromDecimal(price) * quantity;
 
     return {
       amount: moneyText(lineTotal),
-      description: item.productName || "Line item",
+      description: item.productName || service?.productName || service?.name || "Line item",
       qty: quantity,
       rate,
+      serviceId: item.serviceId || service?.id,
     };
   });
+}
+
+function normalizePaymentScheduleAmountType(value?: string) {
+  return value === "percentage" ? "percentage" : "fixed";
+}
+
+function normalizeQuotePaymentSchedulePayment(
+  payment: BackendQuotePaymentSchedulePaymentResponse,
+  fallbackName: string,
+) {
+  return {
+    amount: numberFromDecimal(payment.amount),
+    date: normalizeString(payment.date),
+    name: normalizeString(payment.name) || fallbackName,
+    percentage: numberFromDecimal(payment.percentage),
+  };
+}
+
+function normalizeQuotePaymentSchedule(
+  schedule?: BackendQuotePaymentScheduleResponse | null,
+): QuoteListItem["paymentSchedule"] {
+  if (!schedule?.type) {
+    return null;
+  }
+
+  const type = schedule.type as NonNullable<QuoteListItem["paymentSchedule"]>["type"];
+
+  if (
+    type !== "FULL_PAYMENT" &&
+    type !== "DEPOSIT_AND_BALANCE" &&
+    type !== "DEPOSIT_AND_SPLIT_BALANCE"
+  ) {
+    return null;
+  }
+
+  return {
+    balance: schedule.balance
+      ? {
+          amount: numberFromDecimal(schedule.balance.amount),
+          date: schedule.balance.date ?? null,
+          name: schedule.balance.name ?? null,
+          payments: (schedule.balance.payments ?? []).map((payment, index) =>
+            normalizeQuotePaymentSchedulePayment(payment, `Payment ${index + 1}`),
+          ),
+          percentage: numberFromDecimal(schedule.balance.percentage),
+          split: schedule.balance.split ?? null,
+        }
+      : null,
+    deposit: schedule.deposit
+      ? {
+          amount: numberFromDecimal(schedule.deposit.amount),
+          amountType: normalizePaymentScheduleAmountType(schedule.deposit.amountType),
+          date: normalizeString(schedule.deposit.date),
+          name: normalizeString(schedule.deposit.name) || "Deposit",
+          percentage: numberFromDecimal(schedule.deposit.percentage),
+        }
+      : null,
+    fullPayment: schedule.fullPayment
+      ? normalizeQuotePaymentSchedulePayment(schedule.fullPayment, "Full Payment")
+      : null,
+    totalAmount: numberFromDecimal(schedule.totalAmount),
+    type,
+  };
+}
+
+function quoteProjectId(quote: BackendQuoteResponse) {
+  if (quote.project && typeof quote.project === "object") {
+    return quote.project.id;
+  }
+
+  return quote.projectId || normalizeString(quote.project);
+}
+
+function quoteProjectName(quote: BackendQuoteResponse) {
+  if (quote.project && typeof quote.project === "object") {
+    return quote.project.name;
+  }
+
+  return undefined;
 }
 
 function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
@@ -1075,8 +1231,9 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
     description: quote.description || projectName(quote.project, ""),
     id: quote.id,
     lineItems,
-    projectId: quote.project?.id,
-    projectName: quote.project?.name,
+    paymentSchedule: normalizeQuotePaymentSchedule(quote.paymentSchedule),
+    projectId: quoteProjectId(quote),
+    projectName: quoteProjectName(quote),
     status: normalizeQuoteStatus(quote.status || "PENDING", quote.validUntil),
     subtotal: moneyText(quote.subtotal),
     tax: normalizeString(quote.tax),
@@ -1396,6 +1553,52 @@ function updateProjectPayload(input: UpdateProjectStatusInput) {
   };
 }
 
+function quotePayload(input: CreateQuoteInput | UpdateQuoteInput) {
+  return {
+    ...input,
+    ...(input.dateIssued ? { dateIssued: toApiDate(input.dateIssued) } : {}),
+    ...(input.validUntil ? { validUntil: toApiDate(input.validUntil) } : {}),
+  };
+}
+
+function quoteFromResponse(response: BackendQuoteEnvelopeResponse): BackendQuoteResponse {
+  if (Array.isArray(response)) {
+    throw new Error("The portal API returned a quote list when one quote was expected.");
+  }
+
+  if ("quote" in response && response.quote) {
+    return response.quote;
+  }
+
+  if ("data" in response && response.data) {
+    return quoteFromResponse(response.data as BackendQuoteEnvelopeResponse);
+  }
+
+  return response as BackendQuoteResponse;
+}
+
+function quotesFromResponse(response: BackendQuoteResponse[] | BackendQuoteEnvelopeResponse) {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if ("quotes" in response && Array.isArray(response.quotes)) {
+    return response.quotes;
+  }
+
+  if ("data" in response && response.data) {
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    return quotesFromResponse(data as BackendQuoteEnvelopeResponse);
+  }
+
+  return [];
+}
+
 export async function getProjects(): Promise<ProjectResponse> {
   const currentUser = getCurrentPortalUser();
   const path = "/projects";
@@ -1557,25 +1760,25 @@ export async function importCatalogItems(file: File) {
 }
 
 export async function createQuote(input: CreateQuoteInput) {
-  const response = await portalRequest<BackendCreateQuoteResponse>("/quotes", {
-    body: JSON.stringify(input),
+  const response = await portalRequest<BackendQuoteEnvelopeResponse>("/quotes", {
+    body: JSON.stringify(quotePayload(input)),
     method: "POST",
   }, true);
 
-  return mapBackendQuote(response.quote);
+  return mapBackendQuote(quoteFromResponse(response));
 }
 
 export async function updateQuote(id: string, input: UpdateQuoteInput) {
-  const response = await portalRequest<BackendCreateQuoteResponse>(
+  const response = await portalRequest<BackendQuoteEnvelopeResponse>(
     `/quotes/${encodeURIComponent(id)}`,
     {
-      body: JSON.stringify(input),
+      body: JSON.stringify(quotePayload(input)),
       method: "PATCH",
     },
     true,
   );
 
-  return mapBackendQuote(response.quote);
+  return mapBackendQuote(quoteFromResponse(response));
 }
 
 export async function respondToQuote(id: string, status: QuoteDecisionStatus, comment?: string) {
@@ -1596,11 +1799,12 @@ export async function respondToQuote(id: string, status: QuoteDecisionStatus, co
 
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
-    const mappedQuotes = (await portalRequest<BackendQuoteResponse[]>("/quotes", {}, true)).map(mapBackendQuote);
+    const quoteResponse = await portalRequest<BackendQuoteResponse[] | BackendQuoteEnvelopeResponse>("/quotes", {}, true);
+    const mappedQuotes = quotesFromResponse(quoteResponse).map(mapBackendQuote);
 
     return {
       metrics: buildQuoteMetrics(mappedQuotes),
-      quotes: mappedQuotes.length ? mappedQuotes : quotes,
+      quotes: mappedQuotes,
     };
   } catch {
     return {
@@ -1876,7 +2080,9 @@ export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem
 
   try {
     quote = mapBackendQuote(
-      await portalRequest<BackendQuoteResponse>(`/quotes/${encodeURIComponent(id)}`, {}, true),
+      quoteFromResponse(
+        await portalRequest<BackendQuoteEnvelopeResponse>(`/quotes/${encodeURIComponent(id)}`, {}, true),
+      ),
     );
   } catch {
     const quoteData = await getQuotes().catch(() => ({ metrics: quoteMetrics, quotes }));

@@ -8,6 +8,7 @@ import {
   getCatalogItems,
   updateQuote,
   type CatalogItem,
+  type QuotePaymentScheduleInput,
 } from "../services/portalApi";
 import { showRequestToast } from "../utils/portalToast";
 import { PortalIcon } from "./PortalIcon";
@@ -138,6 +139,16 @@ function scheduleDateValue(value: string) {
   return dayjs(value);
 }
 
+function scheduleDateText(value?: string | null) {
+  if (!value || value === "Date of Invoice Generation") {
+    return value || "";
+  }
+
+  const date = scheduleDateValue(value);
+
+  return date?.isValid() ? date.format("YYYY/DD/MM") : value;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -163,6 +174,7 @@ function lineFromQuoteItem(
 ): QuoteLineDraft {
   const matchedCatalogItem = catalogItems.find(
     (catalogItem) =>
+      catalogItem.id === item.serviceId ||
       catalogItem.productName.trim().toLowerCase() === item.description.trim().toLowerCase(),
   );
 
@@ -260,9 +272,43 @@ function AdminQuoteModal({
           : [emptyLine()],
       );
       setSubcategoryFilter("");
-      setIsPaymentScheduleOpen(false);
-      setIsDepositRequested(false);
-      setIsBalanceSplit(false);
+      setIsPaymentScheduleOpen(Boolean(quote.paymentSchedule));
+      setIsDepositRequested(quote.paymentSchedule?.type === "DEPOSIT_AND_BALANCE" || quote.paymentSchedule?.type === "DEPOSIT_AND_SPLIT_BALANCE");
+      setIsBalanceSplit(quote.paymentSchedule?.type === "DEPOSIT_AND_SPLIT_BALANCE");
+      setDepositRow({
+        amount: quote.paymentSchedule?.deposit?.amountType === "percentage"
+          ? quote.paymentSchedule.deposit.percentage
+          : quote.paymentSchedule?.deposit?.amount ?? 0,
+        amountType: quote.paymentSchedule?.deposit?.amountType ?? "fixed",
+        date: "",
+        key: crypto.randomUUID(),
+        name: "Deposit",
+      });
+      setBalanceRow({
+        amount: quote.paymentSchedule?.balance?.amount ?? 0,
+        amountType: "fixed",
+        date: scheduleDateText(quote.paymentSchedule?.balance?.date),
+        key: crypto.randomUUID(),
+        name: "Balance",
+      });
+      setFullPaymentRow({
+        amount: quote.paymentSchedule?.fullPayment?.amount ?? 0,
+        amountType: "fixed",
+        date: scheduleDateText(quote.paymentSchedule?.fullPayment?.date),
+        key: crypto.randomUUID(),
+        name: "Amount",
+      });
+      setSplitRows(
+        quote.paymentSchedule?.balance?.payments?.length
+          ? quote.paymentSchedule.balance.payments.map((payment, index) => ({
+              amount: payment.amount,
+              amountType: "fixed",
+              date: scheduleDateText(payment.date),
+              key: crypto.randomUUID(),
+              name: payment.name || `Payment ${index + 1}`,
+            }))
+          : [emptyScheduleRow("Payment 1"), emptyScheduleRow("Payment 2")],
+      );
       return;
     }
 
@@ -463,6 +509,67 @@ function AdminQuoteModal({
 
   function scheduleDateFromPicker(date: dayjs.Dayjs | null) {
     return date ? date.format("YYYY/DD/MM") : "";
+  }
+
+  function fallbackScheduleDate(value: string, fallbackDate: string) {
+    return value || scheduleDateText(fallbackDate);
+  }
+
+  function buildPaymentSchedule(): QuotePaymentScheduleInput {
+    const scheduleTotal = roundMoney(total);
+
+    if (!isDepositRequested) {
+      return {
+        fullPayment: {
+          amount: scheduleTotal,
+          date: fallbackScheduleDate(fullPaymentRow.date, form.validUntil),
+          name: "Full Payment",
+          percentage: 100,
+        },
+        totalAmount: scheduleTotal,
+        type: "FULL_PAYMENT",
+      };
+    }
+
+    const deposit = {
+      amount: normalizedDepositAmount,
+      amountType: depositRow.amountType,
+      date: "Date of Invoice Generation",
+      name: "Deposit",
+      percentage: roundMoney(depositPercentage),
+    };
+
+    if (isBalanceSplit) {
+      return {
+        balance: {
+          amount: balanceAmount,
+          payments: normalizedSplitRows.map((row) => ({
+            amount: roundMoney(row.amount),
+            date: fallbackScheduleDate(row.date, form.validUntil),
+            name: row.name,
+            percentage: roundMoney(percentFromAmount(row.amount, splitSourceAmount)),
+          })),
+          percentage: roundMoney(balancePercentage),
+          split: true,
+        },
+        deposit,
+        totalAmount: scheduleTotal,
+        type: "DEPOSIT_AND_SPLIT_BALANCE",
+      };
+    }
+
+    return {
+      balance: {
+        amount: balanceAmount,
+        date: fallbackScheduleDate(balanceRow.date, form.validUntil),
+        name: "Balance",
+        percentage: roundMoney(balancePercentage),
+        split: false,
+      },
+      deposit,
+      totalAmount: scheduleTotal,
+      type: "DEPOSIT_AND_BALANCE",
+    };
   }
 
   const fullPaymentRows: ScheduleDisplayRow[] = [
@@ -685,6 +792,7 @@ function AdminQuoteModal({
         serviceId: line.catalogItemId,
       })),
       name: form.name.trim(),
+      paymentSchedule: buildPaymentSchedule(),
       subtotal,
       tax: Math.max(0, Number(form.tax) || 0),
       taxAmount,

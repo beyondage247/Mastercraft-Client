@@ -111,6 +111,38 @@ export type QuoteStatus = 'Draft' | 'Sent' | 'Approved' | 'Expired' | 'Rejected'
 
 export type QuoteFilter = 'All' | QuoteStatus;
 
+export type QuotePaymentScheduleType = 'FULL_PAYMENT' | 'DEPOSIT_AND_BALANCE' | 'DEPOSIT_AND_SPLIT_BALANCE';
+
+export type QuotePaymentScheduleAmountType = 'fixed' | 'percentage';
+
+export type QuotePaymentSchedulePayment = {
+  amount: number;
+  date: string;
+  name: string;
+  percentage: number;
+};
+
+export type QuotePaymentSchedule = {
+  balance?: {
+    amount: number;
+    date?: string | null;
+    name?: string | null;
+    payments?: QuotePaymentSchedulePayment[];
+    percentage: number;
+    split?: boolean | null;
+  } | null;
+  deposit?: {
+    amount: number;
+    amountType: QuotePaymentScheduleAmountType;
+    date: string;
+    name: string;
+    percentage: number;
+  } | null;
+  fullPayment?: QuotePaymentSchedulePayment | null;
+  totalAmount: number;
+  type: QuotePaymentScheduleType;
+};
+
 export type QuoteListItem = {
   amount: string;
   clientComment?: string;
@@ -118,6 +150,7 @@ export type QuoteListItem = {
   description: string;
   id: string;
   lineItems?: LineItem[];
+  paymentSchedule?: QuotePaymentSchedule | null;
   projectId?: string;
   projectName?: string;
   subtotal?: string;
@@ -563,6 +596,7 @@ export type LineItem = {
   qty: number;
   rate: string;
   amount: string;
+  serviceId?: string;
 };
 
 export type LinkedProject = {

@@ -1382,6 +1382,8 @@
 
   .metrics-grid--three,
   .metrics-grid--four,
+  .admin-quote-detail__hero,
+  .admin-quote-detail__summary,
   .quick-actions {
     grid-template-columns: 1fr;
   }
@@ -2864,6 +2866,105 @@
   color: var(--color-text);
   line-height: 1.6;
   margin: 0;
+}
+
+.admin-quote-detail {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-quote-detail__hero {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  padding: 16px;
+}
+
+.admin-quote-detail__hero > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-quote-detail__hero span,
+.admin-quote-detail__section-header span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-quote-detail__hero strong {
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.admin-quote-detail__summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-quote-detail__section {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.admin-quote-detail__section-header {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-quote-detail__section-header h3 {
+  color: var(--color-text);
+  font-size: 15px;
+  margin: 0;
+}
+
+.admin-quote-schedule-table {
+  display: grid;
+  overflow-x: auto;
+}
+
+.admin-quote-schedule-table__head,
+.admin-quote-schedule-table__row {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1.2fr 1fr 0.55fr 0.8fr;
+  min-width: 640px;
+}
+
+.admin-quote-schedule-table__head {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.admin-quote-schedule-table__row {
+  border-bottom: 1px solid var(--color-border-soft);
+  color: #444;
+  padding: 13px 0;
+}
+
+.admin-quote-schedule-table__row:last-child,
+.admin-quote-line-table .admin-project-stage-table__row:last-child {
+  border-bottom: 0;
+}
+
+.admin-quote-schedule-table__row strong {
+  color: var(--color-text);
 }
 
 .admin-project-progress-cell {
