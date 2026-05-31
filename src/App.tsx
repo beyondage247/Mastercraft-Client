@@ -83,6 +83,7 @@ const router = createBrowserRouter([
       { path: 'products-services', element: <AdminProductsServices /> },
       { path: 'quotes', element: <AdminQuotes /> },
       { path: 'invoices', element: <AdminInvoices /> },
+      { path: 'invoices/:id', element: <InvoiceDetail /> },
       { path: 'payments', element: <AdminPayments /> },
       { path: 'documents', element: <Documents /> },
       { path: 'reports', element: <AdminWeeklyReports /> },

@@ -10,6 +10,7 @@ import {
   type CatalogItem,
   type QuotePaymentScheduleInput,
 } from "../services/portalApi";
+import { PORTAL_DATE_FORMAT } from "../utils/dateFormat";
 import { showRequestToast } from "../utils/portalToast";
 import { PortalIcon } from "./PortalIcon";
 
@@ -135,10 +136,15 @@ function scheduleDateValue(value: string) {
     return null;
   }
 
-  const [year, day, month] = value.split("/");
+  const oldPortalDate = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  const portalDate = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
-  if (year && day && month) {
-    return dayjs(`${year}-${month}-${day}`);
+  if (oldPortalDate) {
+    return dayjs(`${oldPortalDate[1]}-${oldPortalDate[3]}-${oldPortalDate[2]}`);
+  }
+
+  if (portalDate) {
+    return dayjs(`${portalDate[3]}-${portalDate[1]}-${portalDate[2]}`);
   }
 
   return dayjs(value);
@@ -151,7 +157,7 @@ function scheduleDateText(value?: string | null) {
 
   const date = scheduleDateValue(value);
 
-  return date?.isValid() ? date.format("YYYY/DD/MM") : value;
+  return date?.isValid() ? date.format(PORTAL_DATE_FORMAT) : value;
 }
 
 function money(value: number) {
@@ -524,7 +530,7 @@ function AdminQuoteModal({
   }
 
   function scheduleDateFromPicker(date: dayjs.Dayjs | null) {
-    return date ? date.format("YYYY/DD/MM") : "";
+    return date ? date.format(PORTAL_DATE_FORMAT) : "";
   }
 
   function fallbackScheduleDate(value: string, fallbackDate: string) {
@@ -645,7 +651,7 @@ function AdminQuoteModal({
       title: "Date",
       render: (_value, row) => (
         <DatePicker
-          format="YYYY/DD/MM"
+          format={PORTAL_DATE_FORMAT}
           onChange={(date) =>
             setFullPaymentRow((current) => ({
               ...current,
@@ -709,7 +715,7 @@ function AdminQuoteModal({
           <span className="quote-schedule-readonly-date">Date of Invoice Generation</span>
         ) : (
           <DatePicker
-            format="YYYY/DD/MM"
+            format={PORTAL_DATE_FORMAT}
             onChange={(date) =>
               setBalanceRow((current) => ({
                 ...current,
@@ -766,7 +772,7 @@ function AdminQuoteModal({
       title: "Date",
       render: (_value, row) => (
         <DatePicker
-          format="YYYY/DD/MM"
+          format={PORTAL_DATE_FORMAT}
           onChange={(date) => updateSplitDate(row.key, scheduleDateFromPicker(date))}
           value={scheduleDateValue(row.date)}
         />
@@ -889,7 +895,7 @@ function AdminQuoteModal({
           <div className="form-group">
             <label htmlFor="quoteDateIssued">Date issued</label>
             <DatePicker
-              format="YYYY/DD/MM"
+              format={PORTAL_DATE_FORMAT}
               id="quoteDateIssued"
               onChange={(date) => updateForm("dateIssued", scheduleDateFromPicker(date))}
               value={scheduleDateValue(form.dateIssued)}
@@ -898,7 +904,7 @@ function AdminQuoteModal({
           <div className="form-group">
             <label htmlFor="quoteValidUntil">Valid until</label>
             <DatePicker
-              format="YYYY/DD/MM"
+              format={PORTAL_DATE_FORMAT}
               id="quoteValidUntil"
               onChange={(date) => updateForm("validUntil", scheduleDateFromPicker(date))}
               value={scheduleDateValue(form.validUntil)}

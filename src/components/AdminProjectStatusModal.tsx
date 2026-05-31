@@ -8,6 +8,7 @@ import {
   updateProjectStatus,
   type ProjectStageInput,
 } from "../services/portalApi";
+import { PORTAL_DATE_FORMAT } from "../utils/dateFormat";
 import { showRequestToast } from "../utils/portalToast";
 
 type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
@@ -39,17 +40,22 @@ function portalDateValue(value: string) {
     return null;
   }
 
-  const [year, day, month] = value.split("/");
+  const oldPortalDate = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  const portalDate = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
-  if (year && day && month) {
-    return dayjs(`${year}-${month}-${day}`);
+  if (oldPortalDate) {
+    return dayjs(`${oldPortalDate[1]}-${oldPortalDate[3]}-${oldPortalDate[2]}`);
+  }
+
+  if (portalDate) {
+    return dayjs(`${portalDate[3]}-${portalDate[1]}-${portalDate[2]}`);
   }
 
   return dayjs(value);
 }
 
 function portalDateText(date: dayjs.Dayjs | null) {
-  return date ? date.format("YYYY/DD/MM") : "";
+  return date ? date.format(PORTAL_DATE_FORMAT) : "";
 }
 
 function emptyStage(project?: ProjectListItem): StageFormState {
@@ -255,7 +261,7 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
                 <div className="form-group">
                   <label htmlFor={`${stage.key}EditStart`}>Stage start</label>
                   <DatePicker
-                    format="YYYY/DD/MM"
+                    format={PORTAL_DATE_FORMAT}
                     id={`${stage.key}EditStart`}
                     onChange={(date) => updateStage(stage.key, "startDate", portalDateText(date))}
                     value={portalDateValue(form[stage.key].startDate)}

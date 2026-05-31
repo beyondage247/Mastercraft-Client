@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
@@ -16,6 +17,7 @@ function AdminInvoices() {
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -102,7 +104,12 @@ function AdminInvoices() {
             <div className="admin-empty-row">{error}</div>
           ) : visibleInvoices.length ? (
             visibleInvoices.map((invoice) => (
-              <article className="admin-record-table__row" key={invoice.id}>
+              <article
+                className="admin-record-table__row"
+                key={invoice.id}
+                onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
+                style={{ cursor: "pointer" }}
+              >
                 <strong>{invoice.invoiceId || invoice.id}</strong>
                 <span>{invoice.clientName || "Not set"}</span>
                 <span>{invoice.project || "Not set"}</span>

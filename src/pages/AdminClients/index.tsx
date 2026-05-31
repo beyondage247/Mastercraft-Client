@@ -24,7 +24,7 @@ import {
   type StaffRecord,
 } from "../../services/portalApi";
 import type { ProjectListItem } from "../../data/portal";
-import { formatPortalDateOrFallback } from "../../utils/dateFormat";
+import { formatPortalDateOrFallback, PORTAL_DATE_FORMAT } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
 
 type ClientFormState = {
@@ -96,17 +96,22 @@ function portalDateValue(value: string) {
     return null;
   }
 
-  const [year, day, month] = value.split("/");
+  const oldPortalDate = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  const portalDate = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
-  if (year && day && month) {
-    return dayjs(`${year}-${month}-${day}`);
+  if (oldPortalDate) {
+    return dayjs(`${oldPortalDate[1]}-${oldPortalDate[3]}-${oldPortalDate[2]}`);
+  }
+
+  if (portalDate) {
+    return dayjs(`${portalDate[3]}-${portalDate[1]}-${portalDate[2]}`);
   }
 
   return dayjs(value);
 }
 
 function portalDateText(date: dayjs.Dayjs | null) {
-  return date ? date.format("YYYY/DD/MM") : "";
+  return date ? date.format(PORTAL_DATE_FORMAT) : "";
 }
 
 function AdminClients() {
@@ -805,7 +810,7 @@ function AdminClients() {
             <div className="form-group">
               <label htmlFor="projectStartDate">Start date</label>
               <DatePicker
-                format="YYYY/DD/MM"
+                format={PORTAL_DATE_FORMAT}
                 id="projectStartDate"
                 onChange={(date) => updateProjectField("startDate", portalDateText(date))}
                 value={portalDateValue(projectForm.startDate)}
@@ -814,7 +819,7 @@ function AdminClients() {
             <div className="form-group">
               <label htmlFor="projectCompletion">Estimated completion</label>
               <DatePicker
-                format="YYYY/DD/MM"
+                format={PORTAL_DATE_FORMAT}
                 id="projectCompletion"
                 onChange={(date) => updateProjectField("endDate", portalDateText(date))}
                 value={portalDateValue(projectForm.endDate)}
@@ -859,7 +864,7 @@ function AdminClients() {
                   <div className="form-group">
                     <label htmlFor={`${stage.key}Start`}>Stage start</label>
                     <DatePicker
-                      format="YYYY/DD/MM"
+                      format={PORTAL_DATE_FORMAT}
                       id={`${stage.key}Start`}
                       onChange={(date) =>
                         updateProjectStageField(stage.key, "startDate", portalDateText(date))

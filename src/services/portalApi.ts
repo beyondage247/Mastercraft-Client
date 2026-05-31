@@ -30,7 +30,7 @@ import type {
   QuoteListItem,
 } from "../data/portal";
 import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
-import { formatPortalDate } from "../utils/dateFormat";
+import { formatPortalDate, parsePortalDate } from "../utils/dateFormat";
 
 type ProjectResponse = {
   activeProjects: HomeProject[];
@@ -220,6 +220,7 @@ type BackendProjectResponse = {
   name?: string;
   quote?: {
     id: string;
+    paymentSchedule?: BackendQuotePaymentScheduleResponse | null;
     quoteId?: string;
     status?: string;
     validUntil?: string | null;
@@ -242,6 +243,7 @@ type BackendProjectResponse = {
     taxAmount?: string | number;
     total?: string | number;
     validUntil?: string | null;
+    paymentSchedule?: BackendQuotePaymentScheduleResponse | null;
   } | null;
   startDate?: string | null;
   stages?: BackendProjectStageResponse[];
@@ -874,10 +876,10 @@ function formatDateInputValue(value?: string | null) {
     return "";
   }
 
-  const date = new Date(value);
+  const date = parsePortalDate(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return /^\d{4}\/\d{2}\/\d{2}$/.test(value) ? value : "";
+  if (!date || Number.isNaN(date.getTime())) {
+    return /^\d{2}\/\d{2}\/\d{4}$/.test(value) ? value : "";
   }
 
   return formatPortalDate(value);
@@ -1049,6 +1051,7 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
           id: project.invoice.id,
           invoiceId: project.invoice.invoiceId || project.invoice.id,
           lineItems: normalizeLineItems(project.invoice.lineItems),
+          paymentSchedule: normalizeQuotePaymentSchedule(project.invoice.paymentSchedule),
           status: normalizeString(project.invoice.status),
           subtotal: moneyText(project.invoice.subtotal),
           tax: normalizeString(project.invoice.tax),
@@ -1060,6 +1063,7 @@ function mapBackendProject(project: BackendProjectResponse): ProjectListItem {
     quote: project.quote
       ? {
           id: project.quote.id,
+          paymentSchedule: normalizeQuotePaymentSchedule(project.quote.paymentSchedule),
           quoteId: project.quote.quoteId || project.quote.id,
           status: normalizeString(project.quote.status),
           validUntil: formatProjectDate(project.quote.validUntil),
@@ -1464,6 +1468,7 @@ function invoiceFromProject(project: ProjectListItem): InvoiceItem | null {
     tax: project.invoice.tax,
     taxAmount: project.invoice.taxAmount,
     total: project.invoice.total,
+    paymentSchedule: project.invoice.paymentSchedule ?? project.quote?.paymentSchedule ?? null,
   };
 }
 
@@ -1512,9 +1517,12 @@ function toApiDate(value: string) {
     return "";
   }
 
-  const portalDateMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  const portalDateMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const oldPortalDateMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
   const date = portalDateMatch
-    ? new Date(`${portalDateMatch[1]}-${portalDateMatch[3]}-${portalDateMatch[2]}T00:00:00.000Z`)
+    ? new Date(`${portalDateMatch[3]}-${portalDateMatch[1]}-${portalDateMatch[2]}T00:00:00.000Z`)
+    : oldPortalDateMatch
+      ? new Date(`${oldPortalDateMatch[1]}-${oldPortalDateMatch[3]}-${oldPortalDateMatch[2]}T00:00:00.000Z`)
     : value.includes("T")
       ? new Date(value)
       : new Date(`${value}T00:00:00.000Z`);
@@ -2126,7 +2134,27 @@ export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem
 
 export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceItem | undefined, details: InvoiceDetailInfo | undefined }> {
   const invoiceData = await getInvoices().catch(() => ({ invoices, metrics: invoiceMetrics }));
-  const invoice = invoiceData.invoices.find((item) => item.id === id || item.invoiceId === id);
+  let invoice = invoiceData.invoices.find((item) => item.id === id || item.invoiceId === id);
+
+  if (invoice && !invoice.paymentSchedule && invoice.projectId) {
+    const quoteData = await getQuotes().catch(() => ({ metrics: quoteMetrics, quotes: [] }));
+    const sourceQuote = quoteData.quotes.find((quote) =>
+      quote.projectId === invoice?.projectId &&
+      (
+        !invoice?.quoteReference ||
+        quote.uid === invoice.quoteReference ||
+        quote.id === invoice.quoteReference
+      ),
+    );
+
+    if (sourceQuote?.paymentSchedule) {
+      invoice = {
+        ...invoice,
+        paymentSchedule: sourceQuote.paymentSchedule,
+      };
+    }
+  }
+
   const details = invoice
     ? {
         billToAddress1: "",

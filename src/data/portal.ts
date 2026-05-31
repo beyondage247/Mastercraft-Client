@@ -87,6 +87,7 @@ export type ProjectListItem = {
     invoiceId: string;
     dateIssued?: string;
     lineItems?: LineItem[];
+    paymentSchedule?: QuotePaymentSchedule | null;
     status: string;
     subtotal?: string;
     tax?: string;
@@ -96,6 +97,7 @@ export type ProjectListItem = {
   } | null;
   quote?: {
     id: string;
+    paymentSchedule?: QuotePaymentSchedule | null;
     quoteId: string;
     status: string;
     validUntil?: string;
@@ -186,6 +188,7 @@ export type InvoiceItem = {
   invoiceId?: string;
   issuedDate: string;
   lineItems?: LineItem[];
+  paymentSchedule?: QuotePaymentSchedule | null;
   project: string;
   projectId?: string;
   quoteReference?: string;

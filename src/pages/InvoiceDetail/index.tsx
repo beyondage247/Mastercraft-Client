@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
+import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
 import { getInvoiceDetail } from '../../services/portalApi';
 import type { InvoiceItem, InvoiceDetailInfo } from '../../data/portal';
 
 function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState<InvoiceItem | null>(null);
   const [details, setDetails] = useState<InvoiceDetailInfo | null>(null);
@@ -29,7 +31,7 @@ function InvoiceDetail() {
   if (!invoice || !details) {
     return (
       <div className="page-stack">
-        <button className="back-link" onClick={() => navigate('/invoices')}>
+        <button className="back-link" onClick={() => navigate(location.pathname.startsWith('/admin/') ? '/admin/invoices' : '/invoices')}>
           <PortalIcon name="left" /> Back to Invoices
         </button>
         <div className="panel">Invoice not found</div>
@@ -38,10 +40,11 @@ function InvoiceDetail() {
   }
 
   const displayInvoiceId = invoice.invoiceId || invoice.id;
+  const invoiceListPath = location.pathname.startsWith('/admin/') ? '/admin/invoices' : '/invoices';
 
   return (
     <div className="page-stack quote-detail-page invoice-detail-page">
-      <button className="back-link" onClick={() => navigate('/invoices')}>
+      <button className="back-link" onClick={() => navigate(invoiceListPath)}>
         <PortalIcon name="left" /> Back to Invoices
       </button>
 
@@ -114,11 +117,8 @@ function InvoiceDetail() {
               </div>
             </div>
 
-            {/* Included based on mockup, though usually invoices have a Pay button instead */}
-            <div className="action-buttons-bottom">
-              <button className="accept-quote-btn">Accept Quote</button>
-              <button className="request-revision-btn">Request Revision</button>
-            </div>
+            <QuotePaymentSchedulePanel paymentSchedule={invoice.paymentSchedule} />
+
           </div>
         </div>
 
