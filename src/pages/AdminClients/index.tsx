@@ -1,4 +1,5 @@
-import { Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
+import { DatePicker, Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
+import dayjs from "dayjs";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import AdminPaymentModal from "../../components/AdminPaymentModal";
@@ -89,6 +90,24 @@ const projectStageFields: Array<{ key: ProjectStageKey; label: string }> = [
   { key: "delivery", label: "Delivery" },
   { key: "install", label: "Install" },
 ];
+
+function portalDateValue(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, day, month] = value.split("/");
+
+  if (year && day && month) {
+    return dayjs(`${year}-${month}-${day}`);
+  }
+
+  return dayjs(value);
+}
+
+function portalDateText(date: dayjs.Dayjs | null) {
+  return date ? date.format("YYYY/DD/MM") : "";
+}
 
 function AdminClients() {
   const currentUser = getCurrentPortalUser();
@@ -785,20 +804,20 @@ function AdminClients() {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="projectStartDate">Start date</label>
-              <input
+              <DatePicker
+                format="YYYY/DD/MM"
                 id="projectStartDate"
-                onChange={(event) => updateProjectField("startDate", event.target.value)}
-                type="date"
-                value={projectForm.startDate}
+                onChange={(date) => updateProjectField("startDate", portalDateText(date))}
+                value={portalDateValue(projectForm.startDate)}
               />
             </div>
             <div className="form-group">
               <label htmlFor="projectCompletion">Estimated completion</label>
-              <input
+              <DatePicker
+                format="YYYY/DD/MM"
                 id="projectCompletion"
-                onChange={(event) => updateProjectField("endDate", event.target.value)}
-                type="date"
-                value={projectForm.endDate}
+                onChange={(date) => updateProjectField("endDate", portalDateText(date))}
+                value={portalDateValue(projectForm.endDate)}
               />
             </div>
           </div>
@@ -839,13 +858,13 @@ function AdminClients() {
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor={`${stage.key}Start`}>Stage start</label>
-                    <input
+                    <DatePicker
+                      format="YYYY/DD/MM"
                       id={`${stage.key}Start`}
-                      onChange={(event) =>
-                        updateProjectStageField(stage.key, "startDate", event.target.value)
+                      onChange={(date) =>
+                        updateProjectStageField(stage.key, "startDate", portalDateText(date))
                       }
-                      type="date"
-                      value={projectForm[stage.key].startDate}
+                      value={portalDateValue(projectForm[stage.key].startDate)}
                     />
                   </div>
                   <div className="form-group">

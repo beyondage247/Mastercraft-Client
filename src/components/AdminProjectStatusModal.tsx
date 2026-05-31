@@ -1,4 +1,5 @@
-import { Modal } from "antd";
+import { DatePicker, Modal } from "antd";
+import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import type { ProjectListItem, ProjectStageItem, ProjectStageType } from "../data/portal";
 import {
@@ -32,6 +33,24 @@ const stageFields: Array<{ key: ProjectStageKey; label: string; stage: ProjectSt
   { key: "delivery", label: "Delivery", stage: "DELIVERY" },
   { key: "install", label: "Install", stage: "INSTALL" },
 ];
+
+function portalDateValue(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, day, month] = value.split("/");
+
+  if (year && day && month) {
+    return dayjs(`${year}-${month}-${day}`);
+  }
+
+  return dayjs(value);
+}
+
+function portalDateText(date: dayjs.Dayjs | null) {
+  return date ? date.format("YYYY/DD/MM") : "";
+}
 
 function emptyStage(project?: ProjectListItem): StageFormState {
   return {
@@ -235,11 +254,11 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor={`${stage.key}EditStart`}>Stage start</label>
-                  <input
+                  <DatePicker
+                    format="YYYY/DD/MM"
                     id={`${stage.key}EditStart`}
-                    onChange={(event) => updateStage(stage.key, "startDate", event.target.value)}
-                    type="date"
-                    value={form[stage.key].startDate}
+                    onChange={(date) => updateStage(stage.key, "startDate", portalDateText(date))}
+                    value={portalDateValue(form[stage.key].startDate)}
                   />
                 </div>
                 <div className="form-group">

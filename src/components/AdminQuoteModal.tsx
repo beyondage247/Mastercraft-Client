@@ -56,6 +56,7 @@ type ScheduleDisplayRow = {
   date: string;
   key: string;
   name: string;
+  removable?: boolean;
   readOnlyAmount?: boolean;
   readOnlyDate?: boolean;
 };
@@ -123,6 +124,10 @@ function amountFromPercent(percent: number, sourceAmount: number) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function roundPercent(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 function scheduleDateValue(value: string) {
@@ -371,9 +376,8 @@ function AdminQuoteModal({
   );
   const discount = Math.max(0, Number(form.discount) || 0);
   const shippingFee = Math.max(0, Number(form.shippingFee) || 0);
-  const taxableBase = Math.max(0, subtotal - discount + shippingFee);
-  const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * taxableBase;
-  const total = taxableBase + taxAmount;
+  const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * subtotal;
+  const total = Math.max(0, subtotal + taxAmount - discount + shippingFee);
   const depositAmount =
     depositRow.amountType === "percentage"
       ? amountFromPercent(depositRow.amount, total)
@@ -384,7 +388,7 @@ function AdminQuoteModal({
       ? clampAmount(depositRow.amount, 100)
       : percentFromAmount(normalizedDepositAmount, total);
   const balanceAmount = roundMoney(Math.max(0, total - normalizedDepositAmount));
-  const balancePercentage = Math.max(0, 100 - depositPercentage);
+  const balancePercentage = percentFromAmount(balanceAmount, total);
   const splitSourceAmount = isDepositRequested ? balanceAmount : total;
 
   function normalizeSplitRows(rows: ScheduleRowDraft[], sourceAmount: number, editedKey?: string) {
@@ -499,6 +503,18 @@ function AdminQuoteModal({
     });
   }
 
+  function removeSplitRow(key: string) {
+    setSplitRows((current) => {
+      if (current.length <= 1) {
+        return current;
+      }
+
+      const nextRows = current.filter((row) => row.key !== key);
+
+      return normalizeSplitRows(nextRows, splitSourceAmount);
+    });
+  }
+
   function toggleDepositRequest(checked: boolean) {
     setIsDepositRequested(checked);
 
@@ -536,7 +552,7 @@ function AdminQuoteModal({
       amountType: depositRow.amountType,
       date: "Date of Invoice Generation",
       name: "Deposit",
-      percentage: roundMoney(depositPercentage),
+      percentage: roundPercent(depositPercentage),
     };
 
     if (isBalanceSplit) {
@@ -547,9 +563,9 @@ function AdminQuoteModal({
             amount: roundMoney(row.amount),
             date: fallbackScheduleDate(row.date, form.validUntil),
             name: row.name,
-            percentage: roundMoney(percentFromAmount(row.amount, splitSourceAmount)),
+            percentage: roundPercent(percentFromAmount(roundMoney(row.amount), splitSourceAmount)),
           })),
-          percentage: roundMoney(balancePercentage),
+          percentage: roundPercent(balancePercentage),
           split: true,
         },
         deposit,
@@ -563,7 +579,7 @@ function AdminQuoteModal({
         amount: balanceAmount,
         date: fallbackScheduleDate(balanceRow.date, form.validUntil),
         name: "Balance",
-        percentage: roundMoney(balancePercentage),
+        percentage: roundPercent(balancePercentage),
         split: false,
       },
       deposit,
@@ -610,6 +626,7 @@ function AdminQuoteModal({
     date: row.date,
     key: row.key,
     name: row.name,
+    removable: true,
   }));
   const fullPaymentColumns: ColumnsType<ScheduleDisplayRow> = [
     {
@@ -755,6 +772,20 @@ function AdminQuoteModal({
         />
       ),
     },
+    {
+      dataIndex: "key",
+      title: "Action",
+      width: 84,
+      render: (_value, row) => (
+        <Button
+          aria-label={`Remove ${row.name}`}
+          disabled={normalizedSplitRows.length <= 1}
+          icon={<PortalIcon name="delete" />}
+          onClick={() => removeSplitRow(row.key)}
+          type="text"
+        />
+      ),
+    },
   ];
 
   async function handleSubmit() {
@@ -857,20 +888,20 @@ function AdminQuoteModal({
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="quoteDateIssued">Date issued</label>
-            <input
+            <DatePicker
+              format="YYYY/DD/MM"
               id="quoteDateIssued"
-              onChange={(event) => updateForm("dateIssued", event.target.value)}
-              type="date"
-              value={form.dateIssued}
+              onChange={(date) => updateForm("dateIssued", scheduleDateFromPicker(date))}
+              value={scheduleDateValue(form.dateIssued)}
             />
           </div>
           <div className="form-group">
             <label htmlFor="quoteValidUntil">Valid until</label>
-            <input
+            <DatePicker
+              format="YYYY/DD/MM"
               id="quoteValidUntil"
-              onChange={(event) => updateForm("validUntil", event.target.value)}
-              type="date"
-              value={form.validUntil}
+              onChange={(date) => updateForm("validUntil", scheduleDateFromPicker(date))}
+              value={scheduleDateValue(form.validUntil)}
             />
           </div>
         </div>

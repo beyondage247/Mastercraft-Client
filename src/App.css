@@ -3485,6 +3485,7 @@
 
 .quote-line-table__row input,
 .quote-total-panel input,
+.admin-modal-form .ant-picker,
 .quote-schedule-table input,
 .quote-schedule-table select {
   width: 100%;

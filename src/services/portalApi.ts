@@ -877,10 +877,10 @@ function formatDateInputValue(value?: string | null) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : "";
+    return /^\d{4}\/\d{2}\/\d{2}$/.test(value) ? value : "";
   }
 
-  return date.toISOString().slice(0, 10);
+  return formatPortalDate(value);
 }
 
 function clampPercent(value: number) {
@@ -1151,10 +1151,20 @@ function normalizeQuotePaymentSchedulePayment(
 ) {
   return {
     amount: numberFromDecimal(payment.amount),
-    date: normalizeString(payment.date),
+    date: formatScheduleDate(payment.date),
     name: normalizeString(payment.name) || fallbackName,
     percentage: numberFromDecimal(payment.percentage),
   };
+}
+
+function formatScheduleDate(value?: string | null) {
+  if (!value || value === "Date of Invoice Generation") {
+    return value || "";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : formatPortalDate(value);
 }
 
 function normalizeQuotePaymentSchedule(
@@ -1178,7 +1188,7 @@ function normalizeQuotePaymentSchedule(
     balance: schedule.balance
       ? {
           amount: numberFromDecimal(schedule.balance.amount),
-          date: schedule.balance.date ?? null,
+          date: formatScheduleDate(schedule.balance.date) || null,
           name: schedule.balance.name ?? null,
           payments: (schedule.balance.payments ?? []).map((payment, index) =>
             normalizeQuotePaymentSchedulePayment(payment, `Payment ${index + 1}`),
@@ -1191,7 +1201,7 @@ function normalizeQuotePaymentSchedule(
       ? {
           amount: numberFromDecimal(schedule.deposit.amount),
           amountType: normalizePaymentScheduleAmountType(schedule.deposit.amountType),
-          date: normalizeString(schedule.deposit.date),
+          date: formatScheduleDate(schedule.deposit.date),
           name: normalizeString(schedule.deposit.name) || "Deposit",
           percentage: numberFromDecimal(schedule.deposit.percentage),
         }
@@ -1502,7 +1512,12 @@ function toApiDate(value: string) {
     return "";
   }
 
-  const date = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00.000Z`);
+  const portalDateMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  const date = portalDateMatch
+    ? new Date(`${portalDateMatch[1]}-${portalDateMatch[3]}-${portalDateMatch[2]}T00:00:00.000Z`)
+    : value.includes("T")
+      ? new Date(value)
+      : new Date(`${value}T00:00:00.000Z`);
 
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
