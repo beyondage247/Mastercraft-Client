@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { QuoteListItem } from '../data/portal';
+import { formatPortalDate } from '../utils/dateFormat';
 import { PortalIcon } from './PortalIcon';
 import StatusBadge from './StatusBadge';
 
@@ -16,10 +17,51 @@ type QuoteCardProps = {
   quote: QuoteListItem;
 };
 
+function formatScheduleAmount(value?: number | null) {
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    style: "currency",
+  }).format(Number.isFinite(value ?? Number.NaN) ? Number(value) : 0);
+}
+
+function formatScheduleDate(value?: string | null) {
+  if (!value) return "date not set";
+  if (value === "Date of Invoice Generation") return value;
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(value)) return value;
+
+  return formatPortalDate(value) || value;
+}
+
+function scheduleTypeText(quote: QuoteListItem) {
+  if (quote.paymentSchedule?.type === "FULL_PAYMENT") return "Full payment";
+  if (quote.paymentSchedule?.type === "DEPOSIT_AND_BALANCE") return "Deposit and balance";
+  if (quote.paymentSchedule?.type === "DEPOSIT_AND_SPLIT_BALANCE") return "Deposit and split balance";
+
+  return "";
+}
+
+function nextScheduleText(quote: QuoteListItem) {
+  const schedule = quote.paymentSchedule;
+
+  if (!schedule) return "";
+
+  if (schedule.type === "FULL_PAYMENT" && schedule.fullPayment) {
+    return `${formatScheduleAmount(schedule.fullPayment.amount)} due ${formatScheduleDate(schedule.fullPayment.date)}`;
+  }
+
+  if (schedule.deposit) {
+    return `${formatScheduleAmount(schedule.deposit.amount)} deposit due ${formatScheduleDate(schedule.deposit.date)}`;
+  }
+
+  return "";
+}
+
 function QuoteCard({ onRespond, quote }: QuoteCardProps) {
   const navigate = useNavigate();
   const canRespond = quote.status === "Sent" || quote.status === "Draft";
   const displayQuoteId = quote.uid || quote.id;
+  const scheduleType = scheduleTypeText(quote);
+  const nextSchedule = nextScheduleText(quote);
 
   return (
     <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
@@ -42,6 +84,12 @@ function QuoteCard({ onRespond, quote }: QuoteCardProps) {
             Valid until {quote.validUntil}
           </span>
         </div>
+        {scheduleType ? (
+          <div className="quote-card__schedule">
+            <span>{scheduleType}</span>
+            {nextSchedule ? <strong>{nextSchedule}</strong> : null}
+          </div>
+        ) : null}
       </div>
       <div className="quote-card__actions">
         {canRespond ? (

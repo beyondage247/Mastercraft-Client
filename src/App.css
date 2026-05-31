@@ -896,6 +896,30 @@
   line-height: 1.35;
 }
 
+.quote-card__schedule {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 18px;
+  padding: 12px 14px;
+}
+
+.quote-card__schedule span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.quote-card__schedule strong {
+  color: var(--color-text);
+  font-size: 13px;
+}
+
 .quote-card__actions {
   display: flex;
   align-items: center;
