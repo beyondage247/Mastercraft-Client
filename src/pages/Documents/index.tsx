@@ -3,7 +3,6 @@ import { getCurrentPortalUser } from '../../auth/session';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
 import StatusBadge from '../../components/StatusBadge';
-import { documents } from '../../data/portal';
 import type { DocumentItem, DocumentType } from '../../data/portal';
 import { getDocuments } from '../../services/portalApi';
 
@@ -13,7 +12,9 @@ const typeFilters: DocumentFilter[] = ['All types', 'Shop drawing', 'CAD File', 
 function Documents() {
   const currentUser = getCurrentPortalUser();
   const isBackOffice = currentUser?.role === 'admin' || currentUser?.role === 'staff';
-  const [documentList, setDocumentList] = useState<DocumentItem[]>(documents);
+  const [documentList, setDocumentList] = useState<DocumentItem[]>([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [projectFilter, setProjectFilter] = useState('All projects');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<DocumentFilter>('All types');
@@ -21,11 +22,26 @@ function Documents() {
   useEffect(() => {
     let isMounted = true;
 
-    getDocuments().then((data) => {
-      if (isMounted) {
-        setDocumentList(data.documents);
-      }
-    });
+    setLoading(true);
+    setError('');
+
+    getDocuments()
+      .then((data) => {
+        if (isMounted) {
+          setDocumentList(data.documents);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setDocumentList([]);
+          setError(requestError.message || 'Unable to load documents.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -109,48 +125,53 @@ function Documents() {
       </section>
 
       <section className="document-project-groups" aria-label="Documents grouped by project">
-        {documentGroups.map((group) => (
-          <article className="document-project-group" key={group.project}>
-            <div className="document-project-group__header">
-              <h2>{group.project}</h2>
-              <span>{group.items.length} documents</span>
-            </div>
-            <div className="documents-grid" aria-label={`${group.project} documents`}>
-              {group.items.map((document) => (
-                <article className="document-card" key={document.id}>
-                  <div className="document-card__preview">
-                    {document.imageUrl ? (
-                      <img alt="" src={document.imageUrl} />
-                    ) : (
-                      <>
-                        <span className="document-card__icon">
-                          <PortalIcon name={document.title.includes('Approval') ? 'check' : document.type === 'Shop drawing' ? 'projects' : 'documents'} />
-                        </span>
-                        <StatusBadge tone="danger">{document.type}</StatusBadge>
-                      </>
-                    )}
-                  </div>
-                  <div className="document-card__body">
-                    <h3>{document.title}</h3>
-                    <p>
-                      <PortalIcon name="calendar" />
-                      {document.date || 'Not set'}
-                    </p>
-                    {document.downloadUrl ? (
-                      <a className="table-action-button" href={document.downloadUrl} rel="noreferrer" target="_blank">
-                        <PortalIcon name="download" />
-                        <span>Download</span>
-                      </a>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-        ))}
-        {!documentGroups.length ? (
-          <div className="panel">No documents match this view.</div>
-        ) : null}
+        {loading ? (
+          <div className="quote-payment-schedule__empty">Loading documents...</div>
+        ) : error ? (
+          <div className="quote-payment-schedule__empty">{error}</div>
+        ) : documentGroups.length ? (
+          documentGroups.map((group) => (
+            <article className="document-project-group" key={group.project}>
+              <div className="document-project-group__header">
+                <h2>{group.project}</h2>
+                <span>{group.items.length} documents</span>
+              </div>
+              <div className="documents-grid" aria-label={`${group.project} documents`}>
+                {group.items.map((document) => (
+                  <article className="document-card" key={document.id}>
+                    <div className="document-card__preview">
+                      {document.imageUrl ? (
+                        <img alt="" src={document.imageUrl} />
+                      ) : (
+                        <>
+                          <span className="document-card__icon">
+                            <PortalIcon name={document.title.includes('Approval') ? 'check' : document.type === 'Shop drawing' ? 'projects' : 'documents'} />
+                          </span>
+                          <StatusBadge tone="danger">{document.type}</StatusBadge>
+                        </>
+                      )}
+                    </div>
+                    <div className="document-card__body">
+                      <h3>{document.title}</h3>
+                      <p>
+                        <PortalIcon name="calendar" />
+                        {document.date || 'Not set'}
+                      </p>
+                      {document.downloadUrl ? (
+                        <a className="table-action-button" href={document.downloadUrl} rel="noreferrer" target="_blank">
+                          <PortalIcon name="download" />
+                          <span>Download</span>
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </article>
+          ))
+        ) : (
+          <div className="quote-payment-schedule__empty">No documents match this view.</div>
+        )}
       </section>
 
       <p className="result-count">

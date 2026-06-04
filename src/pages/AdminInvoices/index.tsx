@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Dropdown, type MenuProps } from "antd";
 import { useNavigate } from "react-router-dom";
 import AdminPaymentModal from "../../components/AdminPaymentModal";
 import PageHeader from "../../components/PageHeader";
@@ -54,6 +55,23 @@ function AdminInvoices() {
     return getInvoices().then((data) => {
       setInvoices(data.invoices);
     });
+  }
+
+  function actionMenu(invoice: InvoiceItem): MenuProps {
+    return {
+      items: [
+        { disabled: invoice.status === "Paid", key: "record-payment", label: "Record payment" },
+        { key: "view", label: "View" },
+      ],
+      onClick: ({ key }) => {
+        if (key === "record-payment") {
+          setPaymentInvoice(invoice);
+          return;
+        }
+
+        navigate(`/admin/invoices/${invoice.id}`);
+      },
+    };
   }
 
   const visibleInvoices = useMemo(() => {
@@ -124,18 +142,13 @@ function AdminInvoices() {
                 <span>{invoice.project || "Not set"}</span>
                 <span>{invoice.total || invoice.amount}</span>
                 <StatusBadge tone={invoiceTone(invoice.status)}>{invoice.status}</StatusBadge>
-                <span>
-                  <button
-                    className="table-action-button"
-                    disabled={invoice.status === "Paid"}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setPaymentInvoice(invoice);
-                    }}
-                    type="button"
-                  >
-                    Record payment
-                  </button>
+                <span onClick={(event) => event.stopPropagation()}>
+                  <Dropdown menu={actionMenu(invoice)} placement="bottomRight">
+                    <button className="table-action-button" type="button">
+                      <span>Actions</span>
+                      <PortalIcon name="down" />
+                    </button>
+                  </Dropdown>
                 </span>
               </article>
             ))

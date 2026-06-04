@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
-import { invoiceMetrics, invoices } from "../../data/portal";
 import type { InvoiceItem, InvoiceStatus } from "../../data/portal";
 import { getInvoices } from "../../services/portalApi";
 
@@ -18,8 +17,10 @@ const invoiceStatusTone = {
 } as const;
 
 function Invoices() {
-  const [invoiceList, setInvoiceList] = useState<InvoiceItem[]>(invoices);
-  const [metrics, setMetrics] = useState(invoiceMetrics);
+  const [error, setError] = useState("");
+  const [invoiceList, setInvoiceList] = useState<InvoiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof getInvoices>>["metrics"]>([]);
   const [projectFilter, setProjectFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceFilter>("All");
@@ -28,12 +29,28 @@ function Invoices() {
   useEffect(() => {
     let isMounted = true;
 
-    getInvoices().then((data) => {
-      if (isMounted) {
-        setInvoiceList(data.invoices);
-        setMetrics(data.metrics);
-      }
-    });
+    setLoading(true);
+    setError("");
+
+    getInvoices()
+      .then((data) => {
+        if (isMounted) {
+          setInvoiceList(data.invoices);
+          setMetrics(data.metrics);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setInvoiceList([]);
+          setMetrics([]);
+          setError(requestError.message || "Unable to load invoices.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -150,7 +167,12 @@ function Invoices() {
       </section>
 
       <section className="record-list" aria-label="Invoices">
-        {filteredInvoices.map((invoice, index) => {
+        {loading ? (
+          <div className="quote-payment-schedule__empty">Loading invoices...</div>
+        ) : error ? (
+          <div className="quote-payment-schedule__empty">{error}</div>
+        ) : filteredInvoices.length ? (
+          filteredInvoices.map((invoice, index) => {
           const displayInvoiceId = invoice.invoiceId || invoice.id;
 
           return (
@@ -179,7 +201,7 @@ function Invoices() {
                   </span>
                   <span>
                     <PortalIcon name="clock" />
-                    Issued: {invoice.dueDate}
+                    Due: {invoice.dueDate}
                   </span>
                 </div>
               </div>
@@ -197,7 +219,10 @@ function Invoices() {
               </div>
             </article>
           );
-        })}
+        })
+        ) : (
+          <div className="quote-payment-schedule__empty">No invoices have been created yet.</div>
+        )}
       </section>
 
       <p className="result-count">

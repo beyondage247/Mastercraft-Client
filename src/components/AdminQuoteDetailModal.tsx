@@ -1,5 +1,6 @@
 import { Modal } from "antd";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { QuoteListItem } from "../data/portal";
 import { getQuoteDetail } from "../services/portalApi";
 import QuotePaymentSchedulePanel from "./QuotePaymentSchedulePanel";
@@ -127,6 +128,29 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
             isLoading={isRefreshing}
             paymentSchedule={displayQuote.paymentSchedule}
           />
+
+          {displayQuote.invoices?.length ? (
+            <section className="admin-quote-detail__section">
+              <div className="admin-quote-detail__section-header">
+                <h3>Generated Invoices</h3>
+                <span>{displayQuote.invoices.length} total</span>
+              </div>
+              <div className="quote-generated-invoices quote-generated-invoices--admin">
+                {displayQuote.invoices.map((invoice) => (
+                  <Link className="quote-invoice-link" key={invoice.id} to={`/admin/invoices/${invoice.id}`}>
+                    <div>
+                      <strong>{invoice.invoiceId || invoice.id}</strong>
+                      <span>{invoice.issuedDate || "Date pending"}</span>
+                    </div>
+                    <div>
+                      <strong>{invoice.total || invoice.amount}</strong>
+                      <StatusBadge tone={invoice.status === "Paid" ? "success" : "info"}>{invoice.status}</StatusBadge>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="admin-quote-detail__section">
             <div className="admin-quote-detail__section-header">

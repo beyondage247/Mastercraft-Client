@@ -250,11 +250,21 @@ function AdminClients() {
     return Number(value) || 0;
   }
 
-  function stageInput(stage: ProjectStageKey): ProjectStageInput {
+  function stageInput(stage: ProjectStageKey): ProjectStageInput | undefined {
+    const stageForm = projectForm[stage];
+    const hasStageDetails =
+      Boolean(stageForm.hoursBudgeted.trim()) ||
+      Boolean(stageForm.startDate) ||
+      numberValue(stageForm.hoursSpent) > 0;
+
+    if (!hasStageDetails) {
+      return undefined;
+    }
+
     return {
-      hoursBudgeted: numberValue(projectForm[stage].hoursBudgeted),
-      hoursSpent: numberValue(projectForm[stage].hoursSpent),
-      startDate: projectForm[stage].startDate || projectForm.startDate,
+      hoursBudgeted: numberValue(stageForm.hoursBudgeted),
+      hoursSpent: numberValue(stageForm.hoursSpent),
+      startDate: stageForm.startDate || projectForm.startDate,
     };
   }
 
@@ -436,15 +446,6 @@ function AdminClients() {
 
     if (!projectName || !description || !location || !projectForm.startDate || !projectForm.endDate) {
       setFeedback("Project name, description, location, start date, and end date are required.");
-      return;
-    }
-
-    const missingStageBudget = projectStageFields.some(
-      ({ key }) => !numberValue(projectForm[key].hoursBudgeted),
-    );
-
-    if (missingStageBudget) {
-      setFeedback("Budgeted hours are required for every project stage.");
       return;
     }
 

@@ -75,6 +75,8 @@ function QuoteDetail() {
     }
   }
 
+  const canRespond = quote.status === 'Sent' || quote.status === 'Draft';
+
   return (
     <div className="page-stack quote-detail-page">
       <button className="back-link" onClick={() => navigate('/quotes')}>
@@ -132,11 +134,34 @@ function QuoteDetail() {
 
             <QuotePaymentSchedulePanel paymentSchedule={quote.paymentSchedule} />
 
-            <div className="action-buttons-bottom">
-              <button className="accept-quote-btn" onClick={() => openResponse('APPROVED')} type="button">Approve Quote</button>
-              <button className="request-revision-btn" onClick={() => openResponse('IN_REVIEW')} type="button">Request Revision</button>
-              <button className="secondary-action-btn" onClick={() => openResponse('REJECTED')} type="button">Reject Quote</button>
-            </div>
+            {quote.invoices?.length ? (
+              <div className="quote-generated-invoices">
+                <div className="panel-flex-header">
+                  <h3>Generated Invoice</h3>
+                  <span className="items-count">{quote.invoices.length} total</span>
+                </div>
+                {quote.invoices.map((invoice) => (
+                  <Link className="quote-invoice-link" key={invoice.id} to={`/invoices/${invoice.id}`}>
+                    <div>
+                      <strong>{invoice.invoiceId || invoice.id}</strong>
+                      <span>{invoice.issuedDate || 'Date pending'}</span>
+                    </div>
+                    <div>
+                      <strong>{invoice.total || invoice.amount}</strong>
+                      <StatusBadge tone={invoice.status === 'Paid' ? 'success' : 'info'}>{invoice.status}</StatusBadge>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+
+            {canRespond ? (
+              <div className="action-buttons-bottom">
+                <button className="accept-quote-btn" onClick={() => openResponse('APPROVED')} type="button">Approve Quote</button>
+                <button className="request-revision-btn" onClick={() => openResponse('IN_REVIEW')} type="button">Request Revision</button>
+                <button className="secondary-action-btn" onClick={() => openResponse('REJECTED')} type="button">Reject Quote</button>
+              </div>
+            ) : null}
           </div>
         </div>
 

@@ -4,7 +4,6 @@ import { PortalIcon } from "../../components/PortalIcon";
 import StatCard from "../../components/StatCard";
 import StatusBadge from "../../components/StatusBadge";
 import { getCurrentPortalUser, updatePortalUser } from "../../auth/session";
-import { activeProjects, homeMetrics, recentActivity } from "../../data/portal";
 import type { DashboardResponse } from "../../services/portalApi";
 import { getCurrentUserProfile, getDashboard } from "../../services/portalApi";
 
@@ -12,11 +11,11 @@ function Home() {
   const [portalUser, setPortalUser] = useState(getCurrentPortalUser);
   const name = portalUser?.name || "Valued Client";
   const [dashboard, setDashboard] = useState<DashboardResponse>({
-    activeProjects,
-    homeMetrics,
+    activeProjects: [],
+    homeMetrics: [],
     projectMetrics: [],
     quoteMetrics: [],
-    recentActivity,
+    recentActivity: [],
   });
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import FilterToolbar from "../../components/FilterToolbar";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
-import { paymentFilters, paymentMetrics, payments } from "../../data/portal";
+import { paymentFilters } from "../../data/portal";
 import type { PaymentItem, PaymentMethod } from "../../data/portal";
 import { getPayments } from "../../services/portalApi";
 
@@ -18,19 +18,37 @@ const methodTone = {
 
 function Payments() {
   const [activeFilter, setActiveFilter] = useState<PaymentFilter>("All");
-  const [metrics, setMetrics] = useState(paymentMetrics);
-  const [paymentList, setPaymentList] = useState<PaymentItem[]>(payments);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof getPayments>>["metrics"]>([]);
+  const [paymentList, setPaymentList] = useState<PaymentItem[]>([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     let isMounted = true;
 
-    getPayments().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setPaymentList(data.payments);
-      }
-    });
+    setLoading(true);
+    setError("");
+
+    getPayments()
+      .then((data) => {
+        if (isMounted) {
+          setMetrics(data.metrics);
+          setPaymentList(data.payments);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setMetrics([]);
+          setPaymentList([]);
+          setError(requestError.message || "Unable to load payments.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -95,24 +113,32 @@ function Payments() {
             <span>AMOUNT</span>
             <span />
           </div>
-          {filteredPayments.map((payment) => (
-            <article className="payments-table__row" key={payment.id}>
-              <span>{payment.date}</span>
-              <strong>{payment.invoice}</strong>
-              <span>{payment.project}</span>
-              <StatusBadge tone={methodTone[payment.method]}>
-                {payment.method}
-              </StatusBadge>
-              <span>{payment.reference}</span>
-              <span>{payment.amount}</span>
-              <button
-                type="button"
-                aria-label={`Open payment ${payment.reference}`}
-              >
-                <PortalIcon name="right" />
-              </button>
-            </article>
-          ))}
+          {loading ? (
+            <div className="quote-payment-schedule__empty">Loading payments...</div>
+          ) : error ? (
+            <div className="quote-payment-schedule__empty">{error}</div>
+          ) : filteredPayments.length ? (
+            filteredPayments.map((payment) => (
+              <article className="payments-table__row" key={payment.id}>
+                <span>{payment.date}</span>
+                <strong>{payment.invoice}</strong>
+                <span>{payment.project}</span>
+                <StatusBadge tone={methodTone[payment.method]}>
+                  {payment.method}
+                </StatusBadge>
+                <span>{payment.reference}</span>
+                <span>{payment.amount}</span>
+                <button
+                  type="button"
+                  aria-label={`Open payment ${payment.reference}`}
+                >
+                  <PortalIcon name="right" />
+                </button>
+              </article>
+            ))
+          ) : (
+            <div className="quote-payment-schedule__empty">No payments have been recorded yet.</div>
+          )}
         </div>
         <p className="result-count">
           Showing {filteredPayments.length} of {paymentList.length} payments

@@ -4,11 +4,7 @@ import FilterToolbar from "../../components/FilterToolbar";
 import PageHeader from "../../components/PageHeader";
 import QuoteCard from "../../components/QuoteCard";
 import StatCard from "../../components/StatCard";
-import {
-  quoteFilters,
-  quoteMetrics,
-  quotes as quoteSeed,
-} from "../../data/portal";
+import { quoteFilters } from "../../data/portal";
 import type { QuoteFilter, QuoteListItem } from "../../data/portal";
 import { getQuotes, respondToQuote, type QuoteDecisionStatus } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
@@ -19,23 +15,41 @@ function matchesQuoteFilter(quote: QuoteListItem, filter: QuoteFilter) {
 
 function Quotes() {
   const [activeFilter, setActiveFilter] = useState<QuoteFilter>("All");
-  const [metrics, setMetrics] = useState(quoteMetrics);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof getQuotes>>["metrics"]>([]);
   const [comment, setComment] = useState("");
   const [respondingQuote, setRespondingQuote] = useState<QuoteListItem | null>(null);
   const [responseStatus, setResponseStatus] = useState<QuoteDecisionStatus>("APPROVED");
   const [isResponding, setIsResponding] = useState(false);
   const [search, setSearch] = useState("");
-  const [quotes, setQuotes] = useState<QuoteListItem[]>(quoteSeed);
+  const [quotes, setQuotes] = useState<QuoteListItem[]>([]);
 
   useEffect(() => {
     let isMounted = true;
 
-    getQuotes().then((data) => {
-      if (isMounted) {
-        setMetrics(data.metrics);
-        setQuotes(data.quotes);
-      }
-    });
+    setLoading(true);
+    setError("");
+
+    getQuotes()
+      .then((data) => {
+        if (isMounted) {
+          setMetrics(data.metrics);
+          setQuotes(data.quotes);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setMetrics([]);
+          setQuotes([]);
+          setError(requestError.message || "Unable to load quotes.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -118,9 +132,17 @@ function Quotes() {
       />
 
       <section className="record-list" aria-label="Quotes">
-        {filteredQuotes.map((quote) => (
+        {loading ? (
+          <div className="quote-payment-schedule__empty">Loading quotes...</div>
+        ) : error ? (
+          <div className="quote-payment-schedule__empty">{error}</div>
+        ) : filteredQuotes.length ? (
+          filteredQuotes.map((quote) => (
           <QuoteCard key={quote.uid} onRespond={openResponseModal} quote={quote} />
-        ))}
+        ))
+        ) : (
+          <div className="quote-payment-schedule__empty">No quotes have been created yet.</div>
+        )}
       </section>
 
       <p className="result-count">

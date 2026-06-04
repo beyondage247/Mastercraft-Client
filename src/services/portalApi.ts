@@ -1,16 +1,6 @@
 import {
-  documents,
-  invoiceDetails,
-  invoiceMetrics,
-  invoices,
-  paymentMetrics,
-  payments,
   projectDetails,
   projects,
-  quoteDetails,
-  quoteMetrics,
-  quotes,
-  recentActivity,
 } from "../data/portal";
 import type {
   ActivityItem,
@@ -292,15 +282,15 @@ export type ProjectStageInput = {
 };
 
 export type CreateProjectInput = {
-  buildAssemble: ProjectStageInput;
+  buildAssemble?: ProjectStageInput;
   clientId: string;
-  delivery: ProjectStageInput;
+  delivery?: ProjectStageInput;
   description: string;
   endDate: string;
-  finishing: ProjectStageInput;
-  install: ProjectStageInput;
+  finishing?: ProjectStageInput;
+  install?: ProjectStageInput;
   location: string;
-  mil: ProjectStageInput;
+  mil?: ProjectStageInput;
   name: string;
   startDate: string;
 };
@@ -340,6 +330,7 @@ type BackendQuoteResponse = {
   description?: string;
   dateIssued?: string | null;
   id: string;
+  invoices?: BackendInvoiceResponse[];
   lineItems?: BackendQuoteLineItemResponse[];
   name?: string;
   project?: string | {
@@ -359,6 +350,15 @@ type BackendQuoteResponse = {
   uid?: string;
   validUntil?: string | null;
   paymentSchedule?: BackendQuotePaymentScheduleResponse | null;
+};
+
+type BackendInvoiceResponse = {
+  createdAt?: string | null;
+  id: string;
+  invoiceId?: string;
+  payments?: BackendPaymentResponse[];
+  status?: string;
+  total?: string | number;
 };
 
 type BackendQuoteLineItemResponse = {
@@ -1251,6 +1251,11 @@ function quoteProjectName(quote: BackendQuoteResponse) {
 function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
   const validUntil = formatProjectDate(quote.validUntil);
   const lineItems = normalizeLineItems(quote.lineItems);
+  const projectId = quoteProjectId(quote);
+  const projectNameValue = quoteProjectName(quote);
+  const title = quote.title || quote.name || quote.quoteId || "Untitled quote";
+  const paymentSchedule = normalizeQuotePaymentSchedule(quote.paymentSchedule);
+  const total = moneyText(quote.total);
 
   return {
     amount: moneyText(quote.amount ?? quote.total),
@@ -1258,16 +1263,29 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
     dateIssued: formatProjectDate(quote.dateIssued),
     description: quote.description || projectName(quote.project, ""),
     id: quote.id,
+    invoices: (quote.invoices ?? []).map((invoice) =>
+      invoiceFromQuote(invoice, {
+        lineItems,
+        paymentSchedule,
+        projectId,
+        projectName: projectNameValue || projectName(quote.project, "") || title,
+        quoteReference: quote.quoteId || quote.uid || quote.id,
+        tax: normalizeString(quote.tax),
+        taxAmount: moneyText(quote.taxAmount),
+        subtotal: moneyText(quote.subtotal),
+        validUntil,
+      }),
+    ),
     lineItems,
-    paymentSchedule: normalizeQuotePaymentSchedule(quote.paymentSchedule),
-    projectId: quoteProjectId(quote),
-    projectName: quoteProjectName(quote),
+    paymentSchedule,
+    projectId,
+    projectName: projectNameValue,
     status: normalizeQuoteStatus(quote.status || "PENDING", quote.validUntil),
     subtotal: moneyText(quote.subtotal),
     tax: normalizeString(quote.tax),
     taxAmount: moneyText(quote.taxAmount),
-    title: quote.title || quote.name || quote.quoteId || "Untitled quote",
-    total: moneyText(quote.total),
+    title,
+    total,
     uid: quote.uid || quote.quoteId || quote.id,
     validUntil,
   };
@@ -1275,12 +1293,14 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
 
 function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   const project = payment.project && typeof payment.project === "object" ? payment.project : undefined;
+  const invoice = payment.invoice && typeof payment.invoice === "object" ? payment.invoice : undefined;
 
   return {
     amount: moneyText(payment.amount),
     date: formatProjectDate(payment.date ?? payment.createdAt),
     id: payment.id,
     invoice: payment.invoiceId || projectName(payment.invoice, payment.id),
+    invoiceId: payment.invoiceId || invoice?.id,
     method: normalizePaymentMethod(payment.method || "ACH"),
     project: projectName(payment.project, ""),
     projectId: payment.projectId ?? project?.id,
@@ -1443,6 +1463,13 @@ function buildQuoteMetrics(quoteList: QuoteListItem[]) {
   ] as Metric[];
 }
 
+function emptyQuoteResponse(): QuoteResponse {
+  return {
+    metrics: buildQuoteMetrics([]),
+    quotes: [],
+  };
+}
+
 function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
   const outstanding = invoiceList
     .filter((invoice) => invoice.status !== "Paid")
@@ -1458,6 +1485,65 @@ function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
       value: `${invoiceList.filter((invoice) => invoice.status === "Paid").length}`,
     },
   ] as Metric[];
+}
+
+function buildPaymentMetrics(paymentList: PaymentItem[]) {
+  const total = paymentList.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
+
+  return [
+    { icon: "documents", label: "TOTAL PAID (YTD)", tone: "danger", value: `$${total.toLocaleString()}` },
+    { icon: "documents", label: "LAST 30 DAYS", tone: "danger", value: `$${total.toLocaleString()}` },
+    { icon: "check", label: "TOTAL PAYMENTS", tone: "danger", value: `${paymentList.length}` },
+  ] as Metric[];
+}
+
+function emptyInvoiceResponse(): InvoiceResponse {
+  return {
+    invoices: [],
+    metrics: buildInvoiceMetrics([]),
+  };
+}
+
+function emptyPaymentResponse(): PaymentResponse {
+  return {
+    metrics: buildPaymentMetrics([]),
+    payments: [],
+  };
+}
+
+function invoiceFromQuote(
+  invoice: BackendInvoiceResponse,
+  quote: {
+    lineItems?: InvoiceItem["lineItems"];
+    paymentSchedule?: QuoteListItem["paymentSchedule"];
+    projectId?: string;
+    projectName: string;
+    quoteReference?: string;
+    subtotal?: string;
+    tax?: string;
+    taxAmount?: string;
+    validUntil?: string;
+  },
+): InvoiceItem {
+  const total = moneyText(invoice.total);
+
+  return {
+    amount: total,
+    dueDate: quote.validUntil || "",
+    id: invoice.id,
+    invoiceId: invoice.invoiceId || invoice.id,
+    issuedDate: formatProjectDate(invoice.createdAt),
+    lineItems: quote.lineItems,
+    paymentSchedule: quote.paymentSchedule ?? null,
+    project: quote.projectName || "Linked project",
+    projectId: quote.projectId,
+    quoteReference: quote.quoteReference,
+    status: normalizeInvoiceStatus(invoice.status || "Approved"),
+    subtotal: quote.subtotal,
+    tax: quote.tax,
+    taxAmount: quote.taxAmount,
+    total,
+  };
 }
 
 function invoiceFromProject(project: ProjectListItem): InvoiceItem | null {
@@ -1486,6 +1572,24 @@ function invoiceFromProject(project: ProjectListItem): InvoiceItem | null {
   };
 }
 
+function mergeInvoices(...sources: InvoiceItem[][]) {
+  const invoiceMap = new Map<string, InvoiceItem>();
+
+  sources.flat().forEach((invoice) => {
+    const key = invoice.id || invoice.invoiceId || `${invoice.projectId}-${invoice.quoteReference}`;
+    const existing = invoiceMap.get(key);
+
+    invoiceMap.set(key, {
+      ...invoice,
+      ...existing,
+      lineItems: existing?.lineItems?.length ? existing.lineItems : invoice.lineItems,
+      paymentSchedule: existing?.paymentSchedule ?? invoice.paymentSchedule,
+    });
+  });
+
+  return Array.from(invoiceMap.values());
+}
+
 async function getProjectInvoices() {
   const projectData = await getProjects();
 
@@ -1495,6 +1599,13 @@ async function getProjectInvoices() {
 }
 
 function paymentsWithInvoiceIds(payments: PaymentItem[], invoices: InvoiceItem[]) {
+  const invoiceById = new Map(
+    invoices.flatMap((invoice) =>
+      [invoice.id, invoice.invoiceId]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => [value, invoice] as const),
+    ),
+  );
   const invoiceByProject = new Map(
     invoices
       .filter((invoice) => invoice.projectId)
@@ -1502,12 +1613,15 @@ function paymentsWithInvoiceIds(payments: PaymentItem[], invoices: InvoiceItem[]
   );
 
   return payments.map((payment) => {
-    const invoice = payment.projectId ? invoiceByProject.get(payment.projectId) : undefined;
+    const invoice =
+      (payment.invoiceId ? invoiceById.get(payment.invoiceId) : undefined) ??
+      (payment.projectId ? invoiceByProject.get(payment.projectId) : undefined);
 
     return invoice
       ? {
           ...payment,
           invoice: invoice.invoiceId || invoice.id,
+          invoiceId: payment.invoiceId || invoice.id,
           project: payment.project || invoice.project,
         }
       : payment;
@@ -1557,23 +1671,21 @@ function projectStagePayload(stage: ProjectStageInput) {
 }
 
 function createProjectPayload(input: CreateProjectInput) {
-  const mil = projectStagePayload(input.mil);
-  const buildAssemble = projectStagePayload(input.buildAssemble);
-  const finishing = projectStagePayload(input.finishing);
-  const delivery = projectStagePayload(input.delivery);
-  const install = projectStagePayload(input.install);
+  const mil = input.mil ? projectStagePayload(input.mil) : undefined;
+  const buildAssemble = input.buildAssemble ? projectStagePayload(input.buildAssemble) : undefined;
+  const finishing = input.finishing ? projectStagePayload(input.finishing) : undefined;
 
   return {
-    buildAssemble,
+    ...(buildAssemble ? { buildAssemble } : {}),
     clientId: input.clientId,
-    delivery,
+    ...(input.delivery ? { delivery: projectStagePayload(input.delivery) } : {}),
     description: input.description,
     endDate: toApiDate(input.endDate),
     fabrication: calculateFabricationProgress({ buildAssemble, finishing, mil }),
-    finishing,
-    install,
+    ...(finishing ? { finishing } : {}),
+    ...(input.install ? { install: projectStagePayload(input.install) } : {}),
     location: input.location,
-    mil,
+    ...(mil ? { mil } : {}),
     name: input.name,
     startDate: toApiDate(input.startDate),
   };
@@ -1713,16 +1825,18 @@ export async function addProjectComment(projectId: string, message: string) {
   return normalizeProjectComment(response.comment);
 }
 
+function createUploadId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (character) =>
+    (Number(character) ^ (Math.random() * 16 >> Number(character) / 4)).toString(16),
+  );
+}
+
 export async function uploadFile(file: File) {
-  const body = new FormData();
-  body.append("file", file);
-
-  const response = await portalRequest<{ uploadId: string }>("/uploads", {
-    body,
-    method: "POST",
-  }, true);
-
-  return response.uploadId;
+  return uploadFileWithId(createUploadId(), file);
 }
 
 export async function uploadFileWithId(uploadId: string, file: File) {
@@ -1738,7 +1852,7 @@ export async function uploadFileWithId(uploadId: string, file: File) {
     true,
   );
 
-  return response.uploadId;
+  return response.uploadId || uploadId;
 }
 
 export async function deleteUploads(uploadIds: string[]) {
@@ -1844,10 +1958,7 @@ export async function getQuotes(): Promise<QuoteResponse> {
       quotes: mappedQuotes,
     };
   } catch {
-    return {
-      metrics: quoteMetrics,
-      quotes,
-    };
+    return emptyQuoteResponse();
   }
 }
 
@@ -1890,7 +2001,7 @@ export async function getDashboard(): Promise<DashboardResponse> {
     ],
     projectMetrics: projectData.metrics,
     quoteMetrics: quoteData.metrics,
-    recentActivity,
+    recentActivity: [],
   };
 }
 
@@ -1905,25 +2016,27 @@ export async function getDocuments(): Promise<DocumentResponse> {
       (project.attachment?.uploads ?? []).map((upload) => documentFromProjectUpload(project, upload)),
     );
 
-    return { documents: mappedDocuments.length ? mappedDocuments : documents };
+    return { documents: mappedDocuments };
   } catch {
-    return { documents };
+    return { documents: [] };
   }
 }
 
 export async function getInvoices(): Promise<InvoiceResponse> {
   try {
-    const projectInvoices = await getProjectInvoices();
+    const [projectInvoices, quoteData] = await Promise.all([
+      getProjectInvoices(),
+      getQuotes().catch(() => emptyQuoteResponse()),
+    ]);
+    const quoteInvoices = quoteData.quotes.flatMap((quote) => quote.invoices ?? []);
+    const mappedInvoices = mergeInvoices(projectInvoices, quoteInvoices);
 
     return {
-      invoices: projectInvoices.length ? projectInvoices : invoices,
-      metrics: projectInvoices.length ? buildInvoiceMetrics(projectInvoices) : invoiceMetrics,
+      invoices: mappedInvoices,
+      metrics: buildInvoiceMetrics(mappedInvoices),
     };
   } catch {
-    return {
-      invoices,
-      metrics: invoiceMetrics,
-    };
+    return emptyInvoiceResponse();
   }
 }
 
@@ -1941,21 +2054,13 @@ export async function getPayments(): Promise<PaymentResponse> {
     const mappedPayments = paymentSource.map(mapBackendPayment);
     const projectInvoices = await getProjectInvoices().catch(() => []);
     const displayPayments = paymentsWithInvoiceIds(mappedPayments, projectInvoices);
-    const total = displayPayments.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
 
     return {
-      metrics: [
-        { icon: "documents", label: "TOTAL PAID (YTD)", tone: "danger", value: `$${total.toLocaleString()}` },
-        { icon: "documents", label: "LAST 30 DAYS", tone: "danger", value: `$${total.toLocaleString()}` },
-        { icon: "check", label: "TOTAL PAYMENTS", tone: "danger", value: `${displayPayments.length}` },
-      ],
-      payments: displayPayments.length ? displayPayments : payments,
+      metrics: buildPaymentMetrics(displayPayments),
+      payments: displayPayments,
     };
   } catch {
-    return {
-      metrics: paymentMetrics,
-      payments,
-    };
+    return emptyPaymentResponse();
   }
 }
 
@@ -2135,36 +2240,34 @@ export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem
       ),
     );
   } catch {
-    const quoteData = await getQuotes().catch(() => ({ metrics: quoteMetrics, quotes }));
+    const quoteData = await getQuotes().catch(() => emptyQuoteResponse());
     quote = quoteData.quotes.find((q) => q.id === id || q.uid === id);
   }
 
-  const details = quote
-    ? {
-        lineItems: quote.lineItems?.length ? quote.lineItems : quoteDetails[id]?.lineItems ?? [],
-        linkedProject: {
-          category: "Project",
-          estCompletion: "",
-          id: quote.projectId || "",
-          location: "",
-          title: quote.projectName || quote.description || "Linked project",
-        },
-        specifications: quote.description || "Quote created for this project.",
-        subtotal: quote.subtotal || "$0.00",
-        tax: quote.taxAmount || "$0.00",
-        total: quote.total || quote.amount,
-      }
-    : quoteDetails[id] || quoteDetails["quote-0892"];
+  const details = quote ? {
+    lineItems: quote.lineItems ?? [],
+    linkedProject: {
+      category: "Project",
+      estCompletion: "",
+      id: quote.projectId || "",
+      location: "",
+      title: quote.projectName || quote.description || "Linked project",
+    },
+    specifications: quote.description || "Quote created for this project.",
+    subtotal: quote.subtotal || "$0.00",
+    tax: quote.taxAmount || "$0.00",
+    total: quote.total || quote.amount,
+  } : undefined;
 
   return { quote, details };
 }
 
 export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceItem | undefined, details: InvoiceDetailInfo | undefined }> {
-  const invoiceData = await getInvoices().catch(() => ({ invoices, metrics: invoiceMetrics }));
+  const invoiceData = await getInvoices().catch(() => emptyInvoiceResponse());
   let invoice = invoiceData.invoices.find((item) => item.id === id || item.invoiceId === id);
 
   if (invoice && !invoice.paymentSchedule && invoice.projectId) {
-    const quoteData = await getQuotes().catch(() => ({ metrics: quoteMetrics, quotes: [] }));
+    const quoteData = await getQuotes().catch(() => emptyQuoteResponse());
     const sourceQuote = quoteData.quotes.find((quote) =>
       quote.projectId === invoice?.projectId &&
       (
@@ -2182,27 +2285,25 @@ export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceIt
     }
   }
 
-  const details = invoice
-    ? {
-        billToAddress1: "",
-        billToAddress2: "",
-        billToEmail: invoice.clientEmail || "",
-        billToName: invoice.clientName || "Client",
-        lineItems: invoice.lineItems?.length ? invoice.lineItems : invoiceDetails["INV - 2024- 001"].lineItems,
-        linkedProject: {
-          category: "Project",
-          estCompletion: invoice.dueDate,
-          id: invoice.projectId || "",
-          location: "",
-          title: invoice.project,
-        },
-        projectReference: invoice.project,
-        quoteReference: invoice.quoteReference || "Not set",
-        subtotal: invoice.subtotal || invoice.amount,
-        tax: invoice.taxAmount || "$0.00",
-        total: invoice.total || invoice.amount,
-      }
-    : invoiceDetails[id] || invoiceDetails["INV - 2024- 001"];
+  const details = invoice ? {
+    billToAddress1: "",
+    billToAddress2: "",
+    billToEmail: invoice.clientEmail || "",
+    billToName: invoice.clientName || "Client",
+    lineItems: invoice.lineItems ?? [],
+    linkedProject: {
+      category: "Project",
+      estCompletion: invoice.dueDate,
+      id: invoice.projectId || "",
+      location: "",
+      title: invoice.project,
+    },
+    projectReference: invoice.project,
+    quoteReference: invoice.quoteReference || "Not set",
+    subtotal: invoice.subtotal || invoice.amount,
+    tax: invoice.taxAmount || "$0.00",
+    total: invoice.total || invoice.amount,
+  } : undefined;
 
   return { invoice, details };
 }

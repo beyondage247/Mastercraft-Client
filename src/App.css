@@ -2615,6 +2615,54 @@
   padding: 14px;
 }
 
+.quote-generated-invoices {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 24px;
+}
+
+.quote-generated-invoices--admin {
+  margin: 0;
+}
+
+.quote-invoice-link {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  color: inherit;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.quote-invoice-link:hover {
+  border-color: var(--color-danger);
+}
+
+.quote-invoice-link > div {
+  align-items: flex-start;
+  display: grid;
+  gap: 4px;
+}
+
+.quote-invoice-link > div:last-child {
+  align-items: flex-end;
+}
+
+.quote-invoice-link strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.quote-invoice-link span:not(.status-badge) {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .action-buttons-bottom {
   border-top: 1px solid #eee;
   padding: 32px 0;
@@ -3770,6 +3818,56 @@
 .project-payment-table .payments-table__head,
 .project-payment-table .payments-table__row {
   grid-template-columns: 1fr 0.8fr 1.2fr 0.8fr;
+}
+
+.invoice-payment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.invoice-payment-summary div {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.invoice-payment-summary span {
+  color: var(--color-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.invoice-payment-summary strong {
+  color: var(--color-text);
+  display: block;
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.invoice-payment-table {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.invoice-payment-table .payments-table__head,
+.invoice-payment-table .payments-table__row {
+  min-height: 54px;
+  padding: 0 12px;
+}
+
+.invoice-payment-table .payments-table__head {
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.invoice-payment-table .payments-table__row {
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .admin-project-table-wrap {

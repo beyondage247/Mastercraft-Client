@@ -3,8 +3,26 @@ import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
-import { getInvoiceDetail } from '../../services/portalApi';
-import type { InvoiceItem, InvoiceDetailInfo } from '../../data/portal';
+import { getInvoiceDetail, getProjectPayments, type ProjectPaymentSummary } from '../../services/portalApi';
+import type { InvoiceItem, InvoiceDetailInfo, PaymentItem } from '../../data/portal';
+
+const paymentStatusLabels = {
+  PAID: 'Paid',
+  PARTIALLY_PAID: 'Partially paid',
+  UNPAID: 'Unpaid',
+} as const;
+
+const paymentStatusTone = {
+  PAID: 'success',
+  PARTIALLY_PAID: 'warning',
+  UNPAID: 'neutral',
+} as const;
+
+function matchesInvoicePayment(payment: PaymentItem, invoice: InvoiceItem) {
+  const invoiceKeys = [invoice.id, invoice.invoiceId].filter(Boolean);
+
+  return invoiceKeys.some((key) => key === payment.invoiceId || key === payment.invoice);
+}
 
 function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,15 +31,70 @@ function InvoiceDetail() {
   const [invoice, setInvoice] = useState<InvoiceItem | null>(null);
   const [details, setDetails] = useState<InvoiceDetailInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentSummary, setPaymentSummary] = useState<ProjectPaymentSummary | null>(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      getInvoiceDetail(id).then((data) => {
-        if (data.invoice) setInvoice(data.invoice);
-        if (data.details) setDetails(data.details);
+    let isMounted = true;
+
+    async function loadInvoice() {
+      if (!id) {
         setLoading(false);
-      });
+        return;
+      }
+
+      setLoading(true);
+      setPaymentError('');
+      setPaymentSummary(null);
+      setPaymentsLoading(false);
+
+      try {
+        const data = await getInvoiceDetail(id);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setInvoice(data.invoice ?? null);
+        setDetails(data.details ?? null);
+        setLoading(false);
+
+        if (!data.invoice?.projectId) {
+          return;
+        }
+
+        setPaymentsLoading(true);
+
+        try {
+          const summary = await getProjectPayments(data.invoice.projectId);
+
+          if (isMounted) {
+            setPaymentSummary(summary);
+          }
+        } catch (error) {
+          if (isMounted) {
+            setPaymentError(error instanceof Error ? error.message : 'Unable to load payment details.');
+          }
+        } finally {
+          if (isMounted) {
+            setPaymentsLoading(false);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setInvoice(null);
+          setDetails(null);
+          setLoading(false);
+        }
+      }
     }
+
+    loadInvoice();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   if (loading) {
@@ -41,6 +114,8 @@ function InvoiceDetail() {
 
   const displayInvoiceId = invoice.invoiceId || invoice.id;
   const invoiceListPath = location.pathname.startsWith('/admin/') ? '/admin/invoices' : '/invoices';
+  const invoicePayments = paymentSummary?.payments.filter((payment) => matchesInvoicePayment(payment, invoice)) ?? [];
+  const paymentStatus = paymentSummary?.paymentStatus ?? 'UNPAID';
 
   return (
     <div className="page-stack quote-detail-page invoice-detail-page">
@@ -90,16 +165,20 @@ function InvoiceDetail() {
             </div>
             
             <div className="line-items-list">
-              {details.lineItems.map((item, idx) => (
-                <div className="line-item-row" key={idx}>
-                  <div className="line-item-icon"><PortalIcon name="documents" /></div>
-                  <div className="line-item-info">
-                    <h4>{item.description}</h4>
-                    <p>Qty: {item.qty} &nbsp;&nbsp;@ {item.rate} / ea</p>
+              {details.lineItems.length ? (
+                details.lineItems.map((item, idx) => (
+                  <div className="line-item-row" key={idx}>
+                    <div className="line-item-icon"><PortalIcon name="documents" /></div>
+                    <div className="line-item-info">
+                      <h4>{item.description}</h4>
+                      <p>Qty: {item.qty} &nbsp;&nbsp;@ {item.rate} / ea</p>
+                    </div>
+                    <div className="line-item-amount">{item.amount}</div>
                   </div>
-                  <div className="line-item-amount">{item.amount}</div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="quote-payment-schedule__empty">No line items were returned for this invoice.</div>
+              )}
             </div>
 
             <div className="totals-section">
@@ -123,6 +202,47 @@ function InvoiceDetail() {
         </div>
 
         <div className="detail-grid-right">
+          <div className="detail-panel">
+            <div className="panel-flex-header">
+              <h3>Payment Details</h3>
+              <StatusBadge tone={paymentStatusTone[paymentStatus]}>{paymentStatusLabels[paymentStatus]}</StatusBadge>
+            </div>
+            <div className="invoice-payment-summary">
+              <div>
+                <span>Amount paid</span>
+                <strong>{paymentsLoading ? 'Loading...' : paymentSummary?.amountPaid || '$0.00'}</strong>
+              </div>
+              <div>
+                <span>Amount due</span>
+                <strong>{paymentsLoading ? 'Loading...' : paymentSummary?.amountDue || details.total}</strong>
+              </div>
+            </div>
+            {paymentError ? (
+              <div className="quote-payment-schedule__empty">{paymentError}</div>
+            ) : paymentsLoading ? (
+              <div className="quote-payment-schedule__empty">Loading recorded payments...</div>
+            ) : invoicePayments.length ? (
+              <div className="payments-table project-payment-table invoice-payment-table">
+                <div className="payments-table__head">
+                  <span>Date</span>
+                  <span>Method</span>
+                  <span>Reference</span>
+                  <span>Amount</span>
+                </div>
+                {invoicePayments.map((payment) => (
+                  <article className="payments-table__row" key={payment.id}>
+                    <span>{payment.date || 'Not set'}</span>
+                    <span>{payment.method}</span>
+                    <span>{payment.reference}</span>
+                    <strong>{payment.amount}</strong>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="quote-payment-schedule__empty">No payments have been recorded for this invoice.</div>
+            )}
+          </div>
+
           <div className="detail-panel">
             <div className="panel-flex-header">
               <h3>Linked Project</h3>
