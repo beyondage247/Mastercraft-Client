@@ -198,13 +198,13 @@ function QuoteDetail() {
             </div>
           </div>
 
-          <div className="detail-panel">
+          {/* <div className="detail-panel">
             <h3>Action</h3>
             <div className="action-links">
               <button className="action-link-btn"><PortalIcon name="file" /> Print Quote</button>
               <button className="action-link-btn"><PortalIcon name="messages" /> Email to Client</button>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

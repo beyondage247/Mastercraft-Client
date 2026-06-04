@@ -130,7 +130,7 @@ function InvoiceDetail() {
         </div>
         <div className="billing-header-actions">
           <button className="secondary-action-btn"><PortalIcon name="download" /> PDF</button>
-          <button className="pay-now-btn"><PortalIcon name="dollar" /> Pay Now</button>
+          {/* <button className="pay-now-btn"><PortalIcon name="dollar" /> Pay Now</button> */}
         </div>
       </div>
 
@@ -275,13 +275,13 @@ function InvoiceDetail() {
             </div>
           </div>
 
-          <div className="detail-panel">
+          {/* <div className="detail-panel">
             <h3>Action</h3>
             <div className="action-links">
               <button className="action-link-btn"><PortalIcon name="file" /> Print Quote</button>
               <button className="action-link-btn"><PortalIcon name="messages" /> Email to Client</button>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
