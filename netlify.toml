@@ -10,7 +10,7 @@
 
 [[redirects]]
   from = "/portal-api/*"
-  to = "https://mc-api-sakp.onrender.com/:splat"
+  to = "https://mc-api-long-current-9733.fly.dev/:splat"
   status = 200
   force = true
 
