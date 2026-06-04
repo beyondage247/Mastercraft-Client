@@ -1,6 +1,6 @@
 import { Modal } from "antd";
 import { useEffect, useState } from "react";
-import type { ProjectListItem } from "../data/portal";
+import type { InvoiceItem } from "../data/portal";
 import {
   createPayment,
   getProjectPayments,
@@ -13,7 +13,7 @@ type AdminPaymentModalProps = {
   onClose: () => void;
   onRecorded?: (summary: ProjectPaymentSummary) => void;
   open: boolean;
-  project: ProjectListItem | null;
+  invoice: InvoiceItem | null;
 };
 
 const paymentMethods: Array<{ label: string; value: PaymentMethodInput }> = [
@@ -36,7 +36,7 @@ function toApiDateTime(value: string) {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
-function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentModalProps) {
+function AdminPaymentModal({ invoice, onClose, onRecorded, open }: AdminPaymentModalProps) {
   const [amount, setAmount] = useState("");
   const [createdAt, setCreatedAt] = useState(currentDateTimeInput());
   const [method, setMethod] = useState<PaymentMethodInput>("ACH");
@@ -46,7 +46,7 @@ function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentM
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!open || !project) {
+    if (!open || !invoice) {
       return;
     }
 
@@ -57,7 +57,12 @@ function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentM
     setSummary(null);
     setIsLoadingSummary(true);
 
-    getProjectPayments(project.id)
+    if (!invoice.projectId) {
+      setIsLoadingSummary(false);
+      return;
+    }
+
+    getProjectPayments(invoice.projectId)
       .then(setSummary)
       .catch(() => {
         setSummary(null);
@@ -65,10 +70,10 @@ function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentM
       .finally(() => {
         setIsLoadingSummary(false);
       });
-  }, [open, project]);
+  }, [invoice, open]);
 
   async function handleSubmit() {
-    if (!project) {
+    if (!invoice) {
       return;
     }
 
@@ -88,8 +93,9 @@ function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentM
       const nextSummary = await createPayment({
         amount: numericAmount,
         createdAt: toApiDateTime(createdAt),
+        invoiceId: invoice.id,
         method,
-        projectId: project.id,
+        projectId: invoice.projectId,
         reference: reference.trim() || undefined,
       });
 
@@ -111,14 +117,18 @@ function AdminPaymentModal({ onClose, onRecorded, open, project }: AdminPaymentM
       onCancel={onClose}
       onOk={handleSubmit}
       open={open}
-      title={`Record payment${project ? ` for ${project.title}` : ""}`}
+      title={`Record payment${invoice ? ` for ${invoice.invoiceId || invoice.id}` : ""}`}
       width={720}
     >
       <div className="admin-modal-form">
         <div className="quote-project-summary">
           <div>
+            <span>Invoice</span>
+            <strong>{invoice?.invoiceId || invoice?.id || "Not selected"}</strong>
+          </div>
+          <div>
             <span>Project</span>
-            <strong>{project?.title || "Not selected"}</strong>
+            <strong>{invoice?.project || "Not set"}</strong>
           </div>
           <div>
             <span>Payment status</span>

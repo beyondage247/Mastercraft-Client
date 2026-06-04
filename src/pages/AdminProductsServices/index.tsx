@@ -669,10 +669,10 @@ function AdminProductsServices() {
       </section>
 
       <section className="panel product-import-panel">
-        <div>
+        {/* <div>
           <h2>Import Catalog</h2>
           <p>Upload the Excel document from the supplier catalog. The backend reads the first worksheet and returns a row-by-row import summary.</p>
-        </div>
+        </div> */}
         <div className="product-import-form">
           <input
             accept=".xlsx,.xls,.csv"

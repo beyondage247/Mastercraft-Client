@@ -2,7 +2,6 @@ import { DatePicker, Dropdown, Modal, Pagination, Tabs, type MenuProps } from "a
 import dayjs from "dayjs";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
-import AdminPaymentModal from "../../components/AdminPaymentModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
@@ -126,7 +125,6 @@ function AdminClients() {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isLoadingClientProjects, setIsLoadingClientProjects] = useState(false);
-  const [paymentProject, setPaymentProject] = useState<ProjectListItem | null>(null);
   const [projectForm, setProjectForm] = useState<ProjectFormState>(initialProjectForm);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignStaffId, setReassignStaffId] = useState("");
@@ -759,7 +757,6 @@ function AdminClients() {
                     emptyMessage="No projects have been attached to this client yet."
                     onCreateQuote={handleCreateQuote}
                     onEdit={setEditingProject}
-                    onRecordPayment={setPaymentProject}
                     onView={setSelectedProject}
                     projects={selectedClientProjects}
                   />
@@ -941,11 +938,6 @@ function AdminClients() {
         }}
         open={Boolean(quoteProject)}
         project={quoteProject}
-      />
-      <AdminPaymentModal
-        onClose={() => setPaymentProject(null)}
-        open={Boolean(paymentProject)}
-        project={paymentProject}
       />
     </div>
   );

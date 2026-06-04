@@ -30,7 +30,7 @@ const secondaryNavItems: NavItem[] = [
 const backOfficeNavItems: NavItem[] = [
   { label: "Clients", to: "/admin/clients", icon: "home", route: true },
   { label: "Projects", to: "/admin/projects", icon: "projects", route: true },
-  { label: "Inventory", to: "/admin/Inventory", icon: "tool", route: true },
+  { label: "Inventory", to: "/admin/inventory", icon: "tool", route: true },
   { label: "Products", to: "/admin/products-services", icon: "tool", route: true },
   { label: "Quotes", to: "/admin/quotes", icon: "quotes", route: true },
   { label: "Invoices", to: "/admin/invoices", icon: "invoices", route: true },
@@ -70,10 +70,16 @@ function Navbar() {
   const isBackOfficeMoreActive = backOfficeMoreItems.some((item) => item.to === location.pathname);
   const profileMenu: MenuProps = {
     items: [
+      { key: "change-password", label: "Change password" },
       { key: "reset-password", label: "Reset password" },
       { key: "sign-out", danger: true, label: "Sign out" },
     ],
     onClick: ({ key }) => {
+      if (key === "change-password") {
+        navigate("/change-password");
+        return;
+      }
+
       if (key === "reset-password") {
         navigate("/reset-password");
         return;

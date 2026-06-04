@@ -21,7 +21,7 @@ export default defineConfig({
         proxyTimeout: 60000,
         rewrite: (path) => path.replace(/^\/portal-api/, ''),
         secure: true,
-        target: 'https://mc-api-sakp.onrender.com',
+        target: 'https://mc-api-long-current-9733.fly.dev',
         timeout: 60000,
         agent: new https.Agent({
           keepAlive: false,

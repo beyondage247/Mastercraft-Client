@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AdminPaymentModal from "../../components/AdminPaymentModal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
@@ -16,6 +17,7 @@ function AdminInvoices() {
   const [error, setError] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
@@ -47,6 +49,12 @@ function AdminInvoices() {
       isMounted = false;
     };
   }, []);
+
+  function refreshInvoices() {
+    return getInvoices().then((data) => {
+      setInvoices(data.invoices);
+    });
+  }
 
   const visibleInvoices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -97,6 +105,7 @@ function AdminInvoices() {
             <span>Project</span>
             <span>Amount</span>
             <span>Status</span>
+            <span>Action</span>
           </div>
           {loading ? (
             <div className="admin-empty-row">Loading invoices...</div>
@@ -115,6 +124,19 @@ function AdminInvoices() {
                 <span>{invoice.project || "Not set"}</span>
                 <span>{invoice.total || invoice.amount}</span>
                 <StatusBadge tone={invoiceTone(invoice.status)}>{invoice.status}</StatusBadge>
+                <span>
+                  <button
+                    className="table-action-button"
+                    disabled={invoice.status === "Paid"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPaymentInvoice(invoice);
+                    }}
+                    type="button"
+                  >
+                    Record payment
+                  </button>
+                </span>
               </article>
             ))
           ) : (
@@ -122,6 +144,14 @@ function AdminInvoices() {
           )}
         </div>
       </section>
+      <AdminPaymentModal
+        invoice={paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
+        onRecorded={() => {
+          refreshInvoices().catch(() => undefined);
+        }}
+        open={Boolean(paymentInvoice)}
+      />
     </div>
   );
 }

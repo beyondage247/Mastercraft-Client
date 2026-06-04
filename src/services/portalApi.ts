@@ -122,6 +122,11 @@ type PortalMessageResponse = {
   message: string;
 };
 
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 type DeleteUploadsResponse = {
   count: number;
 };
@@ -470,6 +475,7 @@ type BackendPaymentResponse = {
   date?: string | null;
   id: string;
   invoice?: string | { id?: string };
+  invoiceId?: string;
   method?: string;
   project?: string | {
     client?: { id?: string; name?: string };
@@ -488,8 +494,9 @@ export type PaymentMethodInput = "ACH" | "WIRE" | "CREDIT_CARD" | "CHECK";
 export type CreatePaymentInput = {
   amount: number;
   createdAt: string;
+  invoiceId: string;
   method: PaymentMethodInput;
-  projectId: string;
+  projectId?: string;
   reference?: string;
 };
 
@@ -823,6 +830,13 @@ export async function confirmPasswordReset(
     body: JSON.stringify({ email, newPassword, otp }),
     method: "POST",
   });
+}
+
+export async function changePassword(input: ChangePasswordInput) {
+  return portalRequest<PortalMessageResponse>("/auth/change-password", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
 }
 
 function amountNumber(amount: string) {
@@ -1266,7 +1280,7 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
     amount: moneyText(payment.amount),
     date: formatProjectDate(payment.date ?? payment.createdAt),
     id: payment.id,
-    invoice: projectName(payment.invoice, payment.id),
+    invoice: payment.invoiceId || projectName(payment.invoice, payment.id),
     method: normalizePaymentMethod(payment.method || "ACH"),
     project: projectName(payment.project, ""),
     projectId: payment.projectId ?? project?.id,
@@ -1966,17 +1980,30 @@ export async function getProjectPayments(projectId: string): Promise<ProjectPaym
 
 export async function createPayment(input: CreatePaymentInput): Promise<ProjectPaymentSummary> {
   const response = await portalRequest<BackendCreatePaymentResponse>("/payments", {
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      amount: input.amount,
+      createdAt: input.createdAt,
+      invoiceId: input.invoiceId,
+      method: input.method,
+      reference: input.reference,
+    }),
     method: "POST",
   }, true);
+  const responseProjectId = response.payment.projectId || input.projectId || "";
 
-  const summary = await getProjectPayments(input.projectId).catch(() => ({
+  const summary = responseProjectId ? await getProjectPayments(responseProjectId).catch(() => ({
     amountDue: moneyText(response.amountDue),
     amountPaid: moneyText(response.amountPaid),
     paymentStatus: response.paymentStatus,
     payments: [mapBackendPayment(response.payment)],
-    projectId: input.projectId,
-  }));
+    projectId: responseProjectId,
+  })) : {
+    amountDue: moneyText(response.amountDue),
+    amountPaid: moneyText(response.amountPaid),
+    paymentStatus: response.paymentStatus,
+    payments: [mapBackendPayment(response.payment)],
+    projectId: "",
+  };
 
   return summary;
 }

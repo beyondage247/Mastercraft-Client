@@ -11,7 +11,6 @@ type AdminProjectTableProps = {
   error?: string;
   isLoading?: boolean;
   onCreateQuote: (project: ProjectListItem) => void;
-  onRecordPayment?: (project: ProjectListItem) => void;
   onEdit: (project: ProjectListItem) => void;
   onView: (project: ProjectListItem) => void;
   projects: ProjectListItem[];
@@ -22,7 +21,6 @@ function AdminProjectTable({
   error,
   isLoading = false,
   onCreateQuote,
-  onRecordPayment,
   onEdit,
   onView,
   projects,
@@ -62,7 +60,6 @@ function AdminProjectTable({
         { key: "view", label: "View" },
         ...(project.status === "Completed" ? [] : [{ key: "edit", label: "Edit" }]),
         { key: "create-quote", label: "Create quote" },
-        ...(onRecordPayment ? [{ key: "record-payment", label: "Record payment" }] : []),
       ],
       onClick: ({ key }) => {
         if (key === "view") {
@@ -72,11 +69,6 @@ function AdminProjectTable({
 
         if (key === "edit") {
           onEdit(project);
-          return;
-        }
-
-        if (key === "record-payment") {
-          onRecordPayment?.(project);
           return;
         }
 

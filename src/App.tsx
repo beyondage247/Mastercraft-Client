@@ -15,12 +15,14 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import Quotes from './pages/Quotes';
 import AdminClients from './pages/AdminClients';
 import AdminInvoices from './pages/AdminInvoices';
+import AdminInventory from './pages/AdminInventory';
 import AdminPayments from './pages/AdminPayments';
 import AdminProjects from './pages/AdminProjects';
 import AdminProductsServices from './pages/AdminProductsServices';
 import AdminQuotes from './pages/AdminQuotes';
 import AdminStaff from './pages/AdminStaff';
 import AdminWeeklyReports from './pages/AdminWeeklyReports';
+import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 
@@ -80,6 +82,7 @@ const router = createBrowserRouter([
     children: [
       { path: 'clients', element: <AdminClients /> },
       { path: 'projects', element: <AdminProjects /> },
+      { path: 'inventory', element: <AdminInventory /> },
       { path: 'products-services', element: <AdminProductsServices /> },
       { path: 'quotes', element: <AdminQuotes /> },
       { path: 'invoices', element: <AdminInvoices /> },
@@ -92,6 +95,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: '/login', element: <Login /> },
+  { path: '/change-password', element: <ChangePassword /> },
   { path: '/reset-password', element: <ResetPassword /> },
 ]);
 

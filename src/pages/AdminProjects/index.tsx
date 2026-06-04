@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import AdminPaymentModal from "../../components/AdminPaymentModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
@@ -14,7 +13,6 @@ function AdminProjects() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [paymentProject, setPaymentProject] = useState<ProjectListItem | null>(null);
   const [quoteProject, setQuoteProject] = useState<ProjectListItem | null>(null);
 
   useEffect(() => {
@@ -72,7 +70,6 @@ function AdminProjects() {
           isLoading={isLoading}
           onCreateQuote={handleCreateQuote}
           onEdit={setEditingProject}
-          onRecordPayment={setPaymentProject}
           onView={setActiveProject}
           projects={projects}
         />
@@ -97,11 +94,6 @@ function AdminProjects() {
         }}
         open={Boolean(quoteProject)}
         project={quoteProject}
-      />
-      <AdminPaymentModal
-        onClose={() => setPaymentProject(null)}
-        open={Boolean(paymentProject)}
-        project={paymentProject}
       />
     </div>
   );
