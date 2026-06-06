@@ -1,267 +1,206 @@
-import { Table } from "antd";
+import { Modal, Table } from "antd";
 import type { TableProps } from "antd";
-import { useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge, { type BadgeTone } from "../../components/StatusBadge";
+import {
+  getInventoryItems,
+  getInventorySummary,
+  importInventoryItems,
+  updateInventoryItem,
+  type InventoryAvailabilityStatus,
+  type InventoryImportResponse,
+  type InventoryItem,
+  type InventorySummaryResponse,
+  type UpdateInventoryItemInput,
+} from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
+import { showRequestToast } from "../../utils/portalToast";
 
-type InventoryAvailability = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "SPECIAL_ORDER" | "UNKNOWN";
+type InventoryStatusFilter = "All" | InventoryAvailabilityStatus | "LOW_STOCK" | "OUT_OF_STOCK";
 
-type InventoryItem = {
+type InventoryFormState = {
   active: boolean;
-  availabilityStatus: InventoryAvailability;
+  availabilityStatus: InventoryAvailabilityStatus[];
   category: string;
-  id: string;
-  inStock?: number;
-  itemCode: string;
-  lastPriceUpdate?: string;
-  minReserve?: number;
+  inStock: string;
+  lastPriceUpdate: string;
+  material: string;
+  minReserve: string;
   name: string;
-  notes?: string;
-  sizeDimension?: string;
-  speciesMaterial?: string;
-  subcategory?: string;
-  supplier?: string;
-  unitMeasure?: string;
+  notes: string;
+  sizeDimension: string;
+  sku: string;
+  subcategory: string;
+  supplier: string;
+  unitMeasure: string;
 };
 
-const expectedInventoryHeaders = [
-  "name",
-  "itemCode",
-  "category",
-  "subcategory",
-  "speciesMaterial",
-  "sizeDimension",
-  "unitMeasure",
-  "supplier",
-  "availabilityStatus",
-  "minReserve",
-  "inStock",
-  "notes",
-  "active",
-  "lastPriceUpdate",
-] as const;
+const availabilityOptions: Array<{ label: string; value: InventoryAvailabilityStatus }> = [
+  { label: "In stock", value: "IN_STOCK" },
+  { label: "Email for quote", value: "EMAIL_FOR_QUOTE" },
+  { label: "Special order", value: "SPECIAL_ORDER" },
+];
 
-type InventoryHeader = typeof expectedInventoryHeaders[number];
-
-const inventoryHeaderAliases: Record<InventoryHeader, string[]> = {
-  active: ["active"],
-  availabilityStatus: ["availability status", "availability"],
-  category: ["category"],
-  inStock: ["in stock", "stock", "quantity", "qty", "on hand"],
-  itemCode: ["sku / item code", "sku", "item code", "code"],
-  lastPriceUpdate: ["last price update", "last price updated"],
-  minReserve: ["min reserve", "minimum reserve", "reserve"],
-  name: ["name", "product name", "item name"],
-  notes: ["notes / variants", "notes", "variants"],
-  sizeDimension: ["size / dimensions", "size dimensions", "size dimension", "size"],
-  speciesMaterial: ["species / material", "species material", "material", "species"],
-  subcategory: ["subcategory / series", "subcategory", "series"],
-  supplier: ["supplier"],
-  unitMeasure: ["unit of measure", "unit measure", "uom"],
+const emptyImportResult: InventoryImportResponse = {
+  createdCount: 0,
+  errorCount: 0,
+  errors: [],
+  message: "",
+  processedCount: 0,
+  skippedCount: 0,
+  skippedRows: [],
+  updatedCount: 0,
 };
 
-const emptyImportSummary = {
-  activeCount: 0,
-  categoryCount: 0,
-  inStockCount: 0,
-  itemCount: 0,
-  lowStockCount: 0,
-};
-
-function normalizeHeader(value: unknown) {
-  return String(value ?? "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+function stringValue(value: unknown) {
+  return value === null || value === undefined ? "" : String(value);
 }
 
-function isEmptyCell(value: unknown) {
-  return value === null || value === undefined || String(value).trim() === "";
+function displayValue(value: unknown, fallback = "Not set") {
+  const valueText = stringValue(value).trim();
+
+  return valueText || fallback;
 }
 
-function parseNumber(value: unknown) {
-  if (isEmptyCell(value)) {
-    return undefined;
-  }
+function nullableText(value: string) {
+  const trimmed = value.trim();
 
-  const amount = Number(String(value).replace(/,/g, "").trim());
-  return Number.isFinite(amount) ? amount : undefined;
+  return trimmed || null;
 }
 
-function normalizeActive(value: unknown) {
-  const normalized = normalizeHeader(value);
-
-  if (!normalized) {
-    return true;
-  }
-
-  return !["false", "inactive", "no", "0"].includes(normalized);
-}
-
-function normalizeAvailability(value: unknown, inStock?: number, minReserve?: number): InventoryAvailability {
-  const normalized = normalizeHeader(value);
-
-  if (typeof inStock === "number") {
-    if (inStock <= 0) return "OUT_OF_STOCK";
-    if (typeof minReserve === "number" && inStock <= minReserve) return "LOW_STOCK";
-  }
-
-  if (normalized.includes("out")) return "OUT_OF_STOCK";
-  if (normalized.includes("low")) return "LOW_STOCK";
-  if (normalized.includes("special")) return "SPECIAL_ORDER";
-  if (normalized.includes("stock")) return "IN_STOCK";
-
-  return "UNKNOWN";
-}
-
-function normalizeDate(value: unknown) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === "number") {
-    const parsed = XLSX.SSF.parse_date_code(value);
-
-    if (parsed) {
-      return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d)).toISOString();
-    }
-  }
-
-  if (!isEmptyCell(value)) {
-    const date = new Date(String(value));
-
-    if (!Number.isNaN(date.getTime())) {
-      return date.toISOString();
-    }
-  }
-
-  return undefined;
-}
-
-function mapHeaderIndexes(headerRow: unknown[]) {
-  const normalizedHeaders = headerRow.map(normalizeHeader);
-
-  return expectedInventoryHeaders.reduce<Record<InventoryHeader, number>>((indexes, header) => {
-    const aliases = inventoryHeaderAliases[header];
-    indexes[header] = normalizedHeaders.findIndex((value) => aliases.includes(value));
-    return indexes;
-  }, {} as Record<InventoryHeader, number>);
-}
-
-function findHeaderRow(rows: unknown[][]) {
-  return rows.findIndex((row) => {
-    const headers = row.map(normalizeHeader);
-    return headers.includes("name") && headers.some((header) => header.includes("stock"));
-  });
-}
-
-function readMappedValue(row: unknown[], indexes: Record<InventoryHeader, number>, header: InventoryHeader) {
-  const index = indexes[header];
-  return index >= 0 ? row[index] : undefined;
-}
-
-function isSectionRow(row: unknown[], indexes: Record<InventoryHeader, number>) {
-  const name = readMappedValue(row, indexes, "name");
-  const itemCode = readMappedValue(row, indexes, "itemCode");
-  const category = readMappedValue(row, indexes, "category");
-
-  return !isEmptyCell(name) && isEmptyCell(itemCode) && isEmptyCell(category);
-}
-
-function availabilityLabel(value: InventoryAvailability) {
-  const labels: Record<InventoryAvailability, string> = {
-    IN_STOCK: "In stock",
-    LOW_STOCK: "Low stock",
-    OUT_OF_STOCK: "Out of stock",
-    SPECIAL_ORDER: "Special order",
-    UNKNOWN: "Unspecified",
+function formFromItem(item: InventoryItem): InventoryFormState {
+  return {
+    active: item.active,
+    availabilityStatus: item.availabilityStatus || [],
+    category: item.category || "",
+    inStock: stringValue(item.inStock),
+    lastPriceUpdate: stringValue(item.lastPriceUpdate),
+    material: stringValue(item.material),
+    minReserve: stringValue(item.minReserve),
+    name: item.name || "",
+    notes: stringValue(item.notes),
+    sizeDimension: stringValue(item.sizeDimension),
+    sku: stringValue(item.sku),
+    subcategory: stringValue(item.subcategory),
+    supplier: item.supplier || "",
+    unitMeasure: stringValue(item.unitMeasure),
   };
-
-  return labels[value];
 }
 
-function availabilityTone(value: InventoryAvailability): BadgeTone {
-  if (value === "IN_STOCK") return "success";
-  if (value === "LOW_STOCK" || value === "SPECIAL_ORDER") return "warning";
-  if (value === "OUT_OF_STOCK") return "danger";
-  return "neutral";
-}
-
-function numberText(value?: number) {
-  return typeof value === "number" ? value.toLocaleString() : "Not counted";
-}
-
-function dateText(value?: string) {
+function dateText(value?: string | null) {
   return value ? formatPortalDateOrFallback(value) : "Not set";
 }
 
-async function parseInventoryWorkbook(file: File) {
-  const workbook = XLSX.read(await file.arrayBuffer(), {
-    cellDates: true,
-    type: "array",
-  });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    blankrows: false,
-    defval: "",
-    header: 1,
-  });
-  const headerRowIndex = findHeaderRow(rows);
-
-  if (headerRowIndex < 0) {
-    throw new Error("Could not find an inventory header row in the first worksheet.");
+function numberText(value?: number | string | null) {
+  if (value === null || value === undefined || value === "") {
+    return "Not counted";
   }
 
-  const indexes = mapHeaderIndexes(rows[headerRowIndex]);
+  const numberValue = Number(value);
 
-  return rows
-    .slice(headerRowIndex + 1)
-    .filter((row) => row.some((cell) => !isEmptyCell(cell)) && !isSectionRow(row, indexes))
-    .map<InventoryItem>((row, index) => {
-      const inStock = parseNumber(readMappedValue(row, indexes, "inStock"));
-      const minReserve = parseNumber(readMappedValue(row, indexes, "minReserve"));
-      const name = String(readMappedValue(row, indexes, "name") || `Unnamed inventory row ${index + 1}`).trim();
-      const itemCode = String(readMappedValue(row, indexes, "itemCode") || "").trim();
-      const category = String(readMappedValue(row, indexes, "category") || "Uncategorized").trim();
-      const availabilityStatus = normalizeAvailability(
-        readMappedValue(row, indexes, "availabilityStatus"),
-        inStock,
-        minReserve,
-      );
+  return Number.isFinite(numberValue) ? numberValue.toLocaleString() : String(value);
+}
 
-      return {
-        active: normalizeActive(readMappedValue(row, indexes, "active")),
-        availabilityStatus,
-        category,
-        id: `${itemCode || name}-${index}`,
-        inStock,
-        itemCode,
-        lastPriceUpdate: normalizeDate(readMappedValue(row, indexes, "lastPriceUpdate")),
-        minReserve,
-        name,
-        notes: String(readMappedValue(row, indexes, "notes") || "").trim(),
-        sizeDimension: String(readMappedValue(row, indexes, "sizeDimension") || "").trim(),
-        speciesMaterial: String(readMappedValue(row, indexes, "speciesMaterial") || "").trim(),
-        subcategory: String(readMappedValue(row, indexes, "subcategory") || "").trim(),
-        supplier: String(readMappedValue(row, indexes, "supplier") || "").trim(),
-        unitMeasure: String(readMappedValue(row, indexes, "unitMeasure") || "").trim(),
-      };
-    });
+function availabilityLabel(value: InventoryAvailabilityStatus) {
+  return availabilityOptions.find((option) => option.value === value)?.label || value;
+}
+
+function availabilityTone(value: InventoryAvailabilityStatus): BadgeTone {
+  if (value === "IN_STOCK") return "success";
+  if (value === "SPECIAL_ORDER") return "warning";
+  return "info";
+}
+
+function isOutOfStock(item: InventoryItem) {
+  return item.inStock !== null && item.inStock !== undefined && Number(item.inStock) === 0;
+}
+
+function stockTone(item: InventoryItem): BadgeTone {
+  if (isOutOfStock(item)) return "danger";
+  if (item.lowStock) return "warning";
+  return "success";
+}
+
+function stockLabel(item: InventoryItem) {
+  if (isOutOfStock(item)) return "Out of stock";
+  if (item.lowStock) return "Low stock";
+  return "Stock ok";
+}
+
+function fallbackSummary(items: InventoryItem[]): InventorySummaryResponse {
+  return {
+    activeItems: items.filter((item) => item.active).length,
+    categoriesCount: new Set(items.map((item) => item.category).filter(Boolean)).size,
+    inactiveItems: items.filter((item) => !item.active).length,
+    lowStockItems: items.filter((item) => item.lowStock).length,
+    outOfStockItems: items.filter(isOutOfStock).length,
+    totalItems: items.length,
+    trackedItems: items.filter((item) => item.inStock !== null && item.inStock !== undefined).length,
+  };
 }
 
 function AdminInventory() {
-  const [error, setError] = useState("");
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [isParsing, setIsParsing] = useState(false);
-  const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState<InventoryFormState | null>(null);
+  const [importResult, setImportResult] = useState<InventoryImportResponse>(emptyImportResult);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [search, setSearch] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InventoryAvailability | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<InventoryStatusFilter>("All");
+  const [summary, setSummary] = useState<InventorySummaryResponse | null>(null);
   const [uploadInputKey, setUploadInputKey] = useState(0);
+
+  function refreshInventory() {
+    return Promise.all([
+      getInventoryItems(),
+      getInventorySummary().catch(() => null),
+    ]).then(([items, nextSummary]) => {
+      setInventoryItems(items);
+      setSummary(nextSummary);
+      setError("");
+    });
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setIsLoading(true);
+
+    Promise.all([
+      getInventoryItems(),
+      getInventorySummary().catch(() => null),
+    ])
+      .then(([items, nextSummary]) => {
+        if (isMounted) {
+          setInventoryItems(items);
+          setSummary(nextSummary);
+          setError("");
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setInventoryItems([]);
+          setSummary(null);
+          setError(requestError.message || "Unable to load inventory.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(inventoryItems.map((item) => item.category).filter(Boolean))).sort()],
@@ -273,13 +212,17 @@ function AdminInventory() {
 
     return inventoryItems.filter((item) => {
       const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
-      const matchesStatus = statusFilter === "All" || item.availabilityStatus === statusFilter;
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "LOW_STOCK" && item.lowStock) ||
+        (statusFilter === "OUT_OF_STOCK" && isOutOfStock(item)) ||
+        item.availabilityStatus?.includes(statusFilter as InventoryAvailabilityStatus);
       const searchable = [
         item.name,
-        item.itemCode,
+        item.sku,
         item.category,
         item.subcategory,
-        item.speciesMaterial,
+        item.material,
         item.sizeDimension,
         item.supplier,
         item.notes,
@@ -292,19 +235,7 @@ function AdminInventory() {
     });
   }, [categoryFilter, inventoryItems, search, statusFilter]);
 
-  const importSummary = useMemo(() => {
-    if (!inventoryItems.length) {
-      return emptyImportSummary;
-    }
-
-    return {
-      activeCount: inventoryItems.filter((item) => item.active).length,
-      categoryCount: new Set(inventoryItems.map((item) => item.category).filter(Boolean)).size,
-      inStockCount: inventoryItems.filter((item) => item.availabilityStatus === "IN_STOCK").length,
-      itemCount: inventoryItems.length,
-      lowStockCount: inventoryItems.filter((item) => item.availabilityStatus === "LOW_STOCK").length,
-    };
-  }, [inventoryItems]);
+  const summaryMetrics = summary ?? fallbackSummary(inventoryItems);
 
   const inventoryColumns: TableProps<InventoryItem>["columns"] = [
     {
@@ -314,81 +245,94 @@ function AdminInventory() {
       render: (value: string, item) => (
         <div className="product-service-name-cell">
           <strong>{value}</strong>
-          <span>{item.sizeDimension || item.speciesMaterial || "No dimensions"}</span>
+          <span>{displayValue(item.sizeDimension || item.material, "No dimensions")}</span>
         </div>
       ),
       title: "Name",
       width: 320,
     },
     {
-      dataIndex: "itemCode",
-      key: "itemCode",
-      render: (value?: string) => value || "Not set",
+      dataIndex: "sku",
+      key: "sku",
+      render: (value?: string | null) => displayValue(value),
       title: "SKU / Item Code",
       width: 150,
     },
     {
       dataIndex: "category",
       key: "category",
-      render: (value?: string) => value || "Not set",
+      render: (value?: string) => displayValue(value),
       title: "Category",
       width: 170,
     },
     {
       dataIndex: "subcategory",
       key: "subcategory",
-      render: (value?: string) => value || "Not set",
+      render: (value?: string | null) => displayValue(value),
       title: "Subcategory / Series",
       width: 190,
     },
     {
-      dataIndex: "speciesMaterial",
-      key: "speciesMaterial",
-      render: (value?: string) => value || "Not set",
+      dataIndex: "material",
+      key: "material",
+      render: (value?: string | null) => displayValue(value),
       title: "Species / Material",
       width: 180,
     },
     {
       dataIndex: "availabilityStatus",
       key: "availabilityStatus",
-      render: (status: InventoryAvailability) => (
-        <StatusBadge tone={availabilityTone(status)}>{availabilityLabel(status)}</StatusBadge>
+      render: (statuses?: InventoryAvailabilityStatus[]) => (
+        <span className="product-service-status-list">
+          {statuses?.length ? (
+            statuses.map((status) => (
+              <StatusBadge key={status} tone={availabilityTone(status)}>
+                {availabilityLabel(status)}
+              </StatusBadge>
+            ))
+          ) : (
+            <StatusBadge tone="neutral">Unspecified</StatusBadge>
+          )}
+        </span>
       ),
-      title: "Availability Status",
-      width: 180,
+      title: "Availability",
+      width: 250,
     },
     {
-      dataIndex: "minReserve",
-      key: "minReserve",
-      render: numberText,
-      title: "Min Reserve",
-      width: 130,
+      key: "stock",
+      render: (_, item) => (
+        <div className="product-service-name-cell">
+          <strong>{numberText(item.inStock)}</strong>
+          <span>Reserve: {numberText(item.minReserve)}</span>
+        </div>
+      ),
+      title: "Stock",
+      width: 150,
     },
     {
-      dataIndex: "inStock",
-      key: "inStock",
-      render: numberText,
-      title: "In Stock",
-      width: 130,
+      key: "stockStatus",
+      render: (_, item) => <StatusBadge tone={stockTone(item)}>{stockLabel(item)}</StatusBadge>,
+      title: "Stock Status",
+      width: 150,
     },
     {
       dataIndex: "unitMeasure",
       key: "unitMeasure",
-      render: (value?: string) => value || "Not set",
-      title: "Unit of Measure",
-      width: 160,
+      render: (value?: string | null) => displayValue(value),
+      title: "Unit",
+      width: 130,
     },
     {
       dataIndex: "supplier",
       key: "supplier",
-      render: (value?: string) => value || "Not set",
+      render: (value?: string) => displayValue(value),
       title: "Supplier",
       width: 170,
     },
     {
       dataIndex: "notes",
       key: "notes",
-      render: (value?: string) => value || "None",
+      render: (value?: string | null) => displayValue(value, "None"),
       title: "Notes / Variants",
       width: 240,
     },
@@ -408,61 +352,148 @@ function AdminInventory() {
       title: "Last Price Update",
       width: 170,
     },
+    {
+      fixed: "right",
+      key: "action",
+      render: (_, item) => (
+        <button className="table-action-button" onClick={() => openEdit(item)} type="button">
+          Edit
+        </button>
+      ),
+      title: "Action",
+      width: 110,
+    },
   ];
 
-  async function handlePreviewImport() {
+  async function handleImport() {
     if (!selectedFile) {
-      setError("Choose an inventory workbook before previewing.");
+      setError("Choose an inventory workbook before importing.");
       return;
     }
 
+    const toast = showRequestToast("inventory-import", "Importing inventory...");
+
     try {
-      setIsParsing(true);
-      setError("");
-      const items = await parseInventoryWorkbook(selectedFile);
-      setInventoryItems(items);
+      setIsImporting(true);
+      const result = await importInventoryItems(selectedFile);
+      setImportResult(result);
+      await refreshInventory();
+      setSelectedFile(null);
       setUploadInputKey((current) => current + 1);
+      toast.success(result.message || "Inventory import completed.");
     } catch (requestError) {
-      setInventoryItems([]);
-      setError(requestError instanceof Error ? requestError.message : "Unable to preview inventory workbook.");
+      const message = requestError instanceof Error ? requestError.message : "Unable to import inventory.";
+
+      setError(message);
+      toast.error(message);
     } finally {
-      setIsParsing(false);
+      setIsImporting(false);
+    }
+  }
+
+  function openEdit(item: InventoryItem) {
+    setEditItem(item);
+    setForm(formFromItem(item));
+  }
+
+  function updateField<Field extends keyof InventoryFormState>(field: Field, value: InventoryFormState[Field]) {
+    setForm((current) => (current ? { ...current, [field]: value } : current));
+  }
+
+  function toggleAvailability(value: InventoryAvailabilityStatus, checked: boolean) {
+    setForm((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextStatuses = checked
+        ? [...new Set([...current.availabilityStatus, value])]
+        : current.availabilityStatus.filter((status) => status !== value);
+
+      return { ...current, availabilityStatus: nextStatuses };
+    });
+  }
+
+  async function handleSaveInventoryItem() {
+    if (!editItem || !form) {
+      return;
+    }
+
+    if (!form.name.trim() || !form.category.trim() || !form.supplier.trim()) {
+      setError("Name, category, and supplier are required.");
+      return;
+    }
+
+    if (!form.availabilityStatus.length) {
+      setError("Choose at least one availability status.");
+      return;
+    }
+
+    const payload: UpdateInventoryItemInput = {
+      active: form.active,
+      availabilityStatus: form.availabilityStatus,
+      category: form.category.trim(),
+      inStock: nullableText(form.inStock),
+      lastPriceUpdate: nullableText(form.lastPriceUpdate),
+      material: nullableText(form.material),
+      minReserve: nullableText(form.minReserve),
+      name: form.name.trim(),
+      notes: nullableText(form.notes),
+      sizeDimension: nullableText(form.sizeDimension),
+      sku: nullableText(form.sku),
+      subcategory: nullableText(form.subcategory),
+      supplier: form.supplier.trim(),
+      unitMeasure: nullableText(form.unitMeasure),
+    };
+    const toast = showRequestToast("inventory-update", "Updating inventory item...");
+
+    try {
+      setIsSaving(true);
+      const response = await updateInventoryItem(editItem.id, payload);
+
+      setInventoryItems((current) =>
+        current.map((item) => (item.id === editItem.id ? response.item : item)),
+      );
+      setEditItem(null);
+      setForm(null);
+      await getInventorySummary().then(setSummary).catch(() => undefined);
+      toast.success(response.message || "Inventory item updated.");
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Unable to update inventory item.";
+
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
     }
   }
 
   return (
     <div className="page-stack admin-page">
       <PageHeader
-        subtitle="Preview inventory workbooks and prepare stock data for the upcoming inventory endpoint"
+        subtitle="Manage stock items, stock counts, and inventory workbook imports"
         title="Inventory"
       />
 
       <section className="product-service-metrics">
         <article className="panel product-service-metric">
-          <span>Preview items</span>
-          <strong>{importSummary.itemCount}</strong>
-          <small>{importSummary.activeCount} active rows</small>
+          <span>Total inventory</span>
+          <strong>{summaryMetrics.totalItems}</strong>
+          <small>{summaryMetrics.activeItems} active items</small>
         </article>
         <article className="panel product-service-metric">
-          <span>In stock</span>
-          <strong>{importSummary.inStockCount}</strong>
-          <small>{importSummary.lowStockCount} below reserve</small>
+          <span>Low stock</span>
+          <strong>{summaryMetrics.lowStockItems}</strong>
+          <small>{summaryMetrics.outOfStockItems} out of stock</small>
         </article>
         <article className="panel product-service-metric">
-          <span>Categories</span>
-          <strong>{importSummary.categoryCount}</strong>
-          <small>Read from workbook groups</small>
+          <span>Tracked items</span>
+          <strong>{summaryMetrics.trackedItems}</strong>
+          <small>{summaryMetrics.categoriesCount} categories</small>
         </article>
       </section>
 
       <section className="panel product-import-panel inventory-import-panel">
-        {/* <div>
-          <h2>Upload Inventory Workbook</h2>
-          <p>
-            Upload the Mastercraft inventory board to preview extracted rows. Endpoint sync is paused until the
-            inventory API is ready.
-          </p>
-        </div> */}
         <div className="product-import-form">
           <input
             accept=".xlsx,.xls,.csv"
@@ -477,16 +508,13 @@ function AdminInventory() {
           />
           <button
             className="primary-action"
-            disabled={isParsing || !selectedFile}
-            onClick={handlePreviewImport}
+            disabled={isImporting || !selectedFile}
+            onClick={handleImport}
             type="button"
           >
             <PortalIcon name="upload" />
-            <span>{isParsing ? "Reading..." : "Preview Workbook"}</span>
+            <span>{isImporting ? "Importing..." : "Import Excel"}</span>
           </button>
-          {/* <button className="secondary-action inventory-sync-button" disabled type="button">
-            Endpoint Pending
-          </button> */}
         </div>
         {selectedFile ? <p className="product-import-file">Selected: {selectedFile.name}</p> : null}
         {error ? (
@@ -494,19 +522,20 @@ function AdminInventory() {
             {error}
           </p>
         ) : null}
-        {inventoryItems.length ? (
+        {importResult.message ? (
           <div className="product-import-summary">
-            <span>{inventoryItems.length} rows staged</span>
-            <strong>{importSummary.inStockCount} marked in stock</strong>
-            <span>{importSummary.categoryCount} categories</span>
-            <span>Ready for endpoint mapping</span>
+            <span>{importResult.message}</span>
+            <strong>{importResult.createdCount} created</strong>
+            <span>{importResult.updatedCount} updated</span>
+            <span>{importResult.skippedCount} skipped</span>
+            <span>{importResult.errorCount} errors</span>
           </div>
         ) : null}
       </section>
 
       <section className="panel admin-client-list">
         <div className="panel__header">
-          <h2>Inventory Preview</h2>
+          <h2>Inventory Items</h2>
           <span>{filteredItems.length} showing</span>
         </div>
         <div className="product-service-toolbar inventory-toolbar">
@@ -538,15 +567,15 @@ function AdminInventory() {
             <label htmlFor="inventoryStatusFilter">Status</label>
             <select
               id="inventoryStatusFilter"
-              onChange={(event) => setStatusFilter(event.target.value as InventoryAvailability | "All")}
+              onChange={(event) => setStatusFilter(event.target.value as InventoryStatusFilter)}
               value={statusFilter}
             >
               <option value="All">All</option>
               <option value="IN_STOCK">In stock</option>
+              <option value="EMAIL_FOR_QUOTE">Email for quote</option>
+              <option value="SPECIAL_ORDER">Special order</option>
               <option value="LOW_STOCK">Low stock</option>
               <option value="OUT_OF_STOCK">Out of stock</option>
-              <option value="SPECIAL_ORDER">Special order</option>
-              <option value="UNKNOWN">Unspecified</option>
             </select>
           </div>
         </div>
@@ -555,15 +584,166 @@ function AdminInventory() {
           className="product-service-ant-table"
           columns={inventoryColumns}
           dataSource={filteredItems}
+          loading={isLoading}
           locale={{
-            emptyText: "Upload the inventory workbook to preview extracted stock rows.",
+            emptyText: error && !inventoryItems.length ? error : "No inventory items match this view.",
           }}
           pagination={{ pageSize: 25, showSizeChanger: false }}
           rowKey="id"
-          scroll={{ x: 2320 }}
+          scroll={{ x: 2640 }}
           size="middle"
         />
       </section>
+
+      <Modal
+        okButtonProps={{ loading: isSaving }}
+        okText="Save item"
+        onCancel={() => {
+          setEditItem(null);
+          setForm(null);
+        }}
+        onOk={handleSaveInventoryItem}
+        open={Boolean(editItem)}
+        title={editItem?.name || "Edit inventory item"}
+        width={920}
+      >
+        {form ? (
+          <div className="admin-modal-form">
+            <div className="form-group">
+              <label htmlFor="inventoryName">Name</label>
+              <input
+                id="inventoryName"
+                onChange={(event) => updateField("name", event.target.value)}
+                value={form.name}
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="inventorySku">SKU / item code</label>
+                <input
+                  id="inventorySku"
+                  onChange={(event) => updateField("sku", event.target.value)}
+                  value={form.sku}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="inventorySupplier">Supplier</label>
+                <input
+                  id="inventorySupplier"
+                  onChange={(event) => updateField("supplier", event.target.value)}
+                  value={form.supplier}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="inventoryCategory">Category</label>
+                <input
+                  id="inventoryCategory"
+                  onChange={(event) => updateField("category", event.target.value)}
+                  value={form.category}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="inventorySubcategory">Subcategory</label>
+                <input
+                  id="inventorySubcategory"
+                  onChange={(event) => updateField("subcategory", event.target.value)}
+                  value={form.subcategory}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="inventoryMaterial">Species / material</label>
+                <input
+                  id="inventoryMaterial"
+                  onChange={(event) => updateField("material", event.target.value)}
+                  value={form.material}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="inventorySize">Size / dimension</label>
+                <input
+                  id="inventorySize"
+                  onChange={(event) => updateField("sizeDimension", event.target.value)}
+                  value={form.sizeDimension}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="inventoryUnit">Unit measure</label>
+                <input
+                  id="inventoryUnit"
+                  onChange={(event) => updateField("unitMeasure", event.target.value)}
+                  value={form.unitMeasure}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="inventoryLastPriceUpdate">Last price update</label>
+                <input
+                  id="inventoryLastPriceUpdate"
+                  onChange={(event) => updateField("lastPriceUpdate", event.target.value)}
+                  placeholder="2026-06-01T00:00:00.000Z"
+                  value={form.lastPriceUpdate}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="inventoryInStock">In stock</label>
+                <input
+                  id="inventoryInStock"
+                  min="0"
+                  onChange={(event) => updateField("inStock", event.target.value)}
+                  type="number"
+                  value={form.inStock}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="inventoryMinReserve">Min reserve</label>
+                <input
+                  id="inventoryMinReserve"
+                  min="0"
+                  onChange={(event) => updateField("minReserve", event.target.value)}
+                  type="number"
+                  value={form.minReserve}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="inventoryNotes">Notes / variants</label>
+              <textarea
+                id="inventoryNotes"
+                onChange={(event) => updateField("notes", event.target.value)}
+                rows={3}
+                value={form.notes}
+              />
+            </div>
+            <div className="product-service-checks">
+              {availabilityOptions.map((option) => (
+                <label key={option.value}>
+                  <input
+                    checked={form.availabilityStatus.includes(option.value)}
+                    onChange={(event) => toggleAvailability(option.value, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+              <label>
+                <input
+                  checked={form.active}
+                  onChange={(event) => updateField("active", event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Active</span>
+              </label>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

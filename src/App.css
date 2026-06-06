@@ -3915,6 +3915,129 @@
   grid-template-columns: 1.15fr 1fr 1fr 0.8fr 0.7fr 0.75fr;
 }
 
+.commission-layout {
+  display: grid;
+  align-items: start;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.42fr);
+}
+
+.admin-record-table--commission {
+  min-width: 1620px;
+}
+
+.admin-record-table--commission .admin-record-table__head,
+.admin-record-table--commission .admin-record-table__row {
+  grid-template-columns: 1.05fr 1.05fr 0.95fr 0.95fr 0.72fr 0.82fr 0.82fr 0.92fr 0.78fr;
+}
+
+.admin-record-table__row.is-selected {
+  background: #fff7f7;
+}
+
+.admin-record-table__row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.commission-percent-input,
+.commission-status-select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.commission-percent-input {
+  max-width: 90px;
+}
+
+.commission-action-cell {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.commission-action-cell .table-action-button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.commission-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.commission-payload-panel {
+  display: grid;
+  gap: 18px;
+  overflow: hidden;
+}
+
+.commission-payload-panel .panel__header {
+  margin-bottom: 0;
+}
+
+.commission-payload-panel h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.commission-payload-panel pre {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  background: #111827;
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.commission-payload-summary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.commission-payload-summary div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.commission-payload-summary span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commission-payload-summary strong {
+  color: var(--color-text);
+}
+
+@media (max-width: 1180px) {
+  .commission-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .project-comments-panel {
   display: grid;
   gap: 20px;

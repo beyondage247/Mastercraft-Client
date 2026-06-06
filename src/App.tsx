@@ -14,6 +14,7 @@ import QuoteDetail from './pages/QuoteDetail';
 import InvoiceDetail from './pages/InvoiceDetail';
 import Quotes from './pages/Quotes';
 import AdminClients from './pages/AdminClients';
+import AdminCommission from './pages/AdminCommission';
 import AdminInvoices from './pages/AdminInvoices';
 import AdminInventory from './pages/AdminInventory';
 import AdminPayments from './pages/AdminPayments';
@@ -87,6 +88,7 @@ const router = createBrowserRouter([
       { path: 'quotes', element: <AdminQuotes /> },
       { path: 'invoices', element: <AdminInvoices /> },
       { path: 'invoices/:id', element: <InvoiceDetail /> },
+      { path: 'commission', element: <AdminCommission /> },
       { path: 'payments', element: <AdminPayments /> },
       { path: 'documents', element: <Documents /> },
       { path: 'reports', element: <AdminWeeklyReports /> },

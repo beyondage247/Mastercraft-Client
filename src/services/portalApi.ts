@@ -4,6 +4,8 @@ import {
 } from "../data/portal";
 import type {
   ActivityItem,
+  CommissionItem,
+  CommissionStatus,
   DocumentItem,
   HomeProject,
   InvoiceDetailInfo,
@@ -39,6 +41,11 @@ type DocumentResponse = {
 
 type InvoiceResponse = {
   invoices: InvoiceItem[];
+  metrics: Metric[];
+};
+
+type CommissionResponse = {
+  commissions: CommissionItem[];
   metrics: Metric[];
 };
 
@@ -159,6 +166,72 @@ export type CatalogImportResponse = {
   processedCount: number;
   skippedCount: number;
   skippedRows: CatalogImportIssue[];
+};
+
+export type InventoryAvailabilityStatus = CatalogAvailabilityStatus;
+
+export type InventoryItem = {
+  active: boolean;
+  availabilityStatus: InventoryAvailabilityStatus[];
+  category: string;
+  createdAt?: string;
+  id: string;
+  inStock?: number | null;
+  lastPriceUpdate?: string | null;
+  lowStock: boolean;
+  material?: string | null;
+  minReserve?: number | null;
+  name: string;
+  notes?: string | null;
+  sizeDimension?: string | null;
+  sku?: string | null;
+  subcategory?: string | null;
+  supplier: string;
+  unitMeasure?: string | null;
+  updatedAt?: string;
+};
+
+export type InventorySummaryResponse = {
+  activeItems: number;
+  categoriesCount: number;
+  inactiveItems: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  totalItems: number;
+  trackedItems: number;
+};
+
+export type UpdateInventoryItemInput = Partial<{
+  active: boolean;
+  availabilityStatus: InventoryAvailabilityStatus[];
+  category: string;
+  inStock: number | string | null;
+  lastPriceUpdate: string | null;
+  material: string | null;
+  minReserve: number | string | null;
+  name: string;
+  notes: string | null;
+  sizeDimension: string | null;
+  sku: string | null;
+  subcategory: string | null;
+  supplier: string;
+  unitMeasure: string | null;
+}>;
+
+export type InventoryImportIssue = {
+  reason: string;
+  row: number;
+};
+
+export type InventoryImportResponse = {
+  createdCount: number;
+  errorCount: number;
+  errors: InventoryImportIssue[];
+  message: string;
+  processedCount: number;
+  skippedCount: number;
+  skippedRows: InventoryImportIssue[];
+  updatedCount: number;
 };
 
 type BackendUserResponse = {
@@ -414,8 +487,13 @@ export type QuotePaymentScheduleInput = {
 export type CreateQuoteInput = {
   dateIssued: string;
   lineItems: Array<{
+    lineTotal?: number;
+    name?: string;
+    price?: number;
+    productName?: string;
     quantity: number;
-    serviceId: string;
+    serviceId?: string;
+    unitPrice?: number;
   }>;
   name: string;
   paymentSchedule: QuotePaymentScheduleInput;
@@ -487,6 +565,74 @@ type BackendPaymentResponse = {
   };
   projectId?: string;
   reference?: string;
+};
+
+type BackendCommissionResponse = {
+  amount?: string | number;
+  client?: {
+    company?: unknown;
+    email?: string;
+    id?: string;
+    name?: unknown;
+  } | null;
+  clientId?: string;
+  clientName?: unknown;
+  commissionAmount?: string | number;
+  commissionPercentage?: string | number;
+  createdAt?: string | null;
+  id: string;
+  paidAt?: string | null;
+  percentageCommission?: string | number;
+  invoice?: {
+    id?: string;
+    invoiceId?: string;
+    status?: string;
+    total?: string | number;
+  } | null;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  invoiceStatus?: string;
+  invoiceTotal?: string | number;
+  percentage?: string | number;
+  project?: { id?: string; name?: unknown } | null;
+  projectId?: string;
+  projectName?: unknown;
+  quote?: {
+    id?: string;
+    name?: unknown;
+    project?: { id?: string; name?: unknown } | null;
+    quoteId?: string;
+    taxAmount?: string | number;
+    total?: string | number;
+  } | null;
+  quoteId?: string;
+  quoteName?: unknown;
+  quoteReference?: string;
+  staff?: { email?: string; id?: string; name?: unknown } | null;
+  staffEmail?: string;
+  staffId?: string;
+  staffName?: unknown;
+  status?: string;
+  total?: string | number;
+  updatedAt?: string | null;
+};
+
+export type CommissionCreatePayload = {
+  clientId?: string;
+  clientName: string;
+  percentageCommission: number;
+  projectId?: string;
+  quoteId?: string;
+  staffEmail?: string;
+  staffId?: string;
+  staffName: string;
+  status: CommissionStatus;
+  total: number;
+};
+
+export type CommissionUpdatePayload = {
+  percentageCommission?: number;
+  status?: CommissionStatus;
 };
 
 export type PaymentMethodInput = "ACH" | "WIRE" | "CREDIT_CARD" | "CHECK";
@@ -1308,6 +1454,114 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   };
 }
 
+function mapBackendCommission(commission: BackendCommissionResponse): CommissionItem {
+  const invoice = commission.invoice ?? undefined;
+  const client = commission.client ?? undefined;
+  const staff = commission.staff ?? undefined;
+  const quote = commission.quote ?? undefined;
+  const project = commission.project ?? quote?.project ?? undefined;
+  const totalAmountValue = numberFromDecimal(commission.total ?? commission.invoiceTotal ?? invoice?.total);
+  const percentageCommission = numberFromDecimal(
+    commission.percentageCommission ?? commission.commissionPercentage ?? commission.percentage,
+  );
+  const commissionValue =
+    numberFromDecimal(commission.amount ?? commission.commissionAmount) ||
+    commissionAmountValue(totalAmountValue, percentageCommission);
+
+  return {
+    clientId: commission.clientId ?? client?.id,
+    clientCompany: normalizeString(client?.company),
+    clientEmail: client?.email,
+    clientName: normalizeString(commission.clientName ?? client?.name) || "Client",
+    commissionAmount: formatMoney(commissionValue),
+    commissionAmountValue: commissionValue,
+    createdAt: formatProjectDate(commission.createdAt),
+    id: commission.id,
+    paidAt: formatProjectDate(commission.paidAt),
+    percentageCommission,
+    projectId: commission.projectId ?? project?.id,
+    projectName: normalizeString(commission.projectName ?? project?.name) || "Project",
+    quoteId: commission.quoteId ?? quote?.id ?? commission.quoteReference,
+    quoteName: normalizeString(commission.quoteName ?? quote?.name) || "Quote",
+    quoteReference: quote?.quoteId ?? commission.quoteReference,
+    quoteTaxAmount: moneyText(quote?.taxAmount),
+    quoteTotal: moneyText(quote?.total),
+    staffEmail: commission.staffEmail ?? staff?.email,
+    staffId: commission.staffId ?? staff?.id,
+    staffName: normalizeString(commission.staffName ?? staff?.name) || "Not assigned",
+    status: normalizeCommissionStatus(commission.status),
+    totalAmount: formatMoney(totalAmountValue),
+    totalAmountValue,
+    updatedAt: formatProjectDate(commission.updatedAt),
+  };
+}
+
+function commissionFromInvoice(
+  invoice: InvoiceItem,
+  projectsById: Map<string, ProjectListItem>,
+  projectsByName: Map<string, ProjectListItem>,
+  percentage = 5,
+): CommissionItem {
+  const project =
+    (invoice.projectId ? projectsById.get(invoice.projectId) : undefined) ??
+    projectsByName.get(invoice.project);
+  const totalAmountValue = amountNumber(invoice.total || invoice.amount);
+  const commissionValue = commissionAmountValue(totalAmountValue, percentage);
+
+  return {
+    clientId: project?.clientId,
+    clientEmail: project?.clientEmail,
+    clientName: invoice.clientName || project?.clientName || "Client",
+    commissionAmount: formatMoney(commissionValue),
+    commissionAmountValue: commissionValue,
+    createdAt: invoice.issuedDate,
+    id: `commission-${invoice.id}`,
+    percentageCommission: percentage,
+    projectId: invoice.projectId || project?.id,
+    projectName: invoice.project || project?.title || "Project",
+    quoteId: invoice.quoteReference,
+    quoteName: invoice.quoteReference || "Generated quote",
+    quoteReference: invoice.quoteReference,
+    staffEmail: project?.assignedStaffEmail,
+    staffId: project?.assignedStaffId,
+    staffName: project?.assignedStaffName || project?.assignedStaffEmail || "Not assigned",
+    status: invoice.status === "Paid" ? "PAID" : "APPROVED_COMMISSION",
+    totalAmount: formatMoney(totalAmountValue),
+    totalAmountValue,
+  };
+}
+
+function commissionsFromResponse(
+  response: BackendCommissionResponse[] | { commissions?: BackendCommissionResponse[]; data?: BackendCommissionResponse[] },
+) {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return response.commissions ?? response.data ?? [];
+}
+
+function isCurrentStaffCommission(commission: CommissionItem, user: PortalUser) {
+  const staffName = commission.staffName.toLowerCase();
+  const currentName = user.name.toLowerCase();
+
+  return Boolean(
+    (commission.staffId && commission.staffId === user.clientItemId) ||
+      (commission.staffEmail && commission.staffEmail.toLowerCase() === user.email.toLowerCase()) ||
+      (staffName && currentName && staffName === currentName),
+  );
+}
+
+function filterCommissionsForRole(commissionList: CommissionItem[]) {
+  const currentUser = getCurrentPortalUser();
+
+  if (currentUser?.role !== "staff") {
+    return commissionList;
+  }
+
+  return commissionList.filter((commission) => isCurrentStaffCommission(commission, currentUser));
+}
+
 function normalizeQuoteStatus(status: string, validUntil?: string | null) {
   if (validUntil) {
     const expiry = new Date(validUntil);
@@ -1495,6 +1749,51 @@ function buildPaymentMetrics(paymentList: PaymentItem[]) {
     { icon: "documents", label: "LAST 30 DAYS", tone: "danger", value: `$${total.toLocaleString()}` },
     { icon: "check", label: "TOTAL PAYMENTS", tone: "danger", value: `${paymentList.length}` },
   ] as Metric[];
+}
+
+function commissionAmountValue(invoiceTotal: number, percentage: number) {
+  return Math.round((invoiceTotal * (percentage / 100) + Number.EPSILON) * 100) / 100;
+}
+
+function normalizeCommissionStatus(status?: string): CommissionStatus {
+  const normalized = status?.trim().toUpperCase();
+
+  if (normalized === "PAID") {
+    return "PAID";
+  }
+
+  if (normalized === "APPROVED_COMMISSION" || normalized === "APPROVED") {
+    return "APPROVED_COMMISSION";
+  }
+
+  return "QUOTED_COMMISSION";
+}
+
+function buildCommissionMetrics(commissionList: CommissionItem[]) {
+  const total = commissionList.reduce((sum, commission) => sum + commission.commissionAmountValue, 0);
+
+  return [
+    { icon: "dollar", label: "Total Commission", tone: "danger", value: formatMoney(total) },
+    {
+      icon: "clock",
+      label: "Pending",
+      tone: "danger",
+      value: `${commissionList.filter((commission) => commission.status === "QUOTED_COMMISSION").length}`,
+    },
+    {
+      icon: "check",
+      label: "Approved",
+      tone: "danger",
+      value: `${commissionList.filter((commission) => commission.status === "APPROVED_COMMISSION").length}`,
+    },
+  ] as Metric[];
+}
+
+function emptyCommissionResponse(): CommissionResponse {
+  return {
+    commissions: [],
+    metrics: buildCommissionMetrics([]),
+  };
 }
 
 function emptyInvoiceResponse(): InvoiceResponse {
@@ -1910,6 +2209,39 @@ export async function importCatalogItems(file: File) {
   }, true);
 }
 
+export async function getInventoryItems() {
+  return portalRequest<InventoryItem[]>("/inventory", {}, true);
+}
+
+export async function getInventorySummary() {
+  return portalRequest<InventorySummaryResponse>("/inventory/summary", {}, true);
+}
+
+export async function getInventoryItem(id: string) {
+  return portalRequest<InventoryItem>(`/inventory/${encodeURIComponent(id)}`, {}, true);
+}
+
+export async function updateInventoryItem(id: string, input: UpdateInventoryItemInput) {
+  return portalRequest<{ item: InventoryItem; message: string }>(
+    `/inventory/${encodeURIComponent(id)}`,
+    {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    },
+    true,
+  );
+}
+
+export async function importInventoryItems(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return portalRequest<InventoryImportResponse>("/inventory/import", {
+    body,
+    method: "POST",
+  }, true);
+}
+
 export async function createQuote(input: CreateQuoteInput) {
   const response = await portalRequest<BackendQuoteEnvelopeResponse>("/quotes", {
     body: JSON.stringify(quotePayload(input)),
@@ -2037,6 +2369,109 @@ export async function getInvoices(): Promise<InvoiceResponse> {
     };
   } catch {
     return emptyInvoiceResponse();
+  }
+}
+
+export function applyCommissionUpdate(
+  commission: CommissionItem,
+  input: { percentageCommission?: number; status?: CommissionStatus },
+): CommissionItem {
+  const percentageCommission = Number.isFinite(input.percentageCommission)
+    ? Number(input.percentageCommission)
+    : commission.percentageCommission;
+  const commissionValue = commissionAmountValue(commission.totalAmountValue, percentageCommission);
+
+  return {
+    ...commission,
+    commissionAmount: formatMoney(commissionValue),
+    commissionAmountValue: commissionValue,
+    percentageCommission,
+    status: input.status ?? commission.status,
+  };
+}
+
+export function buildCommissionCreatePayload(commission: CommissionItem): CommissionCreatePayload {
+  return {
+    clientId: commission.clientId,
+    clientName: commission.clientName,
+    percentageCommission: commission.percentageCommission,
+    projectId: commission.projectId,
+    quoteId: commission.quoteId,
+    staffEmail: commission.staffEmail,
+    staffId: commission.staffId,
+    staffName: commission.staffName,
+    status: commission.status,
+    total: commission.totalAmountValue,
+  };
+}
+
+export function buildCommissionUpdatePayload(
+  commission: CommissionItem,
+  input: { percentageCommission?: number; status?: CommissionStatus } = {},
+): CommissionUpdatePayload {
+  const updated = applyCommissionUpdate(commission, input);
+
+  return {
+    percentageCommission: updated.percentageCommission,
+    status: updated.status,
+  };
+}
+
+export async function getCommissions(): Promise<CommissionResponse> {
+  try {
+    const currentUser = getCurrentPortalUser();
+    const path = currentUser?.role === "staff" ? "/commissions/me" : "/commissions";
+    const response = await portalRequest<
+      BackendCommissionResponse[] | { commissions?: BackendCommissionResponse[]; data?: BackendCommissionResponse[] }
+    >(path, {}, true);
+    const commissions = filterCommissionsForRole(commissionsFromResponse(response).map(mapBackendCommission));
+
+    return {
+      commissions,
+      metrics: buildCommissionMetrics(commissions),
+    };
+  } catch {
+    try {
+      const [invoiceData, projectData] = await Promise.all([
+        getInvoices().catch(() => emptyInvoiceResponse()),
+        getProjects().catch(() => emptyProjectResponse()),
+      ]);
+      const projectsById = new Map(projectData.projects.map((project) => [project.id, project]));
+      const projectsByName = new Map(projectData.projects.map((project) => [project.title, project]));
+      const generatedCommissions = invoiceData.invoices
+        .filter((invoice) => invoice.status !== "Draft")
+        .map((invoice) => commissionFromInvoice(invoice, projectsById, projectsByName));
+      const commissions = filterCommissionsForRole(generatedCommissions);
+
+      return {
+        commissions,
+        metrics: buildCommissionMetrics(commissions),
+      };
+    } catch {
+      return emptyCommissionResponse();
+    }
+  }
+}
+
+export async function updateCommission(
+  commission: CommissionItem,
+  input: { percentageCommission?: number; status?: CommissionStatus },
+) {
+  const payload = buildCommissionUpdatePayload(commission, input);
+
+  try {
+    const response = await portalRequest<BackendCommissionResponse>(
+      `/commissions/${encodeURIComponent(commission.id)}`,
+      {
+        body: JSON.stringify(payload),
+        method: "PATCH",
+      },
+      true,
+    );
+
+    return mapBackendCommission(response);
+  } catch {
+    return applyCommissionUpdate(commission, input);
   }
 }
 

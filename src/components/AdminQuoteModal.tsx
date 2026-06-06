@@ -26,6 +26,7 @@ type AdminQuoteModalProps = {
 
 type QuoteLineDraft = {
   catalogItemId: string;
+  isCustom: boolean;
   key: string;
   productName: string;
   quantity: number;
@@ -79,9 +80,10 @@ function dateInputValue(value?: string) {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
-function emptyLine(): QuoteLineDraft {
+function emptyLine(isCustom = false): QuoteLineDraft {
   return {
     catalogItemId: "",
+    isCustom,
     key: crypto.randomUUID(),
     productName: "",
     quantity: 1,
@@ -191,6 +193,7 @@ function lineFromQuoteItem(
 
   return {
     catalogItemId: matchedCatalogItem?.id || "",
+    isCustom: !matchedCatalogItem,
     key: crypto.randomUUID(),
     productName: item.description,
     quantity: item.qty || 1,
@@ -436,6 +439,7 @@ function AdminQuoteModal({
 
     updateLine(key, {
       catalogItemId: itemId,
+      isCustom: false,
       productName: item?.productName ?? "",
       unitPrice: numberFromPrice(item?.ourPrice),
     });
@@ -443,6 +447,10 @@ function AdminQuoteModal({
 
   function addLineItem() {
     setLines((current) => [...current, emptyLine()]);
+  }
+
+  function addCustomLineItem() {
+    setLines((current) => [...current, emptyLine(true)]);
   }
 
   function removeLineItem(key: string) {
@@ -799,7 +807,9 @@ function AdminQuoteModal({
       return;
     }
 
-    const selectedLines = lines.filter((line) => line.catalogItemId);
+    const selectedLines = lines.filter((line) =>
+      line.catalogItemId || (line.isCustom && line.productName.trim()),
+    );
 
     if (!form.name.trim() || !form.dateIssued || !form.validUntil) {
       showRequestToast("quote-validation", "Checking quote...").error(
@@ -815,19 +825,44 @@ function AdminQuoteModal({
       return;
     }
 
-    if (lines.some((line) => line.catalogItemId && (!line.quantity || line.quantity <= 0))) {
+    if (selectedLines.some((line) => !line.quantity || line.quantity <= 0)) {
       showRequestToast("quote-validation", "Checking quote...").error(
         "Each selected line item needs a quantity greater than zero.",
       );
       return;
     }
 
+    if (selectedLines.some((line) => line.isCustom && (!line.productName.trim() || line.unitPrice <= 0))) {
+      showRequestToast("quote-validation", "Checking quote...").error(
+        "Manual line items need a product name and unit price greater than zero.",
+      );
+      return;
+    }
+
     const payload = {
       dateIssued: form.dateIssued,
-      lineItems: selectedLines.map((line) => ({
-        quantity: Math.max(1, Number(line.quantity) || 1),
-        serviceId: line.catalogItemId,
-      })),
+      lineItems: selectedLines.map((line) => {
+        const quantity = Math.max(1, Number(line.quantity) || 1);
+
+        if (line.isCustom) {
+          const productName = line.productName.trim();
+          const unitPrice = Math.max(0, Number(line.unitPrice) || 0);
+
+          return {
+            lineTotal: roundMoney(unitPrice * quantity),
+            name: productName,
+            price: unitPrice,
+            productName,
+            quantity,
+            unitPrice,
+          };
+        }
+
+        return {
+          quantity,
+          serviceId: line.catalogItemId,
+        };
+      }),
       name: form.name.trim(),
       paymentSchedule: buildPaymentSchedule(),
       subtotal,
@@ -915,14 +950,17 @@ function AdminQuoteModal({
         <div className="quote-line-section">
           <div className="quote-line-section__header">
             <h3>Line items</h3>
-          <div className="quote-line-section__tools">
+            <div className="quote-line-section__tools">
               <Select
                 onChange={setSubcategoryFilter}
                 options={subcategoryOptions}
                 value={subcategoryFilter}
               />
               <Button icon={<PortalIcon name="plus" />} onClick={addLineItem} type="default">
-                Add line item
+                Add catalog item
+              </Button>
+              <Button icon={<PortalIcon name="plus" />} onClick={addCustomLineItem} type="default">
+                Add manual item
               </Button>
             </div>
           </div>
@@ -937,19 +975,30 @@ function AdminQuoteModal({
             </div>
             {lines.map((line) => (
               <div className="quote-line-table__row" key={line.key}>
-                <Select
-                  filterOption={(input, option) =>
-                    String(option?.searchText || option?.label || "")
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
-                  loading={isCatalogLoading}
-                  onChange={(value) => selectCatalogItem(line.key, value)}
-                  options={catalogOptions}
-                  placeholder="Search product, category, or subcategory"
-                  showSearch
-                  value={line.catalogItemId || undefined}
-                />
+                {line.isCustom ? (
+                  <input
+                    aria-label="Manual product or service name"
+                    onChange={(event) =>
+                      updateLine(line.key, { productName: event.target.value })
+                    }
+                    placeholder="Write product or service name"
+                    value={line.productName}
+                  />
+                ) : (
+                  <Select
+                    filterOption={(input, option) =>
+                      String(option?.searchText || option?.label || "")
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
+                    loading={isCatalogLoading}
+                    onChange={(value) => selectCatalogItem(line.key, value)}
+                    options={catalogOptions}
+                    placeholder="Search product, category, or subcategory"
+                    showSearch
+                    value={line.catalogItemId || undefined}
+                  />
+                )}
                 <input
                   aria-label="Unit price"
                   onChange={(event) =>

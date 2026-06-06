@@ -34,6 +34,7 @@ const backOfficeNavItems: NavItem[] = [
   { label: "Products", to: "/admin/products-services", icon: "tool", route: true },
   { label: "Quotes", to: "/admin/quotes", icon: "quotes", route: true },
   { label: "Invoices", to: "/admin/invoices", icon: "invoices", route: true },
+  { label: "Commission", to: "/admin/commission", icon: "dollar", route: true },
   { label: "Payments", to: "/admin/payments", icon: "payments", route: true },
   { label: "Documents", to: "/admin/documents", icon: "documents", route: true },
   { label: "Reports", to: "/admin/reports", icon: "review", route: true },

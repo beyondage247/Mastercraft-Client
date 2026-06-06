@@ -200,6 +200,35 @@ export type InvoiceItem = {
   total?: string;
 };
 
+export type CommissionStatus = 'QUOTED_COMMISSION' | 'APPROVED_COMMISSION' | 'PAID';
+
+export type CommissionItem = {
+  clientId?: string;
+  clientEmail?: string;
+  clientCompany?: string;
+  clientName: string;
+  commissionAmount: string;
+  commissionAmountValue: number;
+  createdAt?: string;
+  id: string;
+  paidAt?: string;
+  percentageCommission: number;
+  projectId?: string;
+  projectName: string;
+  quoteId?: string;
+  quoteName: string;
+  quoteReference?: string;
+  quoteTaxAmount?: string;
+  quoteTotal?: string;
+  staffEmail?: string;
+  staffId?: string;
+  staffName: string;
+  status: CommissionStatus;
+  totalAmount: string;
+  totalAmountValue: number;
+  updatedAt?: string;
+};
+
 export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check';
 
 export type PaymentItem = {
