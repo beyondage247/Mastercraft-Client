@@ -152,6 +152,7 @@ function AdminCommission() {
     const yearCommissions = commissions.filter((commission) => isCurrentYear(commission.createdAt, now));
 
     return {
+      allTotal: formatMoney(commissions.reduce((sum, commission) => sum + commission.commissionAmountValue, 0)),
       approvedCount: commissions.filter((commission) => commission.status === "APPROVED_COMMISSION").length,
       monthTotal: formatMoney(
         monthCommissions.reduce((sum, commission) => sum + commission.commissionAmountValue, 0),
@@ -234,8 +235,8 @@ function AdminCommission() {
       <section className="billing-metrics" aria-label="Commission summary">
         <article className="billing-metric billing-metric--featured">
           <div>
-            <span>This month</span>
-            <strong>{summary.monthTotal}</strong>
+            <span>All commission</span>
+            <strong>{summary.allTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--danger">
             <PortalIcon name="dollar" />
@@ -243,7 +244,7 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>This year</span>
+            <span>This year commission</span>
             <strong>{summary.yearTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--success">
@@ -252,11 +253,38 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Status</span>
-            <strong>{summary.quotedCount}/{summary.approvedCount}/{summary.paidCount}</strong>
+            <span>This month commission</span>
+            <strong>{summary.monthTotal}</strong>
+          </div>
+          <span className="icon-tile icon-tile--danger">
+            <PortalIcon name="dollar" />
+          </span>
+        </article>
+        <article className="billing-metric">
+          <div>
+            <span>Quoted commission status</span>
+            <strong>{summary.quotedCount}</strong>
           </div>
           <span className="icon-tile icon-tile--warning">
             <PortalIcon name="clock" />
+          </span>
+        </article>
+        <article className="billing-metric">
+          <div>
+            <span>Approved status</span>
+            <strong>{summary.approvedCount}</strong>
+          </div>
+          <span className="icon-tile icon-tile--success">
+            <PortalIcon name="check" />
+          </span>
+        </article>
+        <article className="billing-metric">
+          <div>
+            <span>Paid status</span>
+            <strong>{summary.paidCount}</strong>
+          </div>
+          <span className="icon-tile icon-tile--info">
+            <PortalIcon name="check" />
           </span>
         </article>
       </section>

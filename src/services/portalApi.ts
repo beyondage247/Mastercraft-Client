@@ -617,6 +617,11 @@ type BackendCommissionResponse = {
   updatedAt?: string | null;
 };
 
+type BackendCommissionUpdateResponse = {
+  commission?: BackendCommissionResponse;
+  message?: string;
+};
+
 export type CommissionCreatePayload = {
   clientId?: string;
   clientName: string;
@@ -1541,6 +1546,10 @@ function commissionsFromResponse(
   return response.commissions ?? response.data ?? [];
 }
 
+function commissionFromUpdateResponse(response: BackendCommissionResponse | BackendCommissionUpdateResponse) {
+  return "commission" in response && response.commission ? response.commission : (response as BackendCommissionResponse);
+}
+
 function isCurrentStaffCommission(commission: CommissionItem, user: PortalUser) {
   const staffName = commission.staffName.toLowerCase();
   const currentName = user.name.toLowerCase();
@@ -2460,7 +2469,7 @@ export async function updateCommission(
   const payload = buildCommissionUpdatePayload(commission, input);
 
   try {
-    const response = await portalRequest<BackendCommissionResponse>(
+    const response = await portalRequest<BackendCommissionResponse | BackendCommissionUpdateResponse>(
       `/commissions/${encodeURIComponent(commission.id)}`,
       {
         body: JSON.stringify(payload),
@@ -2469,7 +2478,7 @@ export async function updateCommission(
       true,
     );
 
-    return mapBackendCommission(response);
+    return mapBackendCommission(commissionFromUpdateResponse(response));
   } catch {
     return applyCommissionUpdate(commission, input);
   }
