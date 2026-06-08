@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pagination } from "antd";
 import FilterToolbar from "../../components/FilterToolbar";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -16,11 +17,14 @@ const methodTone = {
   Wire: "warning",
 } as const;
 
+const pageSize = 15;
+
 function Payments() {
   const [activeFilter, setActiveFilter] = useState<PaymentFilter>("All");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof getPayments>>["metrics"]>([]);
+  const [page, setPage] = useState(1);
   const [paymentList, setPaymentList] = useState<PaymentItem[]>([]);
   const [search, setSearch] = useState("");
 
@@ -72,6 +76,15 @@ function Payments() {
     });
   }, [activeFilter, paymentList, search]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, paymentList, search]);
+
+  const paginatedPayments = useMemo(
+    () => filteredPayments.slice((page - 1) * pageSize, page * pageSize),
+    [filteredPayments, page],
+  );
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -118,7 +131,7 @@ function Payments() {
           ) : error ? (
             <div className="quote-payment-schedule__empty">{error}</div>
           ) : filteredPayments.length ? (
-            filteredPayments.map((payment) => (
+            paginatedPayments.map((payment) => (
               <article className="payments-table__row" key={payment.id}>
                 <span>{payment.date}</span>
                 <strong>{payment.invoice}</strong>
@@ -141,8 +154,16 @@ function Payments() {
           )}
         </div>
         <p className="result-count">
-          Showing {filteredPayments.length} of {paymentList.length} payments
+          Showing {paginatedPayments.length} of {filteredPayments.length} payments
         </p>
+        <Pagination
+          className="admin-client-pagination"
+          current={page}
+          onChange={setPage}
+          pageSize={pageSize}
+          showSizeChanger={false}
+          total={filteredPayments.length}
+        />
       </section>
     </div>
   );

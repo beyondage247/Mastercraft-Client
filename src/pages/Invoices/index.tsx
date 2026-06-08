@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -9,6 +10,8 @@ import { getInvoices } from "../../services/portalApi";
 type InvoiceFilter = "All" | InvoiceStatus;
 
 const statusFilters: InvoiceFilter[] = ["All", "Approved", "Paid", "Overdue", "Draft"];
+const pageSize = 15;
+
 const invoiceStatusTone = {
   Approved: "success",
   Draft: "neutral",
@@ -21,6 +24,7 @@ function Invoices() {
   const [invoiceList, setInvoiceList] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof getInvoices>>["metrics"]>([]);
+  const [page, setPage] = useState(1);
   const [projectFilter, setProjectFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceFilter>("All");
@@ -85,6 +89,15 @@ function Invoices() {
       return matchesStatus && matchesProject && matchesSearch;
     });
   }, [invoiceList, projectFilter, search, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [invoiceList, projectFilter, search, statusFilter]);
+
+  const paginatedInvoices = useMemo(
+    () => filteredInvoices.slice((page - 1) * pageSize, page * pageSize),
+    [filteredInvoices, page],
+  );
 
   return (
     <div className="page-stack">
@@ -172,7 +185,7 @@ function Invoices() {
         ) : error ? (
           <div className="quote-payment-schedule__empty">{error}</div>
         ) : filteredInvoices.length ? (
-          filteredInvoices.map((invoice, index) => {
+          paginatedInvoices.map((invoice, index) => {
           const displayInvoiceId = invoice.invoiceId || invoice.id;
 
           return (
@@ -226,8 +239,16 @@ function Invoices() {
       </section>
 
       <p className="result-count">
-        Showing {filteredInvoices.length} of {invoiceList.length} invoices
+        Showing {paginatedInvoices.length} of {filteredInvoices.length} invoices
       </p>
+      <Pagination
+        className="admin-client-pagination"
+        current={page}
+        onChange={setPage}
+        pageSize={pageSize}
+        showSizeChanger={false}
+        total={filteredInvoices.length}
+      />
     </div>
   );
 }

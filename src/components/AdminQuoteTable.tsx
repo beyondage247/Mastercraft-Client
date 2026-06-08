@@ -1,8 +1,10 @@
-import { Dropdown, type MenuProps } from "antd";
-import { useMemo, useState } from "react";
+import { Dropdown, Pagination, type MenuProps } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import type { QuoteListItem } from "../data/portal";
 import { PortalIcon } from "./PortalIcon";
 import StatusBadge from "./StatusBadge";
+
+const pageSize = 15;
 
 type AdminQuoteTableProps = {
   emptyMessage?: string;
@@ -28,6 +30,7 @@ function AdminQuoteTable({
   onView,
   quotes,
 }: AdminQuoteTableProps) {
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const visibleQuotes = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -51,6 +54,15 @@ function AdminQuoteTable({
         .includes(normalizedSearch),
     );
   }, [quotes, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [quotes, search]);
+
+  const paginatedQuotes = useMemo(
+    () => visibleQuotes.slice((page - 1) * pageSize, page * pageSize),
+    [page, visibleQuotes],
+  );
 
   function actionMenu(quote: QuoteListItem): MenuProps {
     return {
@@ -95,7 +107,7 @@ function AdminQuoteTable({
         ) : error ? (
           <div className="admin-empty-row">{error}</div>
         ) : visibleQuotes.length ? (
-          visibleQuotes.map((quote) => (
+          paginatedQuotes.map((quote) => (
             <article className="admin-record-table__row" key={quote.id}>
               <strong>{quote.title}</strong>
               <span>{quote.projectName || quote.description || "Not set"}</span>
@@ -116,6 +128,14 @@ function AdminQuoteTable({
           <div className="admin-empty-row">{emptyMessage}</div>
         )}
       </div>
+      <Pagination
+        className="admin-client-pagination"
+        current={page}
+        onChange={setPage}
+        pageSize={pageSize}
+        showSizeChanger={false}
+        total={visibleQuotes.length}
+      />
     </div>
   );
 }

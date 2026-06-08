@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dropdown, type MenuProps } from "antd";
+import { Dropdown, Pagination, type MenuProps } from "antd";
 import { useNavigate } from "react-router-dom";
 import AdminPaymentModal from "../../components/AdminPaymentModal";
 import PageHeader from "../../components/PageHeader";
@@ -7,6 +7,8 @@ import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
 import { getInvoices } from "../../services/portalApi";
+
+const pageSize = 15;
 
 function invoiceTone(status: InvoiceItem["status"]) {
   if (status === "Paid" || status === "Approved") return "success";
@@ -18,6 +20,7 @@ function AdminInvoices() {
   const [error, setError] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
@@ -97,6 +100,15 @@ function AdminInvoices() {
     );
   }, [invoices, search]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [invoices, search]);
+
+  const paginatedInvoices = useMemo(
+    () => visibleInvoices.slice((page - 1) * pageSize, page * pageSize),
+    [page, visibleInvoices],
+  );
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Invoices created for client projects" title="Invoices" />
@@ -130,7 +142,7 @@ function AdminInvoices() {
           ) : error ? (
             <div className="admin-empty-row">{error}</div>
           ) : visibleInvoices.length ? (
-            visibleInvoices.map((invoice) => (
+            paginatedInvoices.map((invoice) => (
               <article
                 className="admin-record-table__row"
                 key={invoice.id}
@@ -156,6 +168,14 @@ function AdminInvoices() {
             <div className="admin-empty-row">No invoices have been created yet.</div>
           )}
         </div>
+        <Pagination
+          className="admin-client-pagination"
+          current={page}
+          onChange={setPage}
+          pageSize={pageSize}
+          showSizeChanger={false}
+          total={visibleInvoices.length}
+        />
       </section>
       <AdminPaymentModal
         invoice={paymentInvoice}

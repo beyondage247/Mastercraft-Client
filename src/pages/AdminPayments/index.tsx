@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pagination } from "antd";
 import type { PaymentItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import { getPayments } from "../../services/portalApi";
 
+const pageSize = 15;
+
 function AdminPayments() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [search, setSearch] = useState("");
 
@@ -52,6 +56,15 @@ function AdminPayments() {
     );
   }, [payments, search]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [payments, search]);
+
+  const paginatedPayments = useMemo(
+    () => visiblePayments.slice((page - 1) * pageSize, page * pageSize),
+    [page, visiblePayments],
+  );
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Payments recorded against invoices" title="Payments" />
@@ -84,7 +97,7 @@ function AdminPayments() {
           ) : error ? (
             <div className="admin-empty-row">{error}</div>
           ) : visiblePayments.length ? (
-            visiblePayments.map((payment) => (
+            paginatedPayments.map((payment) => (
               <article className="admin-record-table__row" key={payment.id}>
                 <strong>{payment.reference}</strong>
                 <span>{payment.invoice}</span>
@@ -97,6 +110,14 @@ function AdminPayments() {
             <div className="admin-empty-row">No payments have been recorded yet.</div>
           )}
         </div>
+        <Pagination
+          className="admin-client-pagination"
+          current={page}
+          onChange={setPage}
+          pageSize={pageSize}
+          showSizeChanger={false}
+          total={visiblePayments.length}
+        />
       </section>
     </div>
   );

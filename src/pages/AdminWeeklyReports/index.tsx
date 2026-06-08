@@ -1,4 +1,4 @@
-import { Modal, Tabs } from "antd";
+import { Modal, Pagination, Tabs } from "antd";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import PageHeader from "../../components/PageHeader";
@@ -31,6 +31,8 @@ type WeeklyReportFormState = {
 };
 
 type GoalKey = "coldCalls" | "siteVisits" | "coldEmails" | "coffeeLunch" | "socialPosts" | "newCustomers";
+
+const pageSize = 15;
 
 const goalRows: Array<{ goal: number; key: GoalKey; label: string }> = [
   { key: "coldCalls", label: "Cold calls", goal: weeklyReportGoals.coldCalls },
@@ -183,6 +185,7 @@ function AdminWeeklyReports() {
   const staffId = currentUser?.clientItemId || currentUser?.email || "staff";
   const [allReports, setAllReports] = useState<WeeklyReport[]>([]);
   const [form, setForm] = useState<WeeklyReportFormState>(() => reportFormDefaults());
+  const [page, setPage] = useState(1);
   const [reportSearch, setReportSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
 
@@ -234,6 +237,16 @@ function AdminWeeklyReports() {
         .includes(normalizedSearch),
     );
   }, [adminReports, isAdmin, ownReports, reportSearch]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [displayedReports.length, reportSearch]);
+
+  const paginatedReports = useMemo(
+    () => displayedReports.slice((page - 1) * pageSize, page * pageSize),
+    [displayedReports, page],
+  );
+
   const latestWeek = adminReports[0]?.weekStart || currentWeekStart();
   const latestWeekReports = adminReports.filter((report) => report.weekStart === latestWeek);
   const averageScore = latestWeekReports.length
@@ -429,7 +442,7 @@ function AdminWeeklyReports() {
                     <span>Action</span>
                   </div>
                   {displayedReports.length ? (
-                    displayedReports.map((report) => (
+                    paginatedReports.map((report) => (
                       <article className="weekly-report-table__row" key={report.id}>
                         <strong>{report.staffName}</strong>
                         <span>{reportWeekLabel(report)}</span>
@@ -458,6 +471,14 @@ function AdminWeeklyReports() {
                     </div>
                   )}
                 </div>
+                <Pagination
+                  className="admin-client-pagination"
+                  current={page}
+                  onChange={setPage}
+                  pageSize={pageSize}
+                  showSizeChanger={false}
+                  total={displayedReports.length}
+                />
               </section>
             ),
           },

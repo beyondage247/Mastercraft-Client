@@ -1,3 +1,4 @@
+import { Pagination } from "antd";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -14,6 +15,8 @@ import { showRequestToast } from "../../utils/portalToast";
 
 type StaffFormState = CreateStaffInput;
 
+const pageSize = 15;
+
 const initialForm: StaffFormState = {
   email: "",
   isAdmin: false,
@@ -25,6 +28,7 @@ function AdminStaff() {
   const [feedback, setFeedback] = useState("");
   const [form, setForm] = useState<StaffFormState>(initialForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
 
@@ -67,6 +71,15 @@ function AdminStaff() {
 
     return [...filteredStaff].sort((left, right) => left.name.localeCompare(right.name));
   }, [staffList, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, staffList]);
+
+  const paginatedStaff = useMemo(
+    () => sortedStaff.slice((page - 1) * pageSize, page * pageSize),
+    [page, sortedStaff],
+  );
 
   function updateField<Field extends keyof StaffFormState>(
     field: Field,
@@ -213,7 +226,7 @@ function AdminStaff() {
             <span>Created</span>
             <span>Status</span>
           </div>
-          {sortedStaff.map((staff) => (
+          {paginatedStaff.map((staff) => (
             <article className="admin-client-table__row" key={staff.id}>
               <strong>{staff.name}</strong>
               <span>{staff.email}</span>
@@ -223,6 +236,14 @@ function AdminStaff() {
             </article>
           ))}
         </div>
+        <Pagination
+          className="admin-client-pagination"
+          current={page}
+          onChange={setPage}
+          pageSize={pageSize}
+          showSizeChanger={false}
+          total={sortedStaff.length}
+        />
       </section>
     </div>
   );

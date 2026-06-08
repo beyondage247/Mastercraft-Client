@@ -761,7 +761,7 @@ function AdminProductsServices() {
           locale={{
             emptyText: error && !catalogItems.length ? error : "No catalog items match this view.",
           }}
-          pagination={{ pageSize: 25, showSizeChanger: false }}
+          pagination={{ pageSize: 15, showSizeChanger: false }}
           rowKey="id"
           scroll={{ x: 2800 }}
           size="middle"

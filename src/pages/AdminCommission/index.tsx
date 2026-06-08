@@ -1,4 +1,4 @@
-import { Modal } from "antd";
+import { Modal, Pagination } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import PageHeader from "../../components/PageHeader";
@@ -17,6 +17,8 @@ type CommissionFormState = {
   percentageCommission: string;
   status: CommissionStatus;
 };
+
+const pageSize = 15;
 
 const statusTone = {
   APPROVED_COMMISSION: "success",
@@ -86,6 +88,7 @@ function AdminCommission() {
   const [error, setError] = useState("");
   const [form, setForm] = useState<CommissionFormState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [viewingCommission, setViewingCommission] = useState<CommissionItem | null>(null);
@@ -145,6 +148,15 @@ function AdminCommission() {
         .includes(normalizedSearch),
     );
   }, [commissions, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [commissions, search]);
+
+  const paginatedCommissions = useMemo(
+    () => visibleCommissions.slice((page - 1) * pageSize, page * pageSize),
+    [page, visibleCommissions],
+  );
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -321,7 +333,7 @@ function AdminCommission() {
           ) : error ? (
             <div className="admin-empty-row">{error}</div>
           ) : visibleCommissions.length ? (
-            visibleCommissions.map((commission) => (
+            paginatedCommissions.map((commission) => (
               <article className="admin-record-table__row" key={commission.id}>
                 <strong>{commission.projectName}</strong>
                 <span>
@@ -355,6 +367,14 @@ function AdminCommission() {
             <div className="admin-empty-row">No commissions have been generated yet.</div>
           )}
         </div>
+        <Pagination
+          className="admin-client-pagination"
+          current={page}
+          onChange={setPage}
+          pageSize={pageSize}
+          showSizeChanger={false}
+          total={visibleCommissions.length}
+        />
       </section>
 
       <Modal

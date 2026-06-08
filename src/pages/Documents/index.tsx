@@ -1,3 +1,4 @@
+import { Pagination } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { getCurrentPortalUser } from '../../auth/session';
 import PageHeader from '../../components/PageHeader';
@@ -9,12 +10,15 @@ import { getDocuments } from '../../services/portalApi';
 type DocumentFilter = 'All types' | DocumentType;
 
 const typeFilters: DocumentFilter[] = ['All types', 'Shop drawing', 'CAD File', 'Spec Sheet', 'Photo'];
+const pageSize = 3;
+
 function Documents() {
   const currentUser = getCurrentPortalUser();
   const isBackOffice = currentUser?.role === 'admin' || currentUser?.role === 'staff';
   const [documentList, setDocumentList] = useState<DocumentItem[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [projectFilter, setProjectFilter] = useState('All projects');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<DocumentFilter>('All types');
@@ -67,16 +71,25 @@ function Documents() {
     });
   }, [documentList, projectFilter, search, typeFilter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [projectFilter, search, typeFilter]);
+
+  const paginatedDocuments = useMemo(
+    () => filteredDocuments.slice((page - 1) * pageSize, page * pageSize),
+    [filteredDocuments, page],
+  );
+
   const documentGroups = useMemo(() => {
     const groups = new Map<string, DocumentItem[]>();
 
-    filteredDocuments.forEach((document) => {
+    paginatedDocuments.forEach((document) => {
       const key = document.project || 'Unassigned project';
       groups.set(key, [...(groups.get(key) ?? []), document]);
     });
 
     return Array.from(groups.entries()).map(([project, items]) => ({ items, project }));
-  }, [filteredDocuments]);
+  }, [paginatedDocuments]);
 
   return (
     <div className="page-stack">
@@ -175,8 +188,16 @@ function Documents() {
       </section>
 
       <p className="result-count">
-        Showing {filteredDocuments.length} of {documentList.length} documents
+        Showing {paginatedDocuments.length} of {filteredDocuments.length} documents
       </p>
+      <Pagination
+        className="admin-client-pagination"
+        current={page}
+        onChange={setPage}
+        pageSize={pageSize}
+        showSizeChanger={false}
+        total={filteredDocuments.length}
+      />
     </div>
   );
 }

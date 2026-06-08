@@ -588,7 +588,7 @@ function AdminInventory() {
           locale={{
             emptyText: error && !inventoryItems.length ? error : "No inventory items match this view.",
           }}
-          pagination={{ pageSize: 25, showSizeChanger: false }}
+          pagination={{ pageSize: 15, showSizeChanger: false }}
           rowKey="id"
           scroll={{ x: 2640 }}
           size="middle"

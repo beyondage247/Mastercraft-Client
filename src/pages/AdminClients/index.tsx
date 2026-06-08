@@ -37,6 +37,8 @@ type ClientFormState = {
   phone: string;
 };
 
+const pageSize = 15;
+
 const initialForm: ClientFormState = {
   additionalEmail: "",
   assignmentId: "",
@@ -190,9 +192,9 @@ function AdminClients() {
     );
   }, [clientList, search]);
   const visibleClients = useMemo(() => {
-    const start = (page - 1) * 25;
+    const start = (page - 1) * pageSize;
 
-    return clients.slice(start, start + 25);
+    return clients.slice(start, start + pageSize);
   }, [clients, page]);
 
   function updateField(field: keyof ClientFormState, value: string) {
@@ -691,7 +693,7 @@ function AdminClients() {
           className="admin-client-pagination"
           current={page}
           onChange={setPage}
-          pageSize={25}
+          pageSize={pageSize}
           showSizeChanger={false}
           total={clients.length}
         />

@@ -1,10 +1,12 @@
-import { Dropdown, type MenuProps } from "antd";
-import { useMemo, useState } from "react";
+import { Dropdown, Pagination, type MenuProps } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import type { ProjectListItem } from "../data/portal";
 import ProgressBar from "./ProgressBar";
 import { PortalIcon } from "./PortalIcon";
 import StatusBadge from "./StatusBadge";
 import { projectStatusTone } from "../utils/projectStatus";
+
+const pageSize = 15;
 
 type AdminProjectTableProps = {
   emptyMessage?: string;
@@ -25,6 +27,7 @@ function AdminProjectTable({
   onView,
   projects,
 }: AdminProjectTableProps) {
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const visibleProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -49,6 +52,15 @@ function AdminProjectTable({
         .includes(normalizedSearch),
     );
   }, [projects, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [projects, search]);
+
+  const paginatedProjects = useMemo(
+    () => visibleProjects.slice((page - 1) * pageSize, page * pageSize),
+    [page, visibleProjects],
+  );
 
   function assignedStaffText(project: ProjectListItem) {
     return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
@@ -104,7 +116,7 @@ function AdminProjectTable({
       ) : error ? (
         <div className="admin-empty-row">{error}</div>
       ) : visibleProjects.length ? (
-        visibleProjects.map((project) => {
+        paginatedProjects.map((project) => {
           const fabrication = project.fabrication ?? project.progress;
 
           return (
@@ -133,6 +145,14 @@ function AdminProjectTable({
         <div className="admin-empty-row">{emptyMessage}</div>
       )}
       </div>
+      <Pagination
+        className="admin-client-pagination"
+        current={page}
+        onChange={setPage}
+        pageSize={pageSize}
+        showSizeChanger={false}
+        total={visibleProjects.length}
+      />
     </div>
   );
 }
