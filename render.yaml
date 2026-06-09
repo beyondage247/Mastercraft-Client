@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mastercraft-project
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_PORTAL_API_URL
+        value: https://mc-api-long-current-9733.fly.dev
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
