@@ -84,7 +84,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
   }
 
   return (
-    <Modal
+    <Modal maskClosable={false}
       footer={null}
       onCancel={onClose}
       open={open}

@@ -208,7 +208,7 @@ function ResetPassword() {
         </Link>
       </section>
 
-      <Modal
+      <Modal maskClosable={false}
         centered
         footer={null}
         onCancel={() => setSuccessMessage(emptyMessage)}

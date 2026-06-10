@@ -149,7 +149,7 @@ function Quotes() {
         Showing {filteredQuotes.length} of {quotes.length} quotes
       </p>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ loading: isResponding }}
         okText="Send response"
         onCancel={() => setRespondingQuote(null)}

@@ -405,6 +405,7 @@ type BackendQuoteResponse = {
   id: string;
   invoices?: BackendInvoiceResponse[];
   lineItems?: BackendQuoteLineItemResponse[];
+  message?: unknown;
   name?: string;
   project?: string | {
     clientId?: string;
@@ -486,18 +487,18 @@ export type QuotePaymentScheduleInput = {
 
 export type CreateQuoteInput = {
   dateIssued: string;
+  discount?: number;
   lineItems: Array<{
-    lineTotal?: number;
-    name?: string;
-    price?: number;
+    ourPrice?: number;
     productName?: string;
     quantity: number;
     serviceId?: string;
-    unitPrice?: number;
   }>;
+  message?: string;
   name: string;
   paymentSchedule: QuotePaymentScheduleInput;
   projectId: string;
+  shippingFee?: number;
   subtotal: number;
   tax: number;
   taxAmount: number;
@@ -1428,6 +1429,7 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
       }),
     ),
     lineItems,
+    message: normalizeString(quote.message),
     paymentSchedule,
     projectId,
     projectName: projectNameValue,

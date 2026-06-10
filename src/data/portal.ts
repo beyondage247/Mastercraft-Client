@@ -153,6 +153,7 @@ export type QuoteListItem = {
   id: string;
   invoices?: InvoiceItem[];
   lineItems?: LineItem[];
+  message?: string;
   paymentSchedule?: QuotePaymentSchedule | null;
   projectId?: string;
   projectName?: string;

@@ -485,7 +485,7 @@ function AdminWeeklyReports() {
         ]}
       />
 
-      <Modal
+      <Modal maskClosable={false}
         footer={null}
         onCancel={() => setSelectedReport(null)}
         open={Boolean(selectedReport)}

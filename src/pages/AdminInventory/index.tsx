@@ -595,7 +595,7 @@ function AdminInventory() {
         />
       </section>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ loading: isSaving }}
         okText="Save item"
         onCancel={() => {

@@ -208,7 +208,7 @@ function QuoteDetail() {
         </div>
       </div>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ loading: isResponding }}
         okText="Send response"
         onCancel={() => setResponseStatus(null)}

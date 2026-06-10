@@ -54,7 +54,7 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
   }, [open, quote]);
 
   return (
-    <Modal
+    <Modal maskClosable={false}
       footer={null}
       onCancel={onClose}
       open={open}
@@ -115,6 +115,13 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
               <strong>{lineTotal}</strong>
             </div>
           </div>
+
+          {displayQuote.message ? (
+            <div className="admin-project-detail__notes">
+              <span>Quote message</span>
+              <p>{displayQuote.message}</p>
+            </div>
+          ) : null}
 
           {displayQuote.clientComment ? (
             <div className="admin-project-detail__notes">

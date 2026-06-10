@@ -377,7 +377,7 @@ function AdminCommission() {
         />
       </section>
 
-      <Modal
+      <Modal maskClosable={false}
         footer={null}
         onCancel={() => setViewingCommission(null)}
         open={Boolean(viewingCommission)}
@@ -450,7 +450,7 @@ function AdminCommission() {
         ) : null}
       </Modal>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ loading: isSaving }}
         okText="Save commission"
         onCancel={() => {

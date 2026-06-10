@@ -111,7 +111,7 @@ function AdminPaymentModal({ invoice, onClose, onRecorded, open }: AdminPaymentM
   }
 
   return (
-    <Modal
+    <Modal maskClosable={false}
       okButtonProps={{ loading: isSaving }}
       okText="Record payment"
       onCancel={onClose}

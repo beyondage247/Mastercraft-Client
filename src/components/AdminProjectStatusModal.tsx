@@ -204,7 +204,7 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
   }
 
   return (
-    <Modal
+    <Modal maskClosable={false}
       okButtonProps={{ loading: isSaving }}
       okText="Save changes"
       onCancel={onClose}

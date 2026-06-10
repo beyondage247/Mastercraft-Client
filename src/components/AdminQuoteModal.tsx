@@ -36,6 +36,7 @@ type QuoteLineDraft = {
 type QuoteFormState = {
   dateIssued: string;
   discount: number;
+  message: string;
   name: string;
   shippingFee: number;
   tax: number;
@@ -215,6 +216,7 @@ function AdminQuoteModal({
   const [form, setForm] = useState<QuoteFormState>({
     dateIssued: dateValue(),
     discount: 0,
+    message: "",
     name: "",
     shippingFee: 0,
     tax: 0,
@@ -275,6 +277,7 @@ function AdminQuoteModal({
       setForm({
         dateIssued: dateInputValue(quote.dateIssued) || dateValue(),
         discount: 0,
+        message: quote.message || "",
         name: quote.title,
         shippingFee: 0,
         tax: numberFromPrice(quote.tax),
@@ -330,6 +333,7 @@ function AdminQuoteModal({
       setForm({
         dateIssued: dateValue(),
         discount: 0,
+        message: "",
         name: `${project.title} Quote`,
         shippingFee: 0,
         tax: 0,
@@ -841,6 +845,7 @@ function AdminQuoteModal({
 
     const payload = {
       dateIssued: form.dateIssued,
+      discount,
       lineItems: selectedLines.map((line) => {
         const quantity = Math.max(1, Number(line.quantity) || 1);
 
@@ -849,12 +854,9 @@ function AdminQuoteModal({
           const unitPrice = Math.max(0, Number(line.unitPrice) || 0);
 
           return {
-            lineTotal: roundMoney(unitPrice * quantity),
-            name: productName,
-            price: unitPrice,
+            ourPrice: unitPrice,
             productName,
             quantity,
-            unitPrice,
           };
         }
 
@@ -863,8 +865,10 @@ function AdminQuoteModal({
           serviceId: line.catalogItemId,
         };
       }),
+      message: form.message.trim(),
       name: form.name.trim(),
       paymentSchedule: buildPaymentSchedule(),
+      shippingFee,
       subtotal,
       tax: Math.max(0, Number(form.tax) || 0),
       taxAmount,
@@ -894,7 +898,7 @@ function AdminQuoteModal({
   }
 
   return (
-    <Modal
+    <Modal maskClosable={false}
       okButtonProps={{ loading: isSubmitting }}
       okText={isEdit ? "Save quote" : "Create quote"}
       onCancel={onClose}
@@ -922,6 +926,19 @@ function AdminQuoteModal({
               id="quoteName"
               onChange={(event) => updateForm("name", event.target.value)}
               value={form.name}
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="quoteMessage">Message</label>
+            <textarea
+              id="quoteMessage"
+              onChange={(event) => updateForm("message", event.target.value)}
+              placeholder="Add a message for this quote"
+              rows={3}
+              value={form.message}
             />
           </div>
         </div>

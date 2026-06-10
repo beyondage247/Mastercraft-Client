@@ -699,7 +699,7 @@ function AdminClients() {
         />
       </section>
 
-      <Modal
+      <Modal maskClosable={false}
         footer={null}
         onCancel={() => setViewClientOpen(false)}
         open={viewClientOpen}
@@ -774,7 +774,7 @@ function AdminClients() {
         ) : null}
       </Modal>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ loading: isCreatingProject }}
         okText="Create project"
         onCancel={() => setCreateProjectOpen(false)}
@@ -893,7 +893,7 @@ function AdminClients() {
         </div>
       </Modal>
 
-      <Modal
+      <Modal maskClosable={false}
         okButtonProps={{ disabled: !reassignStaffId, loading: isReassigning }}
         okText="Reassign client"
         onCancel={() => setReassignOpen(false)}
