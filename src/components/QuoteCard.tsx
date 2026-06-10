@@ -1,6 +1,9 @@
+import type { MouseEvent } from "react";
 import { useNavigate } from 'react-router-dom';
 import type { QuoteListItem } from '../data/portal';
+import { downloadQuotePdf } from '../services/portalApi';
 import { formatPortalDate } from '../utils/dateFormat';
+import { showRequestToast } from '../utils/portalToast';
 import { PortalIcon } from './PortalIcon';
 import StatusBadge from './StatusBadge';
 
@@ -63,6 +66,19 @@ function QuoteCard({ onRespond, quote }: QuoteCardProps) {
   const scheduleType = scheduleTypeText(quote);
   const nextSchedule = nextScheduleText(quote);
 
+  async function handleDownload(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+
+    const toast = showRequestToast(`quote-download-${quote.id}`, "Downloading quote PDF...");
+
+    try {
+      await downloadQuotePdf(quote.id, `${displayQuoteId}.pdf`);
+      toast.success("Quote PDF downloaded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to download quote PDF.");
+    }
+  }
+
   return (
     <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
       <div className="record-card__body">
@@ -92,6 +108,15 @@ function QuoteCard({ onRespond, quote }: QuoteCardProps) {
         ) : null}
       </div>
       <div className="quote-card__actions">
+        <button
+          aria-label={`Download ${displayQuoteId}`}
+          className="secondary-action-btn quote-card__small-action"
+          onClick={handleDownload}
+          type="button"
+        >
+          <PortalIcon name="download" />
+          PDF
+        </button>
         {canRespond ? (
           <>
             <button className="accept-button" onClick={(e) => { e.stopPropagation(); onRespond(quote, "APPROVED"); }} type="button">

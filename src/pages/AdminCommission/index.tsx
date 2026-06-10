@@ -202,12 +202,15 @@ function AdminCommission() {
     }
 
     const toast = showRequestToast("commission-update", "Saving commission...");
+    const statusUpdate = statusCanBeChangedByAdmin(editingCommission.status) && form.status === "PAID"
+      ? { status: form.status }
+      : {};
 
     try {
       setIsSaving(true);
       const updatedCommission = await updateCommission(editingCommission, {
         percentageCommission,
-        status: form.status,
+        ...statusUpdate,
       });
 
       setCommissions((current) =>

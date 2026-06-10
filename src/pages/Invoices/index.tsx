@@ -5,7 +5,8 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem, InvoiceStatus } from "../../data/portal";
-import { getInvoices } from "../../services/portalApi";
+import { downloadInvoicePdf, getInvoices } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 type InvoiceFilter = "All" | InvoiceStatus;
 
@@ -98,6 +99,18 @@ function Invoices() {
     () => filteredInvoices.slice((page - 1) * pageSize, page * pageSize),
     [filteredInvoices, page],
   );
+
+  async function handleDownloadInvoice(invoice: InvoiceItem) {
+    const displayInvoiceId = invoice.invoiceId || invoice.id;
+    const toast = showRequestToast(`invoice-download-${invoice.id}`, "Downloading invoice PDF...");
+
+    try {
+      await downloadInvoicePdf(invoice.id, `${displayInvoiceId}.pdf`);
+      toast.success("Invoice PDF downloaded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to download invoice PDF.");
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -222,7 +235,10 @@ function Invoices() {
                 <button
                   type="button"
                   aria-label={`Download ${displayInvoiceId}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void handleDownloadInvoice(invoice);
+                  }}
                 >
                   <PortalIcon name="download" />
                 </button>

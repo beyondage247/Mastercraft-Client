@@ -2,7 +2,9 @@ import { Modal } from "antd";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { QuoteListItem } from "../data/portal";
-import { getQuoteDetail } from "../services/portalApi";
+import { downloadQuotePdf, getQuoteDetail } from "../services/portalApi";
+import { showRequestToast } from "../utils/portalToast";
+import { PortalIcon } from "./PortalIcon";
 import QuotePaymentSchedulePanel from "./QuotePaymentSchedulePanel";
 import StatusBadge from "./StatusBadge";
 
@@ -24,6 +26,21 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
   const [displayQuote, setDisplayQuote] = useState<QuoteListItem | null>(quote);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lineTotal = displayQuote?.lineItems?.length ?? 0;
+
+  async function handleDownloadQuote() {
+    if (!displayQuote) {
+      return;
+    }
+
+    const toast = showRequestToast(`admin-quote-detail-download-${displayQuote.id}`, "Downloading quote PDF...");
+
+    try {
+      await downloadQuotePdf(displayQuote.id, `${displayQuote.uid || displayQuote.id}.pdf`);
+      toast.success("Quote PDF downloaded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to download quote PDF.");
+    }
+  }
 
   useEffect(() => {
     if (!open || !quote) {
@@ -79,6 +96,10 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
               </strong>
             </div>
             <StatusBadge tone={quoteTone(displayQuote.status)}>{displayQuote.status}</StatusBadge>
+            <button className="table-action-button" onClick={handleDownloadQuote} type="button">
+              <PortalIcon name="download" />
+              PDF
+            </button>
           </div>
 
           <div className="admin-detail-grid admin-quote-detail__summary">

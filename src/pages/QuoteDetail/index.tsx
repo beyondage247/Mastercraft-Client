@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
-import { getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
+import { downloadQuotePdf, getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
 import type { QuoteListItem, QuoteDetailInfo } from '../../data/portal';
 import { showRequestToast } from '../../utils/portalToast';
 
@@ -75,6 +75,21 @@ function QuoteDetail() {
     }
   }
 
+  async function handleDownloadQuote() {
+    if (!quote) {
+      return;
+    }
+
+    const toast = showRequestToast('quote-detail-download', 'Downloading quote PDF...');
+
+    try {
+      await downloadQuotePdf(quote.id, `${quote.uid || quote.id}.pdf`);
+      toast.success('Quote PDF downloaded.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download quote PDF.');
+    }
+  }
+
   const canRespond = quote.status === 'Sent' || quote.status === 'Draft';
 
   return (
@@ -88,7 +103,9 @@ function QuoteDetail() {
           <h1>{quote.title || quote.id} <StatusBadge tone={quote.status === 'Sent' ? 'success' : 'neutral'}>{quote.status}</StatusBadge></h1>
           <p>Valid until <strong>{quote.validUntil}</strong></p>
         </div>
-        <button className="secondary-action-btn"><PortalIcon name="download" /> Download PDF</button>
+        <button className="secondary-action-btn" onClick={handleDownloadQuote} type="button">
+          <PortalIcon name="download" /> Download PDF
+        </button>
       </div>
 
       <div className="detail-panel">

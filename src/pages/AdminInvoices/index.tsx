@@ -6,7 +6,8 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
-import { getInvoices } from "../../services/portalApi";
+import { downloadInvoicePdf, getInvoices } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 
 const pageSize = 15;
 
@@ -65,10 +66,23 @@ function AdminInvoices() {
       items: [
         { disabled: invoice.status === "Paid", key: "record-payment", label: "Record payment" },
         { key: "view", label: "View" },
+        { key: "download", label: "Download PDF" },
       ],
       onClick: ({ key }) => {
         if (key === "record-payment") {
           setPaymentInvoice(invoice);
+          return;
+        }
+
+        if (key === "download") {
+          const displayInvoiceId = invoice.invoiceId || invoice.id;
+          const toast = showRequestToast(`admin-invoice-download-${invoice.id}`, "Downloading invoice PDF...");
+
+          downloadInvoicePdf(invoice.id, `${displayInvoiceId}.pdf`)
+            .then(() => toast.success("Invoice PDF downloaded."))
+            .catch((error) =>
+              toast.error(error instanceof Error ? error.message : "Unable to download invoice PDF."),
+            );
           return;
         }
 

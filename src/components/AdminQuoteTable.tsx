@@ -1,6 +1,8 @@
 import { Dropdown, Pagination, type MenuProps } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { QuoteListItem } from "../data/portal";
+import { downloadQuotePdf } from "../services/portalApi";
+import { showRequestToast } from "../utils/portalToast";
 import { PortalIcon } from "./PortalIcon";
 import StatusBadge from "./StatusBadge";
 
@@ -69,10 +71,22 @@ function AdminQuoteTable({
       items: [
         { key: "view", label: "View" },
         { key: "edit", label: "Edit" },
+        { key: "download", label: "Download PDF" },
       ],
       onClick: ({ key }) => {
         if (key === "edit") {
           onEdit(quote);
+          return;
+        }
+
+        if (key === "download") {
+          const toast = showRequestToast(`admin-quote-download-${quote.id}`, "Downloading quote PDF...");
+
+          downloadQuotePdf(quote.id, `${quote.uid || quote.id}.pdf`)
+            .then(() => toast.success("Quote PDF downloaded."))
+            .catch((error) =>
+              toast.error(error instanceof Error ? error.message : "Unable to download quote PDF."),
+            );
           return;
         }
 

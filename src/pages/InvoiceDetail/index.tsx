@@ -3,8 +3,9 @@ import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
-import { getInvoiceDetail, getProjectPayments, type ProjectPaymentSummary } from '../../services/portalApi';
+import { downloadInvoicePdf, getInvoiceDetail, getProjectPayments, type ProjectPaymentSummary } from '../../services/portalApi';
 import type { InvoiceItem, InvoiceDetailInfo, PaymentItem } from '../../data/portal';
+import { showRequestToast } from '../../utils/portalToast';
 
 const paymentStatusLabels = {
   PAID: 'Paid',
@@ -117,6 +118,21 @@ function InvoiceDetail() {
   const invoicePayments = paymentSummary?.payments.filter((payment) => matchesInvoicePayment(payment, invoice)) ?? [];
   const paymentStatus = paymentSummary?.paymentStatus ?? 'UNPAID';
 
+  async function handleDownloadInvoice() {
+    if (!invoice) {
+      return;
+    }
+
+    const toast = showRequestToast('invoice-detail-download', 'Downloading invoice PDF...');
+
+    try {
+      await downloadInvoicePdf(invoice.id, `${displayInvoiceId}.pdf`);
+      toast.success('Invoice PDF downloaded.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download invoice PDF.');
+    }
+  }
+
   return (
     <div className="page-stack quote-detail-page invoice-detail-page">
       <button className="back-link" onClick={() => navigate(invoiceListPath)}>
@@ -129,7 +145,9 @@ function InvoiceDetail() {
           <p>Issued <strong>{invoice.issuedDate}</strong></p>
         </div>
         <div className="billing-header-actions">
-          <button className="secondary-action-btn"><PortalIcon name="download" /> PDF</button>
+          <button className="secondary-action-btn" onClick={handleDownloadInvoice} type="button">
+            <PortalIcon name="download" /> PDF
+          </button>
           {/* <button className="pay-now-btn"><PortalIcon name="dollar" /> Pay Now</button> */}
         </div>
       </div>

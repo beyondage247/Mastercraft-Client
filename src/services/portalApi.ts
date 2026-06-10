@@ -923,6 +923,58 @@ async function portalRequest<T>(
   return body as T;
 }
 
+function fileNameFromDisposition(disposition: string | null, fallbackName: string) {
+  if (!disposition) {
+    return fallbackName;
+  }
+
+  const encodedMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+
+  if (encodedMatch?.[1]) {
+    return decodeURIComponent(encodedMatch[1].replace(/"/g, ""));
+  }
+
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+
+  return plainMatch?.[1] || fallbackName;
+}
+
+async function downloadPortalFile(path: string, fallbackName: string) {
+  const token = getPortalToken();
+
+  if (!token) {
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+
+  const response = await fetch(`${portalApiUrl}${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json") ? await response.json() : await response.text();
+    const message =
+      typeof body === "object" && body && "message" in body
+        ? String(body.message)
+        : "The portal API rejected the download request.";
+
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileNameFromDisposition(response.headers.get("content-disposition"), fallbackName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export async function loginPortalUser(email: string, password: string) {
   const data = await portalRequest<BackendLoginResponse>("/auth/login", {
     body: JSON.stringify({ email, password }),
@@ -2305,6 +2357,13 @@ export async function getQuotes(): Promise<QuoteResponse> {
   }
 }
 
+export function downloadQuotePdf(quoteId: string, fileName?: string) {
+  return downloadPortalFile(
+    `/quotes/${encodeURIComponent(quoteId)}/download`,
+    fileName || `quote-${quoteId}.pdf`,
+  );
+}
+
 export async function getQuotesForProject(projectId: string) {
   const data = await getQuotes();
 
@@ -2383,6 +2442,13 @@ export async function getInvoices(): Promise<InvoiceResponse> {
   }
 }
 
+export function downloadInvoicePdf(invoiceId: string, fileName?: string) {
+  return downloadPortalFile(
+    `/quotes/invoices/${encodeURIComponent(invoiceId)}/download`,
+    fileName || `invoice-${invoiceId}.pdf`,
+  );
+}
+
 export function applyCommissionUpdate(
   commission: CommissionItem,
   input: { percentageCommission?: number; status?: CommissionStatus },
@@ -2420,12 +2486,20 @@ export function buildCommissionUpdatePayload(
   commission: CommissionItem,
   input: { percentageCommission?: number; status?: CommissionStatus } = {},
 ): CommissionUpdatePayload {
-  const updated = applyCommissionUpdate(commission, input);
+  const payload: CommissionUpdatePayload = {};
 
-  return {
-    percentageCommission: updated.percentageCommission,
-    status: updated.status,
-  };
+  if (Number.isFinite(input.percentageCommission)) {
+    payload.percentageCommission = Number(input.percentageCommission);
+  }
+
+  if (
+    input.status === "PAID" &&
+    commission.status === "APPROVED_COMMISSION"
+  ) {
+    payload.status = input.status;
+  }
+
+  return payload;
 }
 
 export async function getCommissions(): Promise<CommissionResponse> {
