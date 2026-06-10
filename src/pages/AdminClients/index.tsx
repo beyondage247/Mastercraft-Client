@@ -790,7 +790,7 @@ function AdminClients() {
               <input
                 id="projectName"
                 onChange={(event) => updateProjectField("name", event.target.value)}
-                placeholder="e.g. Lekki Showroom Buildout"
+                placeholder="e.g. Broadway Showroom Buildout"
                 type="text"
                 value={projectForm.name}
               />
