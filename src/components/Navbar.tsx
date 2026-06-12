@@ -44,12 +44,7 @@ const backOfficeNavItems: NavItem[] = [
 function BrandLogo({ href = "/" }: { href?: string }) {
   return (
     <a className="brand-logo" href={href} aria-label="Mastercraft Products home">
-      <span className="brand-logo__name">MASTERCRAFT</span>
-      <span className="brand-logo__mark" aria-hidden="true">
-        M
-      </span>
-      <span className="brand-logo__rule" aria-hidden="true" />
-      <span className="brand-logo__product">PRODUCTS</span>
+      <img className="brand-logo__image" src="/logo2.png" alt="Mastercraft Products" />
     </a>
   );
 }

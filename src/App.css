@@ -51,11 +51,20 @@
 }
 
 .brand-logo {
-  display: grid;
-  width: 150px;
-  justify-items: center;
-  color: #0e0e0e;
-  line-height: 1;
+  display: inline-flex;
+  width: 132px;
+  min-height: 64px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.brand-logo__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 64px;
+  object-fit: contain;
 }
 
 .brand-logo__name {
@@ -1339,6 +1348,15 @@
     grid-template-columns: 112px minmax(0, 1fr);
   }
 
+  .brand-logo {
+    width: 112px;
+    min-height: 54px;
+  }
+
+  .brand-logo__image {
+    max-height: 54px;
+  }
+
   .user-chip {
     grid-column: 2;
     justify-self: end;
@@ -1503,7 +1521,7 @@
   }
 
   .brand-logo {
-    justify-items: start;
+    justify-content: flex-start;
   }
 
   .app-nav__link {
@@ -4154,9 +4172,16 @@
 }
 
 .login-brand {
-  display: grid;
-  justify-items: start;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-brand__image {
+  display: block;
+  width: min(220px, 100%);
+  height: auto;
+  object-fit: contain;
 }
 
 .login-panel h1 {

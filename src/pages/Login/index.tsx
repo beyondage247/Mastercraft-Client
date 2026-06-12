@@ -6,6 +6,7 @@ import { PortalIcon } from "../../components/PortalIcon";
 import { loginPortalUser } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -53,11 +54,7 @@ function Login() {
     <main className="login-shell">
       <section className="login-panel">
         <div className="login-brand">
-          <span className="brand-logo__name">MASTERCRAFT</span>
-          <span className="brand-logo__mark" aria-hidden="true">
-            M
-          </span>
-          <span className="brand-logo__product">PRODUCTS</span>
+        <img className="login-brand__image" src="/logo2.png" alt="Mastercraft Products" />
         </div>
         <div>
           <h1>Portal Login</h1>
