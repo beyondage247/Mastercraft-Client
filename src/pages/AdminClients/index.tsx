@@ -375,8 +375,8 @@ function AdminClients() {
     const contactName = form.contactName.trim();
     const additionalEmail = form.additionalEmail.trim();
 
-    if (!name || !email || !phone || !company || !contactName || !additionalEmail) {
-      setFeedback("Client name, email, phone, company, additional contact, and additional email are required.");
+    if (!name || !email || !phone || !company) {
+      setFeedback("Client name, email, phone, and company are required.");
       return;
     }
 
