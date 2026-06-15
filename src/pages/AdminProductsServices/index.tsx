@@ -34,6 +34,23 @@ type CatalogFormState = {
   unitMeasure: string;
 };
 
+const emptyCatalogForm: CatalogFormState = {
+  active: true,
+  availabilityStatus: ["EMAIL_FOR_QUOTE"],
+  category: "",
+  itemCode: "",
+  markUp: "",
+  ourPrice: "",
+  productName: "",
+  sizeDimension: "",
+  styleProfile: "",
+  subcategory: "",
+  supplier: "",
+  supplierCatalogue: "",
+  supplierCost: "",
+  unitMeasure: "",
+};
+
 const availabilityOptions: Array<{ label: string; value: CatalogAvailabilityStatus }> = [
   { label: "In stock", value: "IN_STOCK" },
   { label: "Email for quote", value: "EMAIL_FOR_QUOTE" },
@@ -311,6 +328,7 @@ function AdminProductsServices() {
   const [error, setError] = useState("");
   const [form, setForm] = useState<CatalogFormState | null>(null);
   const [importResult, setImportResult] = useState<CatalogImportResponse>(emptyImportResult);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -574,7 +592,14 @@ function AdminProductsServices() {
 
   function openEdit(item: CatalogItem) {
     setEditItem(item);
+    setIsCreateOpen(false);
     setForm(formFromItem(item));
+  }
+
+  function openCreate() {
+    setEditItem(null);
+    setForm(emptyCatalogForm);
+    setIsCreateOpen(true);
   }
 
   function updateField<Field extends keyof CatalogFormState>(field: Field, value: CatalogFormState[Field]) {
@@ -596,7 +621,7 @@ function AdminProductsServices() {
   }
 
   async function handleSaveCatalogItem() {
-    if (!editItem || !form) {
+    if (!form) {
       return;
     }
 
@@ -621,6 +646,38 @@ function AdminProductsServices() {
       supplierCost: form.supplierCost.trim(),
       unitMeasure: form.unitMeasure.trim(),
     };
+
+    if (!editItem) {
+      const localItem: CatalogItem = {
+        active: payload.active ?? true,
+        availabilityStatus: payload.availabilityStatus ?? [],
+        category: payload.category || "",
+        createdAt: new Date().toISOString(),
+        id: `local-catalog-${Date.now()}`,
+        itemCode: payload.itemCode,
+        lastPriceUpdate: new Date().toISOString(),
+        markUp: payload.markUp,
+        ourPrice: payload.ourPrice,
+        productName: payload.productName || "",
+        sizeDimension: payload.sizeDimension,
+        styleProfile: payload.styleProfile,
+        subcategory: payload.subcategory,
+        supplier: payload.supplier || "",
+        supplierCatalogue: payload.supplierCatalogue,
+        supplierCost: payload.supplierCost,
+        unitMeasure: payload.unitMeasure,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setCatalogItems((current) => [localItem, ...current]);
+      setIsCreateOpen(false);
+      setForm(null);
+      showRequestToast("catalog-create-local", "Adding product...").success(
+        "Product added locally. Endpoint integration is pending.",
+      );
+      return;
+    }
+
     const toast = showRequestToast("catalog-update", "Updating catalog item...");
 
     try {
@@ -714,7 +771,13 @@ function AdminProductsServices() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Catalog Items</h2>
-          <span>{filteredItems.length} showing</span>
+          <div className="panel__actions">
+            <span>{filteredItems.length} showing</span>
+            <button className="primary-action" onClick={openCreate} type="button">
+              <PortalIcon name="plus" />
+              <span>Add Product</span>
+            </button>
+          </div>
         </div>
         <div className="product-service-toolbar">
           <div className="form-group">
@@ -773,11 +836,12 @@ function AdminProductsServices() {
         okText="Save item"
         onCancel={() => {
           setEditItem(null);
+          setIsCreateOpen(false);
           setForm(null);
         }}
         onOk={handleSaveCatalogItem}
-        open={Boolean(editItem)}
-        title={editItem?.productName || "Edit catalog item"}
+        open={Boolean(editItem || isCreateOpen)}
+        title={editItem?.productName || "Add product"}
         width={920}
       >
         {form ? (

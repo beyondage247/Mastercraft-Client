@@ -37,6 +37,23 @@ type InventoryFormState = {
   unitMeasure: string;
 };
 
+const emptyInventoryForm: InventoryFormState = {
+  active: true,
+  availabilityStatus: ["EMAIL_FOR_QUOTE"],
+  category: "",
+  inStock: "",
+  lastPriceUpdate: "",
+  material: "",
+  minReserve: "",
+  name: "",
+  notes: "",
+  sizeDimension: "",
+  sku: "",
+  subcategory: "",
+  supplier: "",
+  unitMeasure: "",
+};
+
 const availabilityOptions: Array<{ label: string; value: InventoryAvailabilityStatus }> = [
   { label: "In stock", value: "IN_STOCK" },
   { label: "Email for quote", value: "EMAIL_FOR_QUOTE" },
@@ -68,6 +85,18 @@ function nullableText(value: string) {
   const trimmed = value.trim();
 
   return trimmed || null;
+}
+
+function nullableNumber(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formFromItem(item: InventoryItem): InventoryFormState {
@@ -148,6 +177,7 @@ function AdminInventory() {
   const [form, setForm] = useState<InventoryFormState | null>(null);
   const [importResult, setImportResult] = useState<InventoryImportResponse>(emptyImportResult);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -393,7 +423,14 @@ function AdminInventory() {
 
   function openEdit(item: InventoryItem) {
     setEditItem(item);
+    setIsCreateOpen(false);
     setForm(formFromItem(item));
+  }
+
+  function openCreate() {
+    setEditItem(null);
+    setForm(emptyInventoryForm);
+    setIsCreateOpen(true);
   }
 
   function updateField<Field extends keyof InventoryFormState>(field: Field, value: InventoryFormState[Field]) {
@@ -415,7 +452,7 @@ function AdminInventory() {
   }
 
   async function handleSaveInventoryItem() {
-    if (!editItem || !form) {
+    if (!form) {
       return;
     }
 
@@ -445,6 +482,41 @@ function AdminInventory() {
       supplier: form.supplier.trim(),
       unitMeasure: nullableText(form.unitMeasure),
     };
+
+    if (!editItem) {
+      const inStock = nullableNumber(form.inStock);
+      const minReserve = nullableNumber(form.minReserve);
+      const localItem: InventoryItem = {
+        active: form.active,
+        availabilityStatus: form.availabilityStatus,
+        category: form.category.trim(),
+        createdAt: new Date().toISOString(),
+        id: `local-inventory-${Date.now()}`,
+        inStock,
+        lastPriceUpdate: nullableText(form.lastPriceUpdate),
+        lowStock: inStock !== null && minReserve !== null ? inStock <= minReserve : false,
+        material: nullableText(form.material),
+        minReserve,
+        name: form.name.trim(),
+        notes: nullableText(form.notes),
+        sizeDimension: nullableText(form.sizeDimension),
+        sku: nullableText(form.sku),
+        subcategory: nullableText(form.subcategory),
+        supplier: form.supplier.trim(),
+        unitMeasure: nullableText(form.unitMeasure),
+        updatedAt: new Date().toISOString(),
+      };
+
+      setInventoryItems((current) => [localItem, ...current]);
+      setSummary(null);
+      setIsCreateOpen(false);
+      setForm(null);
+      showRequestToast("inventory-create-local", "Adding inventory item...").success(
+        "Inventory item added locally. Endpoint integration is pending.",
+      );
+      return;
+    }
+
     const toast = showRequestToast("inventory-update", "Updating inventory item...");
 
     try {
@@ -536,7 +608,13 @@ function AdminInventory() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Inventory Items</h2>
-          <span>{filteredItems.length} showing</span>
+          <div className="panel__actions">
+            <span>{filteredItems.length} showing</span>
+            <button className="primary-action" onClick={openCreate} type="button">
+              <PortalIcon name="plus" />
+              <span>Add Product</span>
+            </button>
+          </div>
         </div>
         <div className="product-service-toolbar inventory-toolbar">
           <div className="form-group">
@@ -600,11 +678,12 @@ function AdminInventory() {
         okText="Save item"
         onCancel={() => {
           setEditItem(null);
+          setIsCreateOpen(false);
           setForm(null);
         }}
         onOk={handleSaveInventoryItem}
-        open={Boolean(editItem)}
-        title={editItem?.name || "Edit inventory item"}
+        open={Boolean(editItem || isCreateOpen)}
+        title={editItem?.name || "Add inventory product"}
         width={920}
       >
         {form ? (
