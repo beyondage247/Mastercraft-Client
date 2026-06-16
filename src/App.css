@@ -521,6 +521,19 @@
   font-weight: 800;
 }
 
+.panel__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.panel__actions .primary-action,
+.panel__actions .primary-action span {
+  color: #fff;
+}
+
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
