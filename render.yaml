@@ -6,7 +6,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_PORTAL_API_URL
-        value: https://mc-api-long-current-9733.fly.dev
+        value: https://api-dev.mastercraft-products.com
     routes:
       - type: rewrite
         source: /*

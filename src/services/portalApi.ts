@@ -139,6 +139,7 @@ export type CatalogItem = {
   itemCode?: string;
   lastPriceUpdate?: string;
   markUp?: string;
+  material?: string;
   ourPrice?: string;
   productName: string;
   sizeDimension?: string;
@@ -152,6 +153,7 @@ export type CatalogItem = {
 };
 
 export type UpdateCatalogItemInput = Partial<Omit<CatalogItem, "createdAt" | "id" | "updatedAt">>;
+export type CreateCatalogItemInput = Omit<CatalogItem, "createdAt" | "id" | "updatedAt">;
 
 export type CatalogImportIssue = {
   reason: string;
@@ -183,6 +185,7 @@ export type InventoryItem = {
   minReserve?: number | null;
   name: string;
   notes?: string | null;
+  ourPrice?: number | string | null;
   sizeDimension?: string | null;
   sku?: string | null;
   subcategory?: string | null;
@@ -211,12 +214,15 @@ export type UpdateInventoryItemInput = Partial<{
   minReserve: number | string | null;
   name: string;
   notes: string | null;
+  ourPrice: number | string | null;
   sizeDimension: string | null;
   sku: string | null;
   subcategory: string | null;
   supplier: string;
   unitMeasure: string | null;
 }>;
+export type CreateInventoryItemInput = Required<Pick<UpdateInventoryItemInput, "active" | "availabilityStatus" | "category" | "name" | "supplier">> &
+  Omit<UpdateInventoryItemInput, "active" | "availabilityStatus" | "category" | "name" | "supplier">;
 
 export type InventoryImportIssue = {
   reason: string;
@@ -2249,6 +2255,13 @@ export async function getCatalogItem(id: string) {
   return portalRequest<CatalogItem>(`/services/${encodeURIComponent(id)}`, {}, true);
 }
 
+export async function createCatalogItem(input: CreateCatalogItemInput) {
+  return portalRequest<{ item: CatalogItem; message: string }>("/services", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
+}
+
 export async function updateCatalogItem(id: string, input: UpdateCatalogItemInput) {
   const response = await portalRequest<{ item: CatalogItem; message: string }>(
     `/services/${encodeURIComponent(id)}`,
@@ -2282,6 +2295,13 @@ export async function getInventorySummary() {
 
 export async function getInventoryItem(id: string) {
   return portalRequest<InventoryItem>(`/inventory/${encodeURIComponent(id)}`, {}, true);
+}
+
+export async function createInventoryItem(input: CreateInventoryItemInput) {
+  return portalRequest<{ item: InventoryItem; message: string }>("/inventory", {
+    body: JSON.stringify(input),
+    method: "POST",
+  }, true);
 }
 
 export async function updateInventoryItem(id: string, input: UpdateInventoryItemInput) {

@@ -6,10 +6,12 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import {
+  createCatalogItem,
   getCatalogItems,
   importCatalogItems,
   updateCatalogItem,
   type CatalogAvailabilityStatus,
+  type CreateCatalogItemInput,
   type CatalogImportResponse,
   type CatalogItem,
   type UpdateCatalogItemInput,
@@ -23,6 +25,7 @@ type CatalogFormState = {
   category: string;
   itemCode: string;
   markUp: string;
+  material: string;
   ourPrice: string;
   productName: string;
   sizeDimension: string;
@@ -40,6 +43,7 @@ const emptyCatalogForm: CatalogFormState = {
   category: "",
   itemCode: "",
   markUp: "",
+  material: "",
   ourPrice: "",
   productName: "",
   sizeDimension: "",
@@ -71,6 +75,7 @@ const expectedImportHeaders = [
   "productName",
   "itemCode",
   "subcategory",
+  "material",
   "supplierCost",
   "ourPrice",
   "markUp",
@@ -83,8 +88,6 @@ const expectedImportHeaders = [
   "supplierCatalogue",
   "active",
   "lastPriceUpdate",
-  "createdAt",
-  "updatedAt",
 ] as const;
 
 type ImportHeader = typeof expectedImportHeaders[number];
@@ -93,10 +96,10 @@ const importHeaderAliases: Record<ImportHeader, string[]> = {
   active: ["active"],
   availabilityStatus: ["availability status"],
   category: ["category"],
-  createdAt: ["created at", "created"],
   itemCode: ["item code", "sku / item code", "sku", "code"],
   lastPriceUpdate: ["last price updated", "last price update"],
   markUp: ["markup", "markup %", "mark up"],
+  material: ["material", "species", "species / material"],
   ourPrice: ["our price"],
   productName: ["product name", "name"],
   sizeDimension: ["size dimension", "size / dimensions", "size dimensions", "size"],
@@ -106,17 +109,16 @@ const importHeaderAliases: Record<ImportHeader, string[]> = {
   supplierCatalogue: ["supplier catalogue", "supplier catalog page", "supplier catalog", "catalogue"],
   supplierCost: ["supplier cost"],
   unitMeasure: ["unit measure", "unit of measure"],
-  updatedAt: ["updated at", "updated"],
 };
 
 const defaultImportValues: Record<ImportHeader, string | boolean> = {
   active: true,
   availabilityStatus: "EMAIL_FOR_QUOTE",
   category: "Uncategorized",
-  createdAt: new Date().toISOString(),
   itemCode: "",
   lastPriceUpdate: new Date().toISOString(),
   markUp: "0",
+  material: "",
   ourPrice: "0",
   productName: "",
   sizeDimension: "N/A",
@@ -126,7 +128,6 @@ const defaultImportValues: Record<ImportHeader, string | boolean> = {
   supplierCatalogue: "N/A",
   supplierCost: "0",
   unitMeasure: "Each",
-  updatedAt: new Date().toISOString(),
 };
 
 function formFromItem(item: CatalogItem): CatalogFormState {
@@ -136,6 +137,7 @@ function formFromItem(item: CatalogItem): CatalogFormState {
     category: item.category || "",
     itemCode: item.itemCode || "",
     markUp: item.markUp || "",
+    material: item.material || "",
     ourPrice: item.ourPrice || "",
     productName: item.productName || "",
     sizeDimension: item.sizeDimension || "",
@@ -264,7 +266,7 @@ function readMappedValue(row: unknown[], indexes: Record<ImportHeader, number>, 
       return normalizeActive(value);
     }
 
-    if (header === "createdAt" || header === "updatedAt" || header === "lastPriceUpdate") {
+    if (header === "lastPriceUpdate") {
       return normalizeDateForImport(value);
     }
 
@@ -332,6 +334,7 @@ function AdminProductsServices() {
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("All");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -370,6 +373,11 @@ function AdminProductsServices() {
     [catalogItems],
   );
 
+  const categories = useMemo(
+    () => ["All", ...Array.from(new Set(catalogItems.map((item) => item.category).filter(Boolean))).sort()],
+    [catalogItems],
+  );
+
   const subcategories = useMemo(
     () => ["All", ...Array.from(new Set(catalogItems.map((item) => item.subcategory).filter(Boolean))).sort()],
     [catalogItems],
@@ -380,11 +388,13 @@ function AdminProductsServices() {
 
     return catalogItems.filter((item) => {
       const matchesSupplier = supplierFilter === "All" || item.supplier === supplierFilter;
+      const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
       const matchesSubcategory = subcategoryFilter === "All" || item.subcategory === subcategoryFilter;
       const searchable = [
         item.productName,
         item.itemCode,
         item.category,
+        item.material,
         item.subcategory,
         item.supplier,
         item.sizeDimension,
@@ -394,9 +404,9 @@ function AdminProductsServices() {
         .join(" ")
         .toLowerCase();
 
-      return matchesSupplier && matchesSubcategory && (!normalizedSearch || searchable.includes(normalizedSearch));
+      return matchesSupplier && matchesCategory && matchesSubcategory && (!normalizedSearch || searchable.includes(normalizedSearch));
     });
-  }, [catalogItems, search, subcategoryFilter, supplierFilter]);
+  }, [catalogItems, categoryFilter, search, subcategoryFilter, supplierFilter]);
 
   const activeCount = catalogItems.filter((item) => item.active).length;
   const inStockCount = catalogItems.filter((item) => item.availabilityStatus?.includes("IN_STOCK")).length;
@@ -412,42 +422,49 @@ function AdminProductsServices() {
           <span>{item.sizeDimension || item.styleProfile || "No dimensions"}</span>
         </div>
       ),
-      title: "Product Name",
+      title: "productName",
       width: 320,
     },
     {
       dataIndex: "itemCode",
       key: "itemCode",
       render: (value?: string) => value || "Not set",
-      title: "Item Code",
+      title: "itemCode",
       width: 130,
     },
     {
       dataIndex: "subcategory",
       key: "subcategory",
       render: (value?: string) => value || "Not set",
-      title: "Subcategory",
+      title: "subcategory",
       width: 170,
+    },
+    {
+      dataIndex: "material",
+      key: "material",
+      render: (value?: string) => value || "Not set",
+      title: "material",
+      width: 150,
     },
     {
       dataIndex: "supplierCost",
       key: "supplierCost",
       render: moneyText,
-      title: "Supplier Cost",
+      title: "supplierCost",
       width: 150,
     },
     {
       dataIndex: "ourPrice",
       key: "ourPrice",
       render: moneyText,
-      title: "Our Price",
+      title: "ourPrice",
       width: 140,
     },
     {
       dataIndex: "markUp",
       key: "markUp",
       render: (value?: string) => (value ? `${value}%` : "Not set"),
-      title: "Markup",
+      title: "markUp",
       width: 120,
     },
     {
@@ -466,49 +483,49 @@ function AdminProductsServices() {
           )}
         </span>
       ),
-      title: "Availability Status",
+      title: "availabilityStatus",
       width: 240,
     },
     {
       dataIndex: "category",
       key: "category",
       render: (value?: string) => value || "Not set",
-      title: "Category",
+      title: "category",
       width: 170,
     },
     {
       dataIndex: "supplier",
       key: "supplier",
       render: (value?: string) => value || "Not set",
-      title: "Supplier",
+      title: "supplier",
       width: 170,
     },
     {
       dataIndex: "sizeDimension",
       key: "sizeDimension",
       render: (value?: string) => value || "Not set",
-      title: "Size Dimension",
+      title: "sizeDimension",
       width: 180,
     },
     {
       dataIndex: "unitMeasure",
       key: "unitMeasure",
       render: (value?: string) => value || "Not set",
-      title: "Unit Measure",
+      title: "unitMeasure",
       width: 150,
     },
     {
       dataIndex: "styleProfile",
       key: "styleProfile",
       render: (value?: string) => value || "Not set",
-      title: "Style Profile",
+      title: "styleProfile",
       width: 180,
     },
     {
       dataIndex: "supplierCatalogue",
       key: "supplierCatalogue",
       render: (value?: string) => value || "Not set",
-      title: "Supplier Catalogue",
+      title: "supplierCatalogue",
       width: 190,
     },
     {
@@ -519,29 +536,15 @@ function AdminProductsServices() {
           {active ? "Active" : "Inactive"}
         </StatusBadge>
       ),
-      title: "Active",
+      title: "active",
       width: 120,
     },
     {
       dataIndex: "lastPriceUpdate",
       key: "lastPriceUpdate",
       render: dateText,
-      title: "Last Price Updated",
+      title: "lastPriceUpdate",
       width: 180,
-    },
-    {
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: dateText,
-      title: "Created At",
-      width: 160,
-    },
-    {
-      dataIndex: "updatedAt",
-      key: "updatedAt",
-      render: dateText,
-      title: "Updated At",
-      width: 160,
     },
     {
       fixed: "right",
@@ -630,12 +633,13 @@ function AdminProductsServices() {
       return;
     }
 
-    const payload: UpdateCatalogItemInput = {
+    const payload: CreateCatalogItemInput = {
       active: form.active,
       availabilityStatus: form.availabilityStatus,
       category: form.category.trim(),
       itemCode: form.itemCode.trim(),
       markUp: form.markUp.trim(),
+      material: form.material.trim(),
       ourPrice: form.ourPrice.trim(),
       productName: form.productName.trim(),
       sizeDimension: form.sizeDimension.trim(),
@@ -648,41 +652,33 @@ function AdminProductsServices() {
     };
 
     if (!editItem) {
-      const localItem: CatalogItem = {
-        active: payload.active ?? true,
-        availabilityStatus: payload.availabilityStatus ?? [],
-        category: payload.category || "",
-        createdAt: new Date().toISOString(),
-        id: `local-catalog-${Date.now()}`,
-        itemCode: payload.itemCode,
-        lastPriceUpdate: new Date().toISOString(),
-        markUp: payload.markUp,
-        ourPrice: payload.ourPrice,
-        productName: payload.productName || "",
-        sizeDimension: payload.sizeDimension,
-        styleProfile: payload.styleProfile,
-        subcategory: payload.subcategory,
-        supplier: payload.supplier || "",
-        supplierCatalogue: payload.supplierCatalogue,
-        supplierCost: payload.supplierCost,
-        unitMeasure: payload.unitMeasure,
-        updatedAt: new Date().toISOString(),
-      };
+      const toast = showRequestToast("catalog-create", "Adding product...");
 
-      setCatalogItems((current) => [localItem, ...current]);
-      setIsCreateOpen(false);
-      setForm(null);
-      showRequestToast("catalog-create-local", "Adding product...").success(
-        "Product added locally. Endpoint integration is pending.",
-      );
+      try {
+        setIsSaving(true);
+        const response = await createCatalogItem(payload);
+
+        setCatalogItems((current) => [response.item, ...current]);
+        setIsCreateOpen(false);
+        setForm(null);
+        toast.success(response.message || "Product added.");
+      } catch (requestError) {
+        const message = requestError instanceof Error ? requestError.message : "Unable to add product.";
+
+        setError(message);
+        toast.error(message);
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
+    const updatePayload: UpdateCatalogItemInput = payload;
     const toast = showRequestToast("catalog-update", "Updating catalog item...");
 
     try {
       setIsSaving(true);
-      const response = await updateCatalogItem(editItem.id, payload);
+      const response = await updateCatalogItem(editItem.id, updatePayload);
 
       setCatalogItems((current) =>
         current.map((item) => (item.id === editItem.id ? response.item : item)),
@@ -793,6 +789,18 @@ function AdminProductsServices() {
             </select>
           </div>
           <div className="form-group">
+            <label htmlFor="catalogCategoryFilter">Category</label>
+            <select
+              id="catalogCategoryFilter"
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              value={categoryFilter}
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label htmlFor="catalogSearch">Search</label>
             <input
               id="catalogSearch"
@@ -887,6 +895,14 @@ function AdminProductsServices() {
                   id="catalogSubcategory"
                   onChange={(event) => updateField("subcategory", event.target.value)}
                   value={form.subcategory}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="catalogMaterial">Material</label>
+                <input
+                  id="catalogMaterial"
+                  onChange={(event) => updateField("material", event.target.value)}
+                  value={form.material}
                 />
               </div>
             </div>
