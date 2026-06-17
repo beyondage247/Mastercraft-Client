@@ -334,6 +334,7 @@ function AdminProductsServices() {
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("All");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -372,6 +373,11 @@ function AdminProductsServices() {
     [catalogItems],
   );
 
+  const categories = useMemo(
+    () => ["All", ...Array.from(new Set(catalogItems.map((item) => item.category).filter(Boolean))).sort()],
+    [catalogItems],
+  );
+
   const subcategories = useMemo(
     () => ["All", ...Array.from(new Set(catalogItems.map((item) => item.subcategory).filter(Boolean))).sort()],
     [catalogItems],
@@ -382,6 +388,7 @@ function AdminProductsServices() {
 
     return catalogItems.filter((item) => {
       const matchesSupplier = supplierFilter === "All" || item.supplier === supplierFilter;
+      const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
       const matchesSubcategory = subcategoryFilter === "All" || item.subcategory === subcategoryFilter;
       const searchable = [
         item.productName,
@@ -397,9 +404,9 @@ function AdminProductsServices() {
         .join(" ")
         .toLowerCase();
 
-      return matchesSupplier && matchesSubcategory && (!normalizedSearch || searchable.includes(normalizedSearch));
+      return matchesSupplier && matchesCategory && matchesSubcategory && (!normalizedSearch || searchable.includes(normalizedSearch));
     });
-  }, [catalogItems, search, subcategoryFilter, supplierFilter]);
+  }, [catalogItems, categoryFilter, search, subcategoryFilter, supplierFilter]);
 
   const activeCount = catalogItems.filter((item) => item.active).length;
   const inStockCount = catalogItems.filter((item) => item.availabilityStatus?.includes("IN_STOCK")).length;
@@ -778,6 +785,18 @@ function AdminProductsServices() {
             >
               {suppliers.map((supplier) => (
                 <option key={supplier} value={supplier}>{supplier}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="catalogCategoryFilter">Category</label>
+            <select
+              id="catalogCategoryFilter"
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              value={categoryFilter}
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
               ))}
             </select>
           </div>
