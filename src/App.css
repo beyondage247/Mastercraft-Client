@@ -2909,6 +2909,12 @@
   font-weight: 700;
 }
 
+.admin-client-list .panel__header .primary-action,
+.admin-client-list .panel__header .primary-action span,
+.admin-client-list .panel__header .primary-action svg {
+  color: #fff;
+}
+
 .admin-client-table {
   min-width: 980px;
 }
