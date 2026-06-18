@@ -10,7 +10,7 @@
 
 [[redirects]]
   from = "/portal-api/*"
-  to = "https://api.mastercraft-products.com/:splat"
+  to = "https://dev-api.mastercraft-products.com/:splat"
   status = 200
   force = true
 
