@@ -530,7 +530,10 @@
 }
 
 .panel__actions .primary-action,
-.panel__actions .primary-action span {
+.panel__actions .primary-action span,
+.panel__actions .primary-action svg,
+.primary-action span,
+.primary-action svg {
   color: #fff;
 }
 

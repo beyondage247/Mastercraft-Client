@@ -235,6 +235,7 @@ function AdminQuoteModal({
     emptyScheduleRow("Payment 1"),
     emptyScheduleRow("Payment 2"),
   ]);
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("");
 
   useEffect(() => {
@@ -288,6 +289,7 @@ function AdminQuoteModal({
           ? quote.lineItems.map((item) => lineFromQuoteItem(item, catalogItems))
           : [emptyLine()],
       );
+      setCategoryFilter("");
       setSubcategoryFilter("");
       setIsPaymentScheduleOpen(Boolean(quote.paymentSchedule));
       setIsDepositRequested(quote.paymentSchedule?.type === "DEPOSIT_AND_BALANCE" || quote.paymentSchedule?.type === "DEPOSIT_AND_SPLIT_BALANCE");
@@ -340,6 +342,7 @@ function AdminQuoteModal({
         validUntil: dateValue(14),
       });
       setLines([emptyLine()]);
+      setCategoryFilter("");
       setSubcategoryFilter("");
       setIsPaymentScheduleOpen(false);
       setIsDepositRequested(false);
@@ -351,9 +354,26 @@ function AdminQuoteModal({
     }
   }, [catalogItems, isEdit, open, project, quote]);
 
+  const categoryOptions = useMemo(() => {
+    const categories = Array.from(
+      new Set(catalogItems.map((item) => item.category).filter(Boolean)),
+    ).sort((first, second) => String(first).localeCompare(String(second)));
+
+    return [
+      { label: "All categories", value: "" },
+      ...categories.map((category) => ({
+        label: String(category),
+        value: String(category),
+      })),
+    ];
+  }, [catalogItems]);
+
   const subcategoryOptions = useMemo(() => {
+    const matchingItems = categoryFilter
+      ? catalogItems.filter((item) => item.category === categoryFilter)
+      : catalogItems;
     const subcategories = Array.from(
-      new Set(catalogItems.map((item) => item.subcategory).filter(Boolean)),
+      new Set(matchingItems.map((item) => item.subcategory).filter(Boolean)),
     ).sort((first, second) => String(first).localeCompare(String(second)));
 
     return [
@@ -363,12 +383,15 @@ function AdminQuoteModal({
         value: String(subcategory),
       })),
     ];
-  }, [catalogItems]);
+  }, [catalogItems, categoryFilter]);
 
   const catalogOptions = useMemo(() => {
-    const filteredItems = subcategoryFilter
-      ? catalogItems.filter((item) => item.subcategory === subcategoryFilter)
-      : catalogItems;
+    const filteredItems = catalogItems.filter((item) => {
+      const matchesCategory = !categoryFilter || item.category === categoryFilter;
+      const matchesSubcategory = !subcategoryFilter || item.subcategory === subcategoryFilter;
+
+      return matchesCategory && matchesSubcategory;
+    });
 
     return filteredItems.map((item) => ({
       label: `${item.productName}${item.category ? ` - ${item.category}` : ""}${
@@ -377,7 +400,7 @@ function AdminQuoteModal({
       searchText: itemSearchText(item),
       value: item.id,
     }));
-  }, [catalogItems, subcategoryFilter]);
+  }, [catalogItems, categoryFilter, subcategoryFilter]);
 
   const subtotal = useMemo(
     () =>
@@ -968,6 +991,14 @@ function AdminQuoteModal({
           <div className="quote-line-section__header">
             <h3>Line items</h3>
             <div className="quote-line-section__tools">
+              <Select
+                onChange={(value) => {
+                  setCategoryFilter(value);
+                  setSubcategoryFilter("");
+                }}
+                options={categoryOptions}
+                value={categoryFilter}
+              />
               <Select
                 onChange={setSubcategoryFilter}
                 options={subcategoryOptions}

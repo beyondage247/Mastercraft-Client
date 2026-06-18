@@ -379,8 +379,14 @@ function AdminProductsServices() {
   );
 
   const subcategories = useMemo(
-    () => ["All", ...Array.from(new Set(catalogItems.map((item) => item.subcategory).filter(Boolean))).sort()],
-    [catalogItems],
+    () => {
+      const matchingItems = categoryFilter === "All"
+        ? catalogItems
+        : catalogItems.filter((item) => item.category === categoryFilter);
+
+      return ["All", ...Array.from(new Set(matchingItems.map((item) => item.subcategory).filter(Boolean))).sort()];
+    },
+    [catalogItems, categoryFilter],
   );
 
   const filteredItems = useMemo(() => {
@@ -792,7 +798,10 @@ function AdminProductsServices() {
             <label htmlFor="catalogCategoryFilter">Category</label>
             <select
               id="catalogCategoryFilter"
-              onChange={(event) => setCategoryFilter(event.target.value)}
+              onChange={(event) => {
+                setCategoryFilter(event.target.value);
+                setSubcategoryFilter("All");
+              }}
               value={categoryFilter}
             >
               {categories.map((category) => (

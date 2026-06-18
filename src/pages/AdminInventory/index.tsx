@@ -416,6 +416,7 @@ function AdminInventory() {
   const [search, setSearch] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [statusFilter, setStatusFilter] = useState<InventoryStatusFilter>("All");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("All");
   const [summary, setSummary] = useState<InventorySummaryResponse | null>(null);
   const [uploadInputKey, setUploadInputKey] = useState(0);
 
@@ -469,11 +470,23 @@ function AdminInventory() {
     [inventoryItems],
   );
 
+  const subcategories = useMemo(
+    () => {
+      const matchingItems = categoryFilter === "All"
+        ? inventoryItems
+        : inventoryItems.filter((item) => item.category === categoryFilter);
+
+      return ["All", ...Array.from(new Set(matchingItems.map((item) => item.subcategory).filter(Boolean))).sort()];
+    },
+    [categoryFilter, inventoryItems],
+  );
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return inventoryItems.filter((item) => {
       const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
+      const matchesSubcategory = subcategoryFilter === "All" || item.subcategory === subcategoryFilter;
       const matchesStatus =
         statusFilter === "All" ||
         (statusFilter === "LOW_STOCK" && item.lowStock) ||
@@ -494,9 +507,9 @@ function AdminInventory() {
         .join(" ")
         .toLowerCase();
 
-      return matchesCategory && matchesStatus && (!normalizedSearch || searchable.includes(normalizedSearch));
+      return matchesCategory && matchesSubcategory && matchesStatus && (!normalizedSearch || searchable.includes(normalizedSearch));
     });
-  }, [categoryFilter, inventoryItems, search, statusFilter]);
+  }, [categoryFilter, inventoryItems, search, statusFilter, subcategoryFilter]);
 
   const summaryMetrics = summary ?? fallbackSummary(inventoryItems);
 
@@ -858,12 +871,29 @@ function AdminInventory() {
             <label htmlFor="inventoryCategoryFilter">Category</label>
             <select
               id="inventoryCategoryFilter"
-              onChange={(event) => setCategoryFilter(event.target.value)}
+              onChange={(event) => {
+                setCategoryFilter(event.target.value);
+                setSubcategoryFilter("All");
+              }}
               value={categoryFilter}
             >
               {categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="inventorySubcategoryFilter">Subcategory</label>
+            <select
+              id="inventorySubcategoryFilter"
+              onChange={(event) => setSubcategoryFilter(event.target.value)}
+              value={subcategoryFilter}
+            >
+              {subcategories.map((subcategory) => (
+                <option key={String(subcategory)} value={String(subcategory)}>
+                  {subcategory}
                 </option>
               ))}
             </select>
