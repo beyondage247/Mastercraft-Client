@@ -5,6 +5,7 @@ import {
   uploadDownloadUrl,
   uploadFile,
 } from "../services/portalApi";
+import { documentUploadLimitText, isWithinDocumentUploadLimit } from "../utils/uploadLimits";
 import { showRequestToast } from "../utils/portalToast";
 import { PortalIcon } from "./PortalIcon";
 
@@ -43,6 +44,13 @@ function ProjectAttachmentsPanel({ canUpload = false, onProjectUpdated, project 
       return;
     }
 
+    if (!isWithinDocumentUploadLimit(file)) {
+      showRequestToast("project-upload-validation", "Checking file...").error(
+        `Documents can be up to ${documentUploadLimitText()} each.`,
+      );
+      return;
+    }
+
     const toast = showRequestToast("project-upload", "Uploading document...");
     setIsUploading(true);
 
@@ -75,6 +83,7 @@ function ProjectAttachmentsPanel({ canUpload = false, onProjectUpdated, project 
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               type="file"
             />
+            <p className="upload-hint">Max {documentUploadLimitText()} per document.</p>
           </div>
           <button className="primary-action" disabled={isUploading} type="submit">
             <PortalIcon name="upload" />
