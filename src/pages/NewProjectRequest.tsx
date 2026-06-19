@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import StepIndicator from "../components/StepIndicator";
 import { PortalIcon } from "../components/PortalIcon";
 import type { PortalIconName } from "../components/PortalIcon";
+import { documentUploadLimitText } from "../utils/uploadLimits";
 
 type Step = {
   label: string;
@@ -279,7 +280,7 @@ function StepFileUpload({
           </label>
         </div>
         <p className="upload-hint">
-          Supported formats: DWG, DXF, PDF, JPG, PNG (Max 10MB each)
+          Supported formats: DWG, DXF, PDF, JPG, PNG (Max {documentUploadLimitText()} each)
         </p>
         <p className="upload-hint">{selectedFileText}</p>
       </div>

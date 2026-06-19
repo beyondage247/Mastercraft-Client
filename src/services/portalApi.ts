@@ -23,6 +23,7 @@ import type {
 } from "../data/portal";
 import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
 import { formatPortalDate, parsePortalDate } from "../utils/dateFormat";
+import { documentUploadLimitText, isWithinDocumentUploadLimit } from "../utils/uploadLimits";
 
 type ProjectResponse = {
   activeProjects: HomeProject[];
@@ -2208,6 +2209,10 @@ export async function uploadFile(file: File) {
 }
 
 export async function uploadFileWithId(uploadId: string, file: File) {
+  if (!isWithinDocumentUploadLimit(file)) {
+    throw new Error(`Documents can be up to ${documentUploadLimitText()} each.`);
+  }
+
   const body = new FormData();
   body.append("file", file);
 
