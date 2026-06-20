@@ -341,7 +341,7 @@ function ProjectDetail() {
         <div className="detail-panel">
           <h3>
             Project Timeline{" "}
-            <button
+            {/* <button
               className="manage-team-btn"
               style={{
                 width: "auto",
@@ -351,7 +351,7 @@ function ProjectDetail() {
               }}
             >
               Add Update
-            </button>
+            </button> */}
           </h3>
           <div className="timeline-list">
             {details.timeline.map((event, index) => (
