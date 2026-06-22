@@ -1691,6 +1691,7 @@ function normalizePaymentMethod(method: string) {
 
   const normalized = method.toLowerCase();
 
+  if (normalized.includes("stripe")) return "Stripe";
   if (normalized.includes("wire")) return "Wire";
   if (normalized.includes("credit") || normalized.includes("card")) {
     return "Credit Card";
@@ -2656,6 +2657,28 @@ export async function createPayment(input: CreatePaymentInput): Promise<ProjectP
   };
 
   return summary;
+}
+
+export async function confirmCheckoutSession(sessionId: string) {
+  return portalRequest<{ confirmed: boolean; message: string }>("/payments/confirm", {
+    body: JSON.stringify({ sessionId }),
+    method: "POST",
+  }, true);
+}
+
+export async function createCheckoutSession(invoiceId: string, amount?: number) {
+  const body: Record<string, unknown> = { invoiceId };
+
+  if (amount != null) {
+    body.amount = amount;
+  }
+
+  const response = await portalRequest<{ url: string }>("/payments/checkout", {
+    body: JSON.stringify(body),
+    method: "POST",
+  }, true);
+
+  return response;
 }
 
 export { toBackendPaymentMethod };

@@ -25,6 +25,8 @@ import AdminStaff from './pages/AdminStaff';
 import AdminWeeklyReports from './pages/AdminWeeklyReports';
 import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
+import PaymentCancel from './pages/PaymentCancel';
+import PaymentSuccess from './pages/PaymentSuccess';
 import ResetPassword from './pages/ResetPassword';
 
 function RequireAuth({ adminOnly = false }: { adminOnly?: boolean }) {
@@ -99,6 +101,8 @@ const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/change-password', element: <ChangePassword /> },
   { path: '/reset-password', element: <ResetPassword /> },
+  { path: '/payment/success', element: <PaymentSuccess /> },
+  { path: '/payment/cancel', element: <PaymentCancel /> },
 ]);
 
 function App() {

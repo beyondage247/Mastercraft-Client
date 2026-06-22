@@ -230,7 +230,7 @@ export type CommissionItem = {
   updatedAt?: string;
 };
 
-export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check';
+export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check' | 'Stripe';
 
 export type PaymentItem = {
   amount: string;
@@ -567,6 +567,7 @@ export const paymentFilters: Array<{ label: string; value: 'All' | PaymentMethod
   { label: 'Wire', value: 'Wire' },
   { label: 'Credit Card', value: 'Credit Card' },
   { label: 'Check', value: 'Check' },
+  { label: 'Stripe', value: 'Stripe' },
 ];
 
 export const payments: PaymentItem[] = [

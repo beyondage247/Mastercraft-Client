@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
-import { downloadQuotePdf, getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
+import { createCheckoutSession, downloadQuotePdf, getQuoteDetail, respondToQuote, type QuoteDecisionStatus } from '../../services/portalApi';
 import type { QuoteListItem, QuoteDetailInfo } from '../../data/portal';
 import { showRequestToast } from '../../utils/portalToast';
 
@@ -66,8 +66,30 @@ function QuoteDetail() {
     try {
       const updatedQuote = await respondToQuote(quote.id, responseStatus, comment.trim());
       setQuote(updatedQuote);
-      toast.success('Quote response was sent.');
       setResponseStatus(null);
+
+      if (responseStatus === 'APPROVED' && updatedQuote.invoices?.length) {
+        const invoice = updatedQuote.invoices[0];
+        toast.success('Quote approved — redirecting to payment...');
+
+        try {
+          const { url } = await createCheckoutSession(invoice.id);
+
+          if (url) {
+            window.location.href = url;
+            return;
+          }
+        } catch (checkoutError) {
+          const checkoutToast = showRequestToast('quote-checkout-fallback', '');
+          checkoutToast.error(
+            checkoutError instanceof Error
+              ? `Quote approved, but payment redirect failed: ${checkoutError.message}`
+              : 'Quote approved. You can pay from the invoice page.',
+          );
+        }
+      } else {
+        toast.success('Quote response was sent.');
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to send quote response.');
     } finally {

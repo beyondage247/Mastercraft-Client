@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { PortalIcon } from '../../components/PortalIcon';
 import QuotePaymentSchedulePanel from '../../components/QuotePaymentSchedulePanel';
 import StatusBadge from '../../components/StatusBadge';
-import { downloadInvoicePdf, getInvoiceDetail, getProjectPayments, type ProjectPaymentSummary } from '../../services/portalApi';
+import { createCheckoutSession, downloadInvoicePdf, getInvoiceDetail, getProjectPayments, type ProjectPaymentSummary } from '../../services/portalApi';
 import type { InvoiceItem, InvoiceDetailInfo, PaymentItem } from '../../data/portal';
 import { showRequestToast } from '../../utils/portalToast';
 
@@ -35,6 +35,7 @@ function InvoiceDetail() {
   const [paymentError, setPaymentError] = useState('');
   const [paymentSummary, setPaymentSummary] = useState<ProjectPaymentSummary | null>(null);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -117,6 +118,27 @@ function InvoiceDetail() {
   const invoiceListPath = location.pathname.startsWith('/admin/') ? '/admin/invoices' : '/invoices';
   const invoicePayments = paymentSummary?.payments.filter((payment) => matchesInvoicePayment(payment, invoice)) ?? [];
   const paymentStatus = paymentSummary?.paymentStatus ?? 'UNPAID';
+  const canPay = invoice.status === 'Approved' && paymentStatus !== 'PAID';
+
+  async function handlePayNow() {
+    if (!invoice) {
+      return;
+    }
+
+    setCheckoutLoading(true);
+
+    try {
+      const { url } = await createCheckoutSession(invoice.id);
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      const toast = showRequestToast('invoice-pay-now', '');
+      toast.error(error instanceof Error ? error.message : 'Unable to create payment session.');
+      setCheckoutLoading(false);
+    }
+  }
 
   async function handleDownloadInvoice() {
     if (!invoice) {
@@ -148,7 +170,16 @@ function InvoiceDetail() {
           <button className="secondary-action-btn" onClick={handleDownloadInvoice} type="button">
             <PortalIcon name="download" /> PDF
           </button>
-          {/* <button className="pay-now-btn"><PortalIcon name="dollar" /> Pay Now</button> */}
+          {canPay && (
+            <button
+              className="pay-now-btn"
+              disabled={checkoutLoading}
+              onClick={handlePayNow}
+              type="button"
+            >
+              <PortalIcon name="dollar" /> {checkoutLoading ? 'Redirecting...' : 'Pay Now'}
+            </button>
+          )}
         </div>
       </div>
 
