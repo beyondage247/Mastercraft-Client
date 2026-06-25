@@ -5,6 +5,9 @@ type QuotePaymentSchedulePanelProps = {
   className?: string;
   isLoading?: boolean;
   paymentSchedule?: QuoteListItem["paymentSchedule"];
+  amountPaid?: number;
+  onPayItem?: (amount: number) => void;
+  payDisabled?: boolean;
 };
 
 type ScheduleRow = {
@@ -90,12 +93,41 @@ function scheduleRows(schedule?: QuotePaymentSchedule | null): ScheduleRow[] {
   return rows;
 }
 
+function getRowStatuses(rows: ScheduleRow[], amountPaid: number) {
+  let remaining = amountPaid;
+  const tolerance = 0.005;
+
+  return rows.map((row) => {
+    if (remaining >= row.amount - tolerance) {
+      remaining -= row.amount;
+      return "paid" as const;
+    }
+
+    if (remaining > tolerance) {
+      remaining = 0;
+      return "next" as const;
+    }
+
+    return "unpaid" as const;
+  }).map((status, index, statuses) => {
+    if (status === "unpaid" && !statuses.slice(0, index).includes("next")) {
+      return "next" as const;
+    }
+    return status;
+  });
+}
+
 function QuotePaymentSchedulePanel({
   className = "",
   isLoading = false,
   paymentSchedule,
+  amountPaid,
+  onPayItem,
+  payDisabled = false,
 }: QuotePaymentSchedulePanelProps) {
   const rows = scheduleRows(paymentSchedule);
+  const showPayButtons = onPayItem != null && amountPaid != null;
+  const statuses = showPayButtons ? getRowStatuses(rows, amountPaid) : [];
 
   return (
     <section className={`quote-payment-schedule ${className}`.trim()}>
@@ -116,15 +148,35 @@ function QuotePaymentSchedulePanel({
             <span>Due date</span>
             <span>Percent</span>
             <span>Amount</span>
+            <span />
           </div>
-          {rows.map((row, index) => (
-            <article className="quote-payment-schedule__row" key={`${row.name}-${index}`}>
-              <strong>{row.name}</strong>
-              <span>{formatScheduleDate(row.date)}</span>
-              <span>{formatSchedulePercent(row.percentage)}</span>
-              <strong>{formatScheduleAmount(row.amount)}</strong>
-            </article>
-          ))}
+          {rows.map((row, index) => {
+            const status = statuses[index];
+
+            return (
+              <article className="quote-payment-schedule__row" key={`${row.name}-${index}`}>
+                <strong>{row.name}</strong>
+                <span>{formatScheduleDate(row.date)}</span>
+                <span>{formatSchedulePercent(row.percentage)}</span>
+                <strong>{formatScheduleAmount(row.amount)}</strong>
+                <span style={{ textAlign: "right" }}>
+                  {showPayButtons && status === "paid" ? (
+                    <span style={{ color: "var(--color-success, #22c55e)", fontSize: 13, fontWeight: 600 }}>Paid</span>
+                  ) : showPayButtons && status === "next" ? (
+                    <button
+                      className="pay-now-btn"
+                      disabled={payDisabled}
+                      onClick={() => onPayItem(row.amount)}
+                      style={{ padding: "4px 12px", fontSize: 13 }}
+                      type="button"
+                    >
+                      {payDisabled ? "Redirecting..." : "Pay"}
+                    </button>
+                  ) : null}
+                </span>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="quote-payment-schedule__empty">

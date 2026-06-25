@@ -119,6 +119,27 @@ function InvoiceDetail() {
   const invoicePayments = paymentSummary?.payments.filter((payment) => matchesInvoicePayment(payment, invoice)) ?? [];
   const paymentStatus = paymentSummary?.paymentStatus ?? 'UNPAID';
   const canPay = invoice.status === 'Approved' && paymentStatus !== 'PAID';
+  const amountPaidNumber = paymentSummary ? Number(paymentSummary.amountPaid.replace(/[^0-9.-]/g, '')) || 0 : 0;
+
+  async function handlePayScheduleItem(amount: number) {
+    if (!invoice) {
+      return;
+    }
+
+    setCheckoutLoading(true);
+
+    try {
+      const { url } = await createCheckoutSession(invoice.id, amount);
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      const toast = showRequestToast('invoice-pay-now', '');
+      toast.error(error instanceof Error ? error.message : 'Unable to create payment session.');
+      setCheckoutLoading(false);
+    }
+  }
 
   async function handlePayNow() {
     if (!invoice) {
@@ -170,7 +191,7 @@ function InvoiceDetail() {
           <button className="secondary-action-btn" onClick={handleDownloadInvoice} type="button">
             <PortalIcon name="download" /> PDF
           </button>
-          {canPay && (
+          {canPay && !invoice.paymentSchedule && (
             <button
               className="pay-now-btn"
               disabled={checkoutLoading}
@@ -245,7 +266,12 @@ function InvoiceDetail() {
               </div>
             </div>
 
-            <QuotePaymentSchedulePanel paymentSchedule={invoice.paymentSchedule} />
+            <QuotePaymentSchedulePanel
+              paymentSchedule={invoice.paymentSchedule}
+              amountPaid={canPay ? amountPaidNumber : undefined}
+              onPayItem={canPay ? handlePayScheduleItem : undefined}
+              payDisabled={checkoutLoading}
+            />
 
           </div>
         </div>
