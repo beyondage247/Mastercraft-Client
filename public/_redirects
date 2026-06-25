@@ -1,0 +1,3 @@
+/api/*  /.netlify/functions/:splat  200
+/portal-api/*  https://dev-api.mastercraft-products.com/:splat  200!
+/*  /index.html  200
