@@ -300,7 +300,7 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Approved status</span>
+            <span>Invoice commission status</span>
             <strong>{summary.approvedCount}</strong>
           </div>
           <span className="icon-tile icon-tile--success">

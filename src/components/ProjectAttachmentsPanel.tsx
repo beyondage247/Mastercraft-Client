@@ -263,10 +263,17 @@ function ProjectAttachmentsPanel({ canUpload = false, onProjectUpdated, project 
           <>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
               {canUpload && (
-                <Button type="primary" onClick={() => {
-                  setNewCategoryName("");
-                  setIsCreateVisible(true);
-                }}>
+                <Button 
+                  onClick={() => {
+                    setNewCategoryName("");
+                    setIsCreateVisible(true);
+                  }}
+                  style={{
+                    backgroundColor: 'white',
+                    color: 'black',
+                    borderColor: 'var(--color-danger)',
+                  }}
+                >
                   <PortalIcon name="plus" /> Create Category
                 </Button>
               )}

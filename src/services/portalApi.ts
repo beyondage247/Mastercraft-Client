@@ -8,7 +8,7 @@ import type {
   CommissionStatus,
   DocumentItem,
   DocumentCategoryItem,
-  ProjectDocumentItem,
+  
   HomeProject,
   InvoiceDetailInfo,
   InvoiceItem,
@@ -1728,30 +1728,30 @@ function toBackendPaymentMethod(method: PaymentItem["method"]): PaymentMethodInp
   return "ACH";
 }
 
-function normalizeDocumentType(type: string) {
-  if (["Shop drawing", "CAD File", "Spec Sheet", "Photo"].includes(type)) {
-    return type as DocumentItem["type"];
-  }
+// function normalizeDocumentType(type: string) {
+//   if (["Shop drawing", "CAD File", "Spec Sheet", "Photo"].includes(type)) {
+//     return type as DocumentItem["type"];
+//   }
 
-  const normalized = type.toLowerCase();
+//   const normalized = type.toLowerCase();
 
-  if (normalized.includes("photo") || normalized.includes("image")) return "Photo";
-  if (normalized.includes("cad") || normalized.includes("dwg")) return "CAD File";
-  if (normalized.includes("shop")) return "Shop drawing";
+//   if (normalized.includes("photo") || normalized.includes("image")) return "Photo";
+//   if (normalized.includes("cad") || normalized.includes("dwg")) return "CAD File";
+//   if (normalized.includes("shop")) return "Shop drawing";
 
-  return "Spec Sheet";
-}
+//   return "Spec Sheet";
+// }
 
-function documentFromProjectUpload(project: ProjectListItem, upload: ProjectUploadItem): DocumentItem {
-  return {
-    date: project.startDate || project.dueDate || project.estimatedCompletion || "",
-    downloadUrl: uploadDownloadUrl(upload.id),
-    id: `${project.id}-${upload.id}`,
-    project: project.title,
-    title: upload.name || "Uploaded file",
-    type: normalizeDocumentType(upload.name || "Spec Sheet"),
-  };
-}
+// function documentFromProjectUpload(project: ProjectListItem, upload: ProjectUploadItem): DocumentItem {
+//   return {
+//     date: project.startDate || project.dueDate || project.estimatedCompletion || "",
+//     downloadUrl: uploadDownloadUrl(upload.id),
+//     id: `${project.id}-${upload.id}`,
+//     project: project.title,
+//     title: upload.name || "Uploaded file",
+//     type: normalizeDocumentType(upload.name || "Spec Sheet"),
+//   };
+// }
 
 function buildProjectMetrics(projectList: ProjectListItem[]) {
   return [

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCurrentPortalUser } from '../../auth/session';
 import PageHeader from '../../components/PageHeader';
 import { PortalIcon } from '../../components/PortalIcon';
-import StatusBadge from '../../components/StatusBadge';
+
 import type { DocumentItem, DocumentType } from '../../data/portal';
 import { getDocuments } from '../../services/portalApi';
 
