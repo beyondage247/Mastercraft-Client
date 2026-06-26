@@ -60,6 +60,20 @@ export type ProjectUploadItem = {
   size: number;
 };
 
+export type ProjectDocumentItem = {
+  id: string;
+  name: string;
+  size?: number;
+  uploadId?: string;
+  createdAt?: string;
+};
+
+export type DocumentCategoryItem = {
+  id: string;
+  name: string;
+  documents: ProjectDocumentItem[];
+};
+
 export type ProjectListItem = {
   id: string;
   category: string;
@@ -201,17 +215,24 @@ export type InvoiceItem = {
   total?: string;
 };
 
-export type CommissionStatus = 'QUOTED_COMMISSION' | 'APPROVED_COMMISSION' | 'PAID';
+export type CommissionStatus = 'QUOTED_COMMISSION' | 'APPROVED_COMMISSION' | 'INVOICE_COMMISSION' | 'PARTIALLY_PAID' | 'PAID';
 
 export type CommissionItem = {
   clientId?: string;
   clientEmail?: string;
   clientCompany?: string;
   clientName: string;
+  amountPaid?: string;
+  amountPaidValue?: number;
   commissionAmount: string;
   commissionAmountValue: number;
+  commissionAmountPaid?: string;
+  commissionAmountPaidValue?: number;
+  commissionAmountBalance?: string;
+  commissionAmountBalanceValue?: number;
   createdAt?: string;
   id: string;
+  invoiceId?: string;
   paidAt?: string;
   percentageCommission: number;
   projectId?: string;

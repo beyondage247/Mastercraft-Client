@@ -7,6 +7,8 @@ import type {
   CommissionItem,
   CommissionStatus,
   DocumentItem,
+  DocumentCategoryItem,
+  ProjectDocumentItem,
   HomeProject,
   InvoiceDetailInfo,
   InvoiceItem,
@@ -577,6 +579,7 @@ type BackendPaymentResponse = {
 
 type BackendCommissionResponse = {
   amount?: string | number;
+  amountPaid?: string | number;
   client?: {
     company?: unknown;
     email?: string;
@@ -586,6 +589,8 @@ type BackendCommissionResponse = {
   clientId?: string;
   clientName?: unknown;
   commissionAmount?: string | number;
+  commissionAmountBalance?: string | number;
+  commissionAmountPaid?: string | number;
   commissionPercentage?: string | number;
   createdAt?: string | null;
   id: string;
@@ -644,6 +649,7 @@ export type CommissionCreatePayload = {
 };
 
 export type CommissionUpdatePayload = {
+  commissionAmountPaid?: number;
   percentageCommission?: number;
   status?: CommissionStatus;
 };
@@ -1534,15 +1540,28 @@ function mapBackendCommission(commission: BackendCommissionResponse): Commission
     numberFromDecimal(commission.amount ?? commission.commissionAmount) ||
     commissionAmountValue(totalAmountValue, percentageCommission);
 
+  const invoiceId = commission.invoiceId ?? invoice?.invoiceId ?? invoice?.id;
+
+  const amountPaidValue = numberFromDecimal(commission.amountPaid) || 0;
+  const commissionAmountPaidValue = numberFromDecimal(commission.commissionAmountPaid) || 0;
+  const commissionAmountBalanceValue = numberFromDecimal(commission.commissionAmountBalance) || (commissionValue - commissionAmountPaidValue);
+
   return {
     clientId: commission.clientId ?? client?.id,
     clientCompany: normalizeString(client?.company),
     clientEmail: client?.email,
     clientName: normalizeString(commission.clientName ?? client?.name) || "Client",
+    amountPaid: formatMoney(amountPaidValue),
+    amountPaidValue,
     commissionAmount: formatMoney(commissionValue),
     commissionAmountValue: commissionValue,
+    commissionAmountPaid: formatMoney(commissionAmountPaidValue),
+    commissionAmountPaidValue,
+    commissionAmountBalance: formatMoney(commissionAmountBalanceValue),
+    commissionAmountBalanceValue,
     createdAt: formatProjectDate(commission.createdAt),
     id: commission.id,
+    invoiceId,
     paidAt: formatProjectDate(commission.paidAt),
     percentageCommission,
     projectId: commission.projectId ?? project?.id,
@@ -1832,9 +1851,13 @@ function normalizeCommissionStatus(status?: string): CommissionStatus {
   if (normalized === "PAID") {
     return "PAID";
   }
+  
+  if (normalized === "PARTIALLY_PAID") {
+    return "PARTIALLY_PAID";
+  }
 
-  if (normalized === "APPROVED_COMMISSION" || normalized === "APPROVED") {
-    return "APPROVED_COMMISSION";
+  if (normalized === "APPROVED_COMMISSION" || normalized === "APPROVED" || normalized === "INVOICE_COMMISSION") {
+    return "INVOICE_COMMISSION";
   }
 
   return "QUOTED_COMMISSION";
@@ -2253,6 +2276,63 @@ export async function attachProjectUploads(projectId: string, uploadIds: string[
   return mapBackendProject(response.project);
 }
 
+export async function getProjectDocumentsCategories(projectId: string): Promise<DocumentCategoryItem[]> {
+  return portalRequest<DocumentCategoryItem[]>(`/documents/project/${encodeURIComponent(projectId)}`, {}, true);
+}
+
+export async function createDocumentCategory(projectId: string, name: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories`,
+    {
+      body: JSON.stringify({ projectId, name }),
+      method: "POST",
+    },
+    true
+  );
+}
+
+export async function updateDocumentCategory(categoryId: string, name: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories/${encodeURIComponent(categoryId)}`,
+    {
+      body: JSON.stringify({ name }),
+      method: "PATCH",
+    },
+    true
+  );
+}
+
+export async function deleteDocumentCategory(categoryId: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "DELETE",
+    },
+    true
+  );
+}
+
+export async function addProjectDocument(projectId: string, uploadId: string, categoryId?: string): Promise<void> {
+  await portalRequest(
+    `/documents`,
+    {
+      body: JSON.stringify({ projectId, uploadId, categoryId }),
+      method: "POST",
+    },
+    true
+  );
+}
+
+export async function deleteProjectDocument(documentId: string): Promise<void> {
+  await portalRequest(
+    `/documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+    },
+    true
+  );
+}
+
 export async function getCatalogItems() {
   return portalRequest<CatalogItem[]>("/services", {}, true);
 }
@@ -2440,11 +2520,41 @@ export async function acceptQuote(uid: string, comment = ""): Promise<QuoteListI
 export async function getDocuments(): Promise<DocumentResponse> {
   try {
     const projectData = await getProjects();
-    const mappedDocuments = projectData.projects.flatMap((project) =>
-      (project.attachment?.uploads ?? []).map((upload) => documentFromProjectUpload(project, upload)),
+    const allDocs: DocumentItem[] = [];
+
+    await Promise.all(
+      projectData.projects.map(async (project) => {
+        try {
+          const categoriesData = await getProjectDocumentsCategories(project.id);
+          let parsedCategories = [];
+          if (Array.isArray(categoriesData)) {
+            parsedCategories = categoriesData;
+          } else if (categoriesData && typeof categoriesData === "object") {
+            parsedCategories = (categoriesData as any).categories || (categoriesData as any).data || (categoriesData as any).documents || [];
+          }
+
+          if (Array.isArray(parsedCategories)) {
+            for (const cat of parsedCategories) {
+              const docs = cat.documents || [];
+              for (const doc of docs) {
+                allDocs.push({
+                  id: doc.id,
+                  date: doc.createdAt ? formatPortalDate(doc.createdAt) : "",
+                  downloadUrl: uploadDownloadUrl(doc.uploadId || doc.id),
+                  project: project.title,
+                  title: doc.name,
+                  type: (cat.id === "uncategorized" ? "Uncategorized" : cat.name) as any,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch documents for project ${project.id}`, e);
+        }
+      })
     );
 
-    return { documents: mappedDocuments };
+    return { documents: allDocs };
   } catch {
     return { documents: [] };
   }
@@ -2477,17 +2587,25 @@ export function downloadInvoicePdf(invoiceId: string, fileName?: string) {
 
 export function applyCommissionUpdate(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus },
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
 ): CommissionItem {
   const percentageCommission = Number.isFinite(input.percentageCommission)
     ? Number(input.percentageCommission)
     : commission.percentageCommission;
   const commissionValue = commissionAmountValue(commission.totalAmountValue, percentageCommission);
+  const commissionAmountPaidValue = Number.isFinite(input.commissionAmountPaid)
+    ? Number(input.commissionAmountPaid)
+    : (commission.commissionAmountPaidValue || 0);
+  const commissionAmountBalanceValue = commissionValue - commissionAmountPaidValue;
 
   return {
     ...commission,
     commissionAmount: formatMoney(commissionValue),
     commissionAmountValue: commissionValue,
+    commissionAmountPaid: formatMoney(commissionAmountPaidValue),
+    commissionAmountPaidValue,
+    commissionAmountBalance: formatMoney(commissionAmountBalanceValue),
+    commissionAmountBalanceValue,
     percentageCommission,
     status: input.status ?? commission.status,
   };
@@ -2510,17 +2628,21 @@ export function buildCommissionCreatePayload(commission: CommissionItem): Commis
 
 export function buildCommissionUpdatePayload(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus } = {},
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus } = {},
 ): CommissionUpdatePayload {
   const payload: CommissionUpdatePayload = {};
 
   if (Number.isFinite(input.percentageCommission)) {
     payload.percentageCommission = Number(input.percentageCommission);
   }
+  
+  if (Number.isFinite(input.commissionAmountPaid)) {
+    payload.commissionAmountPaid = Number(input.commissionAmountPaid);
+  }
 
   if (
     input.status === "PAID" &&
-    commission.status === "APPROVED_COMMISSION"
+    commission.status === "PARTIALLY_PAID"
   ) {
     payload.status = input.status;
   }
@@ -2532,9 +2654,11 @@ export async function getCommissions(): Promise<CommissionResponse> {
   try {
     const currentUser = getCurrentPortalUser();
     const path = currentUser?.role === "staff" ? "/commissions/me" : "/commissions";
+    
     const response = await portalRequest<
       BackendCommissionResponse[] | { commissions?: BackendCommissionResponse[]; data?: BackendCommissionResponse[] }
     >(path, {}, true);
+    
     const commissions = filterCommissionsForRole(commissionsFromResponse(response).map(mapBackendCommission));
 
     return {
@@ -2566,7 +2690,7 @@ export async function getCommissions(): Promise<CommissionResponse> {
 
 export async function updateCommission(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus },
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
 ) {
   const payload = buildCommissionUpdatePayload(commission, input);
 
