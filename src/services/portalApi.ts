@@ -22,6 +22,7 @@ import type {
   ProjectUploadItem,
   QuoteDetailInfo,
   QuoteListItem,
+  OutstandingPaymentItem,
 } from "../data/portal";
 import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
 import { formatPortalDate, parsePortalDate } from "../utils/dateFormat";
@@ -1514,8 +1515,11 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   const project = payment.project && typeof payment.project === "object" ? payment.project : undefined;
   const invoice = payment.invoice && typeof payment.invoice === "object" ? payment.invoice : undefined;
 
+  const amountValue = numberFromDecimal(payment.amount) || 0;
+
   return {
-    amount: moneyText(payment.amount),
+    amount: formatMoney(amountValue),
+    amountValue,
     date: formatProjectDate(payment.date ?? payment.createdAt),
     id: payment.id,
     invoice: payment.invoiceId || projectName(payment.invoice, payment.id),
@@ -1537,13 +1541,17 @@ function mapBackendCommission(commission: BackendCommissionResponse): Commission
   const percentageCommission = numberFromDecimal(
     commission.percentageCommission ?? commission.commissionPercentage ?? commission.percentage,
   );
-  const commissionValue =
-    numberFromDecimal(commission.amount ?? commission.commissionAmount) ||
-    commissionAmountValue(totalAmountValue, percentageCommission);
 
   const invoiceId = commission.invoiceId ?? invoice?.invoiceId ?? invoice?.id;
 
+  // amountPaid = what the client has actually paid (not the full invoice amount)
   const amountPaidValue = numberFromDecimal(commission.amountPaid) || 0;
+
+  // Commission amount is correctly based on what the client has paid, not the invoice total
+  const commissionValue =
+    numberFromDecimal(commission.amount ?? commission.commissionAmount) ||
+    commissionAmountValue(amountPaidValue, percentageCommission);
+
   const commissionAmountPaidValue = numberFromDecimal(commission.commissionAmountPaid) || 0;
   const commissionAmountBalanceValue = numberFromDecimal(commission.commissionAmountBalance) || (commissionValue - commissionAmountPaidValue);
 
@@ -2593,7 +2601,9 @@ export function applyCommissionUpdate(
   const percentageCommission = Number.isFinite(input.percentageCommission)
     ? Number(input.percentageCommission)
     : commission.percentageCommission;
-  const commissionValue = commissionAmountValue(commission.totalAmountValue, percentageCommission);
+  // Commission amount is based on what the client has actually paid, not the full invoice total
+  const amountPaidValue = commission.amountPaidValue ?? 0;
+  const commissionValue = commissionAmountValue(amountPaidValue, percentageCommission);
   const commissionAmountPaidValue = Number.isFinite(input.commissionAmountPaid)
     ? Number(input.commissionAmountPaid)
     : (commission.commissionAmountPaidValue || 0);
@@ -2732,6 +2742,52 @@ export async function getPayments(): Promise<PaymentResponse> {
     };
   } catch {
     return emptyPaymentResponse();
+  }
+}
+
+export async function getOutstandingPayments(): Promise<OutstandingPaymentItem[]> {
+  try {
+    const projects = await portalRequest<any[]>("/projects", {}, true);
+    
+    const outstanding: OutstandingPaymentItem[] = [];
+
+    for (const project of projects) {
+      let totalInvoiceAmount = 0;
+      if (project.quotes && Array.isArray(project.quotes)) {
+        for (const quote of project.quotes) {
+          if (quote.invoices && Array.isArray(quote.invoices)) {
+            for (const invoice of quote.invoices) {
+              totalInvoiceAmount += Number(invoice.total) || 0;
+            }
+          }
+        }
+      } else if (project.invoice) {
+        totalInvoiceAmount += Number(project.invoice.total) || 0;
+      }
+
+      let totalPaymentAmount = 0;
+      if (project.payments && Array.isArray(project.payments)) {
+        for (const payment of project.payments) {
+          totalPaymentAmount += Number(payment.amount) || 0;
+        }
+      }
+
+      const overdueValue = totalInvoiceAmount - totalPaymentAmount;
+
+      if (overdueValue > 0) {
+        outstanding.push({
+          projectId: project.id,
+          projectName: project.name || "Unknown Project",
+          clientName: project.client?.name || "Unknown Client",
+          amountOverdue: formatMoney(overdueValue),
+          amountOverdueValue: overdueValue,
+        });
+      }
+    }
+
+    return outstanding.sort((a, b) => b.amountOverdueValue - a.amountOverdueValue);
+  } catch {
+    return [];
   }
 }
 

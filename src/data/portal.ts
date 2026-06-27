@@ -255,6 +255,7 @@ export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check' | 'Stripe';
 
 export type PaymentItem = {
   amount: string;
+  amountValue: number;
   date: string;
   id: string;
   invoice: string;
@@ -263,6 +264,14 @@ export type PaymentItem = {
   project: string;
   projectId?: string;
   reference: string;
+};
+
+export type OutstandingPaymentItem = {
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  amountOverdue: string;
+  amountOverdueValue: number;
 };
 
 export const homeMetrics: Metric[] = [

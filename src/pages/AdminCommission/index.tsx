@@ -166,20 +166,38 @@ function AdminCommission() {
 
   const summary = useMemo(() => {
     const now = new Date();
-    const monthCommissions = commissions.filter((commission) => isCurrentMonth(commission.createdAt, now));
-    const yearCommissions = commissions.filter((commission) => isCurrentYear(commission.createdAt, now));
+    const monthCommissions = commissions.filter((c) => isCurrentMonth(c.createdAt, now));
+    const yearCommissions = commissions.filter((c) => isCurrentYear(c.createdAt, now));
+
+    // All / Month / Year cards: sum commissionAmountPaidValue only where a payout has occurred
+    const allTotal = commissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    const monthTotal = monthCommissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    const yearTotal = yearCommissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    // Sum of corrected commission amounts for INVOICE_COMMISSION / APPROVED_COMMISSION statuses
+    const invoiceCommissionTotal = commissions
+      .filter((c) => c.status === "INVOICE_COMMISSION" || c.status === "APPROVED_COMMISSION")
+      .reduce((sum, c) => sum + c.commissionAmountValue, 0);
+
+    // Sum of commission amounts that are not yet fully paid out
+    const outstandingTotal = commissions
+      .filter((c) => c.status !== "PAID")
+      .reduce((sum, c) => sum + c.commissionAmountValue, 0);
 
     return {
-      allTotal: formatMoney(commissions.filter(c => c.status === "PAID").reduce((sum, commission) => sum + commission.commissionAmountValue, 0)),
-      approvedCount: commissions.filter((commission) => commission.status === "APPROVED_COMMISSION" || commission.status === "INVOICE_COMMISSION").length,
-      monthTotal: formatMoney(
-        monthCommissions.filter(c => c.status === "PAID").reduce((sum, commission) => sum + commission.commissionAmountValue, 0),
-      ),
-      paidCount: commissions.filter((commission) => commission.status === "PAID").length,
-      quotedCount: commissions.filter((commission) => commission.status === "QUOTED_COMMISSION").length,
-      yearTotal: formatMoney(
-        yearCommissions.filter(c => c.status === "PAID").reduce((sum, commission) => sum + commission.commissionAmountValue, 0),
-      ),
+      allTotal: formatMoney(allTotal),
+      monthTotal: formatMoney(monthTotal),
+      yearTotal: formatMoney(yearTotal),
+      invoiceCommissionTotal: formatMoney(invoiceCommissionTotal),
+      outstandingTotal: formatMoney(outstandingTotal),
     };
   }, [commissions]);
 
@@ -273,16 +291,7 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>This year commission</span>
-            <strong>{summary.yearTotal}</strong>
-          </div>
-          <span className="icon-tile icon-tile--success">
-            <PortalIcon name="calendar" />
-          </span>
-        </article>
-        <article className="billing-metric">
-          <div>
-            <span>This month commission</span>
+            <span>This month's commission</span>
             <strong>{summary.monthTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--danger">
@@ -291,17 +300,17 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Quoted commission status</span>
-            <strong>{summary.quotedCount}</strong>
+            <span>This year's commission</span>
+            <strong>{summary.yearTotal}</strong>
           </div>
-          <span className="icon-tile icon-tile--warning">
-            <PortalIcon name="clock" />
+          <span className="icon-tile icon-tile--success">
+            <PortalIcon name="calendar" />
           </span>
         </article>
         <article className="billing-metric">
           <div>
-            <span>Invoice commission status</span>
-            <strong>{summary.approvedCount}</strong>
+            <span>Invoice commission amount</span>
+            <strong>{summary.invoiceCommissionTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--success">
             <PortalIcon name="check" />
@@ -309,11 +318,11 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Paid status</span>
-            <strong>{summary.paidCount}</strong>
+            <span>Outstanding amount</span>
+            <strong>{summary.outstandingTotal}</strong>
           </div>
-          <span className="icon-tile icon-tile--info">
-            <PortalIcon name="check" />
+          <span className="icon-tile icon-tile--warning">
+            <PortalIcon name="clock" />
           </span>
         </article>
       </section>
