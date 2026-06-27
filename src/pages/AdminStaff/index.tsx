@@ -185,7 +185,14 @@ function AdminStaff() {
     {
       title: "Role",
       key: "role",
-      render: (_, staff) => <span>{staff.isAdmin || staff.role === "ADMIN" ? "ADMIN" : "STAFF"}</span>,
+      render: (_, staff) => {
+        const isAdmin = staff.isAdmin || staff.role === "ADMIN";
+        return (
+          <StatusBadge tone={isAdmin ? "danger" : "info"}>
+            {isAdmin ? "Admin" : "Staff"}
+          </StatusBadge>
+        );
+      },
     },
     {
       title: "Created",
@@ -196,7 +203,14 @@ function AdminStaff() {
     {
       title: "Status",
       key: "status",
-      render: (_, staff) => <span>{staff.isActive !== false ? "Active" : "Archived"}</span>,
+      render: (_, staff) => {
+        const isActive = staff.isActive !== false;
+        return (
+          <StatusBadge tone={isActive ? "success" : "neutral"}>
+            {isActive ? "Active" : "Archived"}
+          </StatusBadge>
+        );
+      },
     },
     {
       title: "Action",
