@@ -187,10 +187,9 @@ function AdminCommission() {
       .filter((c) => c.status === "INVOICE_COMMISSION" || c.status === "APPROVED_COMMISSION")
       .reduce((sum, c) => sum + c.commissionAmountValue, 0);
 
-    // Sum of commission amounts that are not yet fully paid out
+    // Sum of all commission amount balances
     const outstandingTotal = commissions
-      .filter((c) => c.status !== "PAID")
-      .reduce((sum, c) => sum + c.commissionAmountValue, 0);
+      .reduce((sum, c) => sum + (c.commissionAmountBalanceValue || 0), 0);
 
     return {
       allTotal: formatMoney(allTotal),
