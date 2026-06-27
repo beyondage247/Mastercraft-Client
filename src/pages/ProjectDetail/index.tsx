@@ -267,7 +267,7 @@ function ProjectDetail() {
       {activeTab === "Document" && (
         <div className="detail-panel">
           <h3>Project Documents</h3>
-          <ProjectAttachmentsPanel onProjectUpdated={setProject} project={project} />
+          <ProjectAttachmentsPanel canUpload onProjectUpdated={setProject} project={project} />
           {/* <div className="document-list">
             <div className="document-row">
               <div className="document-icon">

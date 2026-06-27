@@ -739,6 +739,7 @@ export type StaffRecord = {
   id: string;
   name: string;
   isAdmin?: boolean;
+  isActive?: boolean;
   role: "ADMIN" | "STAFF" | "CLIENT";
 };
 
@@ -2863,6 +2864,18 @@ export async function createStaffUser(input: CreateStaffInput) {
       name: input.name,
     }),
     method: "POST",
+  }, true);
+}
+
+export async function deactivateStaff(staffId: string) {
+  return portalRequest<PortalMessageResponse>(`/users/staff/${encodeURIComponent(staffId)}/deactivate`, {
+    method: "PATCH",
+  }, true);
+}
+
+export async function reactivateStaff(staffId: string) {
+  return portalRequest<PortalMessageResponse>(`/users/staff/${encodeURIComponent(staffId)}/reactivate`, {
+    method: "PATCH",
   }, true);
 }
 

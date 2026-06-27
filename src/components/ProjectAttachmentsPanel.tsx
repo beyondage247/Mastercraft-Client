@@ -17,6 +17,7 @@ import { Modal, Input, Button } from "antd";
 
 type ProjectAttachmentsPanelProps = {
   canUpload?: boolean;
+  canCreateCategory?: boolean;
   onProjectUpdated?: (project: ProjectListItem) => void;
   project: ProjectListItem;
 };
@@ -31,7 +32,7 @@ function fileSizeText(size?: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function ProjectAttachmentsPanel({ canUpload = false, onProjectUpdated, project }: ProjectAttachmentsPanelProps) {
+function ProjectAttachmentsPanel({ canUpload = false, canCreateCategory = false, onProjectUpdated, project }: ProjectAttachmentsPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [categories, setCategories] = useState<DocumentCategoryItem[]>([]);
@@ -262,7 +263,7 @@ function ProjectAttachmentsPanel({ canUpload = false, onProjectUpdated, project 
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-              {canUpload && (
+              {canCreateCategory && (
                 <Button 
                   onClick={() => {
                     setNewCategoryName("");

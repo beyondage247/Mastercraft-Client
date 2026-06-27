@@ -177,6 +177,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                 children: (
                   <ProjectAttachmentsPanel
                     canUpload
+                    canCreateCategory
                     onProjectUpdated={onProjectUpdated}
                     project={project}
                   />
