@@ -257,6 +257,7 @@ export type PaymentItem = {
   amount: string;
   amountValue: number;
   date: string;
+  dateISO: string;
   id: string;
   invoice: string;
   invoiceId?: string;
@@ -609,7 +610,8 @@ export const payments: PaymentItem[] = [
     method: 'ACH',
     project: 'Westside Tower Renovation',
     reference: 'ACH-9928371',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -619,7 +621,8 @@ export const payments: PaymentItem[] = [
     method: 'Wire',
     project: 'Downtown HVAC Upgrade',
     reference: 'WIRE-7726192',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -629,7 +632,8 @@ export const payments: PaymentItem[] = [
     method: 'Credit Card',
     project: 'Riverside Complex Phase 2',
     reference: 'CC-4451910',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -639,7 +643,8 @@ export const payments: PaymentItem[] = [
     method: 'Check',
     project: 'Westside Tower Renovation',
     reference: 'CHK-001234',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -649,7 +654,8 @@ export const payments: PaymentItem[] = [
     method: 'Credit Card',
     project: 'Northpoint Logistics Center',
     reference: 'CC-98766910',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -659,7 +665,8 @@ export const payments: PaymentItem[] = [
     method: 'Wire',
     project: 'Marina Bay Electrical',
     reference: 'WIRE-7726143',
-    amountValue: 0
+    amountValue: 0,
+    dateISO: ''
   },
 ];
 

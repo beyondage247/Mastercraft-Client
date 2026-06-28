@@ -104,12 +104,33 @@ function AdminPayments() {
   );
 
   const summary = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
     const paidAmountTotal = payments.reduce((sum, payment) => sum + (payment.amountValue || 0), 0);
     const overdueTotal = outstandingPayments.reduce((sum, payment) => sum + (payment.amountOverdueValue || 0), 0);
+
+    const monthTotal = payments
+      .filter((payment) => {
+        if (!payment.dateISO) return false;
+        const d = new Date(payment.dateISO);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      })
+      .reduce((sum, payment) => sum + (payment.amountValue || 0), 0);
+
+    const yearTotal = payments
+      .filter((payment) => {
+        if (!payment.dateISO) return false;
+        return new Date(payment.dateISO).getFullYear() === currentYear;
+      })
+      .reduce((sum, payment) => sum + (payment.amountValue || 0), 0);
 
     return {
       paidTotal: formatMoney(paidAmountTotal),
       overdueTotal: formatMoney(overdueTotal),
+      monthTotal: formatMoney(monthTotal),
+      yearTotal: formatMoney(yearTotal),
     };
   }, [payments, outstandingPayments]);
 
@@ -225,6 +246,24 @@ function AdminPayments() {
           </div>
           <span className="icon-tile icon-tile--success">
             <PortalIcon name="dollar" />
+          </span>
+        </article>
+        <article className="billing-metric">
+          <div>
+            <span>Paid This Month</span>
+            <strong>{summary.monthTotal}</strong>
+          </div>
+          <span className="icon-tile icon-tile--primary">
+            <PortalIcon name="calendar" />
+          </span>
+        </article>
+        <article className="billing-metric">
+          <div>
+            <span>Paid This Year</span>
+            <strong>{summary.yearTotal}</strong>
+          </div>
+          <span className="icon-tile icon-tile--info">
+            <PortalIcon name="calendar" />
           </span>
         </article>
         <article className="billing-metric">

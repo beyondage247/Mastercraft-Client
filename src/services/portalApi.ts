@@ -496,6 +496,7 @@ export type QuotePaymentScheduleInput = {
 };
 
 export type CreateQuoteInput = {
+  autoApprove?: boolean;
   dateIssued: string;
   discount?: number;
   lineItems: Array<{
@@ -1521,6 +1522,7 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
     amount: formatMoney(amountValue),
     amountValue,
     date: formatProjectDate(payment.date ?? payment.createdAt),
+    dateISO: payment.date ?? payment.createdAt ?? "",
     id: payment.id,
     invoice: payment.invoiceId || projectName(payment.invoice, payment.id),
     invoiceId: payment.invoiceId || invoice?.id,
