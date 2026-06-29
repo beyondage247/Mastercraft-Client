@@ -8,6 +8,7 @@ import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
 import { downloadInvoicePdf, getInvoices } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 const pageSize = 15;
 
@@ -130,7 +131,22 @@ function AdminInvoices() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Invoice List</h2>
-          <span>{visibleInvoices.length} showing</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{visibleInvoices.length} showing</span>
+            <ExportButton
+              data={visibleInvoices.map((inv) => ({
+                'Invoice ID': inv.invoiceId ?? inv.id,
+                Client: inv.clientName ?? '',
+                Project: inv.project,
+                Amount: inv.total ?? inv.amount,
+                Status: inv.status,
+                'Issued Date': inv.issuedDate ?? '',
+                'Due Date': inv.dueDate ?? '',
+              }))}
+              filename="invoices"
+              label="Export"
+            />
+          </div>
         </div>
         <label className="admin-table-search">
           <PortalIcon name="search" />

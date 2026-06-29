@@ -25,6 +25,7 @@ import {
 import type { ProjectListItem } from "../../data/portal";
 import { formatPortalDateOrFallback, PORTAL_DATE_FORMAT } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type ClientFormState = {
   additionalEmail: string;
@@ -645,7 +646,24 @@ function AdminClients() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Recent Clients</h2>
-          <span>{clients.length} total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{clients.length} total</span>
+            <ExportButton
+              data={clients.map((c) => ({
+                Name: c.name,
+                Company: c.company ?? '',
+                Email: c.email ?? '',
+                Phone: c.phone ?? c.phoneNumber ?? '',
+                'Contact Name': c.contactName ?? '',
+                'Additional Email': c.additionalEmail ?? '',
+                'Credit Type': c.clientCredit ?? '',
+                Created: c.createdAt ?? '',
+                Assignment: c.accountPartner?.name ?? '',
+              }))}
+              filename="clients"
+              label="Export"
+            />
+          </div>
         </div>
         <label className="admin-table-search">
           <PortalIcon name="search" />

@@ -6,6 +6,7 @@ import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
 import type { ProjectListItem } from "../../data/portal";
 import { getProjects } from "../../services/portalApi";
+import ExportButton from '../../components/ExportButton';
 
 function AdminProjects() {
   const [editingProject, setEditingProject] = useState<ProjectListItem | null>(null);
@@ -63,7 +64,24 @@ function AdminProjects() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Project List</h2>
-          <span>{projects.length} total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{projects.length} total</span>
+            <ExportButton
+              data={projects.map((p) => ({
+                Project: p.title,
+                Staff: p.assignedStaffName ?? p.assignedStaffEmail ?? 'Not assigned',
+                Location: p.location,
+                'Estimated Completion': p.estimatedCompletion ?? p.dueDate ?? '',
+                'Fabrication (%)': p.fabrication ?? p.progress,
+                Status: p.status,
+                Client: p.clientName ?? '',
+                'Start Date': p.startDate ?? '',
+                'End Date': p.endDate ?? '',
+              }))}
+              filename="projects"
+              label="Export"
+            />
+          </div>
         </div>
         <AdminProjectTable
           error={error}

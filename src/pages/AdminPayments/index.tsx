@@ -4,6 +4,7 @@ import type { PaymentItem, OutstandingPaymentItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import { getPayments, getOutstandingPayments } from "../../services/portalApi";
+import ExportButton from '../../components/ExportButton';
 
 const pageSize = 15;
 
@@ -138,7 +139,21 @@ function AdminPayments() {
     <section className="panel admin-client-list" style={{ marginTop: '0px' }}>
       <div className="panel__header">
         <h2>Payment List</h2>
-        <span>{visiblePayments.length} showing</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span>{visiblePayments.length} showing</span>
+          <ExportButton
+            data={visiblePayments.map((p) => ({
+              Reference: p.reference,
+              'Invoice/Record': p.invoice,
+              Project: p.project,
+              Amount: p.amount,
+              Method: p.method,
+              Date: p.date,
+            }))}
+            filename="payments"
+            label="Export"
+          />
+        </div>
       </div>
       <label className="admin-table-search">
         <PortalIcon name="search" />
@@ -191,7 +206,18 @@ function AdminPayments() {
     <section className="panel admin-client-list" style={{ marginTop: '0px' }}>
       <div className="panel__header">
         <h2>Outstanding List</h2>
-        <span>{visibleOutstanding.length} showing</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span>{visibleOutstanding.length} showing</span>
+          <ExportButton
+            data={visibleOutstanding.map((item) => ({
+              'Project Name': item.projectName,
+              'Client Name': item.clientName,
+              'Amount Overdue': item.amountOverdue,
+            }))}
+            filename="outstanding-payments"
+            label="Export"
+          />
+        </div>
       </div>
       <label className="admin-table-search">
         <PortalIcon name="search" />

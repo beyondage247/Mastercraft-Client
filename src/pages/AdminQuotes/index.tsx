@@ -5,6 +5,7 @@ import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
 import { getQuotes } from "../../services/portalApi";
+import ExportButton from '../../components/ExportButton';
 
 function AdminQuotes() {
   const [editingQuote, setEditingQuote] = useState<QuoteListItem | null>(null);
@@ -63,7 +64,21 @@ function AdminQuotes() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Quote List</h2>
-          <span>{quotes.length} total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{quotes.length} total</span>
+            <ExportButton
+              data={quotes.map((q) => ({
+                'Quote ID': q.uid,
+                Title: q.title,
+                Project: q.projectName ?? q.description,
+                Amount: q.total ?? q.amount,
+                Status: q.status,
+                'Valid Until': q.validUntil,
+              }))}
+              filename="quotes"
+              label="Export"
+            />
+          </div>
         </div>
         <AdminQuoteTable
           error={error}

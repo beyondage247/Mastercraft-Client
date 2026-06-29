@@ -15,6 +15,7 @@ import {
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type StaffFormState = CreateStaffInput;
 
@@ -296,7 +297,20 @@ function AdminStaff() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Staff Accounts</h2>
-          <span>{currentTabStaff.length} total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{currentTabStaff.length} total</span>
+            <ExportButton
+              data={currentTabStaff.map((s) => ({
+                Name: s.name,
+                Email: s.email,
+                Role: s.isAdmin ? 'Admin' : 'Staff',
+                Status: s.isActive === false ? 'Archived' : 'Active',
+                Created: s.createdAt ? formatPortalDateOrFallback(s.createdAt) : '',
+              }))}
+              filename="staff"
+              label="Export"
+            />
+          </div>
         </div>
         
         <Tabs 

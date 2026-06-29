@@ -230,6 +230,8 @@ export type CommissionItem = {
   commissionAmountPaidValue?: number;
   commissionAmountBalance?: string;
   commissionAmountBalanceValue?: number;
+  invoiceCommission?: string;
+  invoiceCommissionValue?: number;
   createdAt?: string;
   id: string;
   invoiceId?: string;

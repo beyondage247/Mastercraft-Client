@@ -18,6 +18,7 @@ import {
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type CatalogFormState = {
   active: boolean;
@@ -775,6 +776,28 @@ function AdminProductsServices() {
           <h2>Catalog Items</h2>
           <div className="panel__actions">
             <span>{filteredItems.length} showing</span>
+            <ExportButton
+              data={filteredItems.map((item) => ({
+                'Product Name': item.productName,
+                'Item Code': item.itemCode ?? '',
+                Category: item.category,
+                Subcategory: item.subcategory ?? '',
+                Material: item.material ?? '',
+                'Size/Dimension': item.sizeDimension ?? '',
+                'Unit of Measure': item.unitMeasure ?? '',
+                'Style Profile': item.styleProfile ?? '',
+                Supplier: item.supplier,
+                'Supplier Catalogue': item.supplierCatalogue ?? '',
+                'Supplier Cost': item.supplierCost ?? '',
+                'Our Price': item.ourPrice ?? '',
+                'Mark Up': item.markUp ?? '',
+                'Availability Status': item.availabilityStatus.join(', '),
+                Active: item.active ? 'Yes' : 'No',
+                'Last Price Update': item.lastPriceUpdate ?? '',
+              }))}
+              filename="products-services"
+              label="Export"
+            />
             <button className="primary-action" onClick={openCreate} type="button">
               <PortalIcon name="plus" />
               <span>Add Product</span>

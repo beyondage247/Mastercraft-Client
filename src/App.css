@@ -3968,7 +3968,7 @@
 
 .admin-record-table--commission .admin-record-table__head,
 .admin-record-table--commission .admin-record-table__row {
-  grid-template-columns: 1fr 1fr 0.9fr 0.9fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.7fr;
+  grid-template-columns: 1fr 1fr 0.9fr 0.9fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.7fr;
 }
 
 .admin-record-table__row.is-selected {
@@ -4291,3 +4291,37 @@
   font-weight: 700;
   margin: 0;
 }
+
+/* ─── Export button ─────────────────────────────────────────────────── */
+.export-btn {
+  align-items: center;
+  background: #fff;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+  white-space: nowrap;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #fff7f7;
+  border-color: var(--color-danger);
+  color: var(--color-danger-deep);
+}
+
+.export-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.export-btn svg {
+  font-size: 15px;
+}
+

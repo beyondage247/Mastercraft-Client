@@ -629,6 +629,7 @@ type BackendCommissionResponse = {
   staffName?: unknown;
   status?: string;
   total?: string | number;
+  invoiceCommission?: string | number;
   updatedAt?: string | null;
 };
 
@@ -652,6 +653,7 @@ export type CommissionCreatePayload = {
 
 export type CommissionUpdatePayload = {
   commissionAmountPaid?: number;
+  invoiceCommission?: number;
   percentageCommission?: number;
   status?: CommissionStatus;
 };
@@ -1557,6 +1559,11 @@ function mapBackendCommission(commission: BackendCommissionResponse): Commission
   const commissionAmountPaidValue = numberFromDecimal(commission.commissionAmountPaid) || 0;
   const commissionAmountBalanceValue = numberFromDecimal(commission.commissionAmountBalance) || (commissionValue - commissionAmountPaidValue);
 
+  // invoiceCommission = percentage commission × invoice total (from API or calculated)
+  const invoiceCommissionValue =
+    numberFromDecimal(commission.invoiceCommission) ||
+    (totalAmountValue > 0 ? (percentageCommission / 100) * totalAmountValue : 0);
+
   return {
     clientId: commission.clientId ?? client?.id,
     clientCompany: normalizeString(client?.company),
@@ -1570,6 +1577,8 @@ function mapBackendCommission(commission: BackendCommissionResponse): Commission
     commissionAmountPaidValue,
     commissionAmountBalance: formatMoney(commissionAmountBalanceValue),
     commissionAmountBalanceValue,
+    invoiceCommission: formatMoney(invoiceCommissionValue),
+    invoiceCommissionValue,
     createdAt: formatProjectDate(commission.createdAt),
     id: commission.id,
     invoiceId,
@@ -2651,6 +2660,11 @@ export function buildCommissionUpdatePayload(
   
   if (Number.isFinite(input.commissionAmountPaid)) {
     payload.commissionAmountPaid = Number(input.commissionAmountPaid);
+  }
+
+  // Always send invoiceCommission calculated from percentage × total
+  if (Number.isFinite(commission.invoiceCommissionValue) && (commission.invoiceCommissionValue ?? 0) > 0) {
+    payload.invoiceCommission = commission.invoiceCommissionValue;
   }
 
   if (

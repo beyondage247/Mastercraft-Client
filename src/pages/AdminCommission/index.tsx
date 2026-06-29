@@ -12,6 +12,7 @@ import {
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type CommissionFormState = {
   commissionAmountPaid: string;
@@ -182,10 +183,9 @@ function AdminCommission() {
       .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
       .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
 
-    // Sum of corrected commission amounts for INVOICE_COMMISSION / APPROVED_COMMISSION statuses
+    // Sum of invoiceCommissionValue for all commissions
     const invoiceCommissionTotal = commissions
-      .filter((c) => c.status === "INVOICE_COMMISSION" || c.status === "APPROVED_COMMISSION")
-      .reduce((sum, c) => sum + c.commissionAmountValue, 0);
+      .reduce((sum, c) => sum + (c.invoiceCommissionValue ?? 0), 0);
 
     // Sum of all commission amount balances
     const outstandingTotal = commissions
@@ -329,7 +329,29 @@ function AdminCommission() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Commission Table</h2>
-          <span>{visibleCommissions.length} showing</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{visibleCommissions.length} showing</span>
+            <ExportButton
+              data={visibleCommissions.map((c) => ({
+                Project: c.projectName,
+                Quote: c.quoteName,
+                'Quote Reference': c.quoteReference ?? '',
+                Client: c.clientName,
+                Staff: c.staffName,
+                'Staff Email': c.staffEmail ?? '',
+                'Invoice Amount': c.totalAmount,
+                'Amount Paid': c.amountPaid ?? '',
+                '% Commission': c.percentageCommission,
+                'Commission Amount': c.commissionAmount,
+                'Commission Amount Paid': c.commissionAmountPaid ?? '',
+                'Commission Amount Balance': c.commissionAmountBalance ?? '',
+                'Invoice Commission Amount': c.invoiceCommission ?? '',
+                Status: c.status,
+              }))}
+              filename="commissions"
+              label="Export"
+            />
+          </div>
         </div>
         <label className="admin-table-search">
           <PortalIcon name="search" />
@@ -353,6 +375,7 @@ function AdminCommission() {
             <span>Commission Amount</span>
             <span>Commission Amount Paid</span>
             <span>Commission Amount Balance</span>
+            <span>Invoice Commission Amount</span>
             <span>Status</span>
             <span>Action</span>
           </div>
@@ -379,6 +402,7 @@ function AdminCommission() {
                 <strong>{commission.commissionAmount}</strong>
                 <span>{commission.commissionAmountPaid}</span>
                 <span>{commission.commissionAmountBalance}</span>
+                <span>{commission.invoiceCommission ?? '—'}</span>
                 <span>
                   <StatusBadge tone={statusTone[commission.status]}>{statusLabel(commission.status)}</StatusBadge>
                 </span>
@@ -460,6 +484,10 @@ function AdminCommission() {
             <div>
               <span>Commission amount</span>
               <strong>{viewingCommission.commissionAmount}</strong>
+            </div>
+            <div>
+              <span>Invoice commission amount</span>
+              <strong>{viewingCommission.invoiceCommission ?? '—'}</strong>
             </div>
             <div>
               <span>Status</span>
