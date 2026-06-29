@@ -144,6 +144,7 @@ function AdminPayments() {
           <ExportButton
             data={visiblePayments.map((p) => ({
               Reference: p.reference,
+              Client: p.clientName ?? '',
               'Invoice/Record': p.invoice,
               Project: p.project,
               Amount: p.amount,
@@ -168,6 +169,7 @@ function AdminPayments() {
       <div className="admin-record-table admin-record-table--payments">
         <div className="admin-record-table__head">
           <span>Reference</span>
+          <span>Client</span>
           <span>Invoice/Record</span>
           <span>Project</span>
           <span>Amount</span>
@@ -181,6 +183,7 @@ function AdminPayments() {
           paginatedPayments.map((payment) => (
             <article className="admin-record-table__row" key={payment.id}>
               <strong>{payment.reference}</strong>
+              <span>{payment.clientName || '—'}</span>
               <span>{payment.invoice}</span>
               <span>{payment.project}</span>
               <span>{payment.amount}</span>

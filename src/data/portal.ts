@@ -162,6 +162,8 @@ export type QuotePaymentSchedule = {
 export type QuoteListItem = {
   amount: string;
   clientComment?: string;
+  clientId?: string;
+  clientName?: string;
   dateIssued?: string;
   description: string;
   id: string;
@@ -258,6 +260,7 @@ export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check' | 'Stripe';
 export type PaymentItem = {
   amount: string;
   amountValue: number;
+  clientName?: string;
   date: string;
   dateISO: string;
   id: string;

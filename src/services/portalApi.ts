@@ -1479,9 +1479,14 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
   const paymentSchedule = normalizeQuotePaymentSchedule(quote.paymentSchedule);
   const total = moneyText(quote.total);
 
+  // Extract clientId from the project object in the quote response
+  const projectObj = quote.project && typeof quote.project === "object" ? quote.project : undefined;
+  const clientId = projectObj?.clientId;
+
   return {
     amount: moneyText(quote.amount ?? quote.total),
     clientComment: normalizeString(quote.clientComment),
+    clientId,
     dateIssued: formatProjectDate(quote.dateIssued),
     description: quote.description || projectName(quote.project, ""),
     id: quote.id,
@@ -1519,10 +1524,12 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   const invoice = payment.invoice && typeof payment.invoice === "object" ? payment.invoice : undefined;
 
   const amountValue = numberFromDecimal(payment.amount) || 0;
+  const clientName = normalizeString(project?.client?.name ?? project?.clientName);
 
   return {
     amount: formatMoney(amountValue),
     amountValue,
+    clientName: clientName || undefined,
     date: formatProjectDate(payment.date ?? payment.createdAt),
     dateISO: payment.date ?? payment.createdAt ?? "",
     id: payment.id,
@@ -1927,6 +1934,7 @@ function emptyPaymentResponse(): PaymentResponse {
 function invoiceFromQuote(
   invoice: BackendInvoiceResponse,
   quote: {
+    clientName?: string;
     lineItems?: InvoiceItem["lineItems"];
     paymentSchedule?: QuoteListItem["paymentSchedule"];
     projectId?: string;
@@ -1942,6 +1950,7 @@ function invoiceFromQuote(
 
   return {
     amount: total,
+    clientName: quote.clientName,
     dueDate: quote.validUntil || "",
     id: invoice.id,
     invoiceId: invoice.invoiceId || invoice.id,
@@ -2471,8 +2480,36 @@ export async function respondToQuote(id: string, status: QuoteDecisionStatus, co
 
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
-    const quoteResponse = await portalRequest<BackendQuoteResponse[] | BackendQuoteEnvelopeResponse>("/quotes", {}, true);
-    const mappedQuotes = quotesFromResponse(quoteResponse).map(mapBackendQuote);
+    const [quoteResponse, projectData] = await Promise.all([
+      portalRequest<BackendQuoteResponse[] | BackendQuoteEnvelopeResponse>("/quotes", {}, true),
+      getProjects().catch(() => emptyProjectResponse()),
+    ]);
+
+    // Build a map of clientId -> clientName from projects for quote enrichment
+    const clientNameByClientId = new Map<string, string>();
+    const clientNameByProjectId = new Map<string, string>();
+    for (const project of projectData.projects) {
+      if (project.clientId && project.clientName) {
+        clientNameByClientId.set(project.clientId, project.clientName);
+      }
+      if (project.id && project.clientName) {
+        clientNameByProjectId.set(project.id, project.clientName);
+      }
+    }
+
+    const mappedQuotes = quotesFromResponse(quoteResponse).map((raw) => {
+      const quote = mapBackendQuote(raw);
+      // Resolve clientName: prefer project-level lookup, fall back to clientId lookup
+      const clientName =
+        (quote.projectId ? clientNameByProjectId.get(quote.projectId) : undefined) ??
+        (quote.clientId ? clientNameByClientId.get(quote.clientId) : undefined);
+      if (clientName) {
+        quote.clientName = clientName;
+        // Also propagate clientName to embedded invoices
+        quote.invoices = (quote.invoices ?? []).map((inv) => ({ ...inv, clientName }));
+      }
+      return quote;
+    });
 
     return {
       metrics: buildQuoteMetrics(mappedQuotes),

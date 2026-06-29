@@ -104,6 +104,7 @@ function AdminProjectTable({
       <div className="admin-record-table admin-record-table--projects">
       <div className="admin-record-table__head">
         <span>Project</span>
+        <span>Client</span>
         <span>Staff</span>
         <span>Location</span>
         <span>Estimated Completion</span>
@@ -122,6 +123,7 @@ function AdminProjectTable({
           return (
             <article className="admin-record-table__row" key={project.id}>
               <strong>{project.title}</strong>
+              <span>{project.clientName || '—'}</span>
               <span>{assignedStaffText(project)}</span>
               <span>{project.location || "Not set"}</span>
               <span>{project.estimatedCompletion || project.dueDate || "Not set"}</span>
