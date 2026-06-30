@@ -829,7 +829,7 @@ function AdminQuoteModal({
     },
   ];
 
-  async function handleSubmit() {
+  async function handleSubmit(autoApprove = false) {
     if (!project && !quote?.projectId) {
       return;
     }
@@ -898,7 +898,9 @@ function AdminQuoteModal({
       total,
       validUntil: form.validUntil,
     };
-    const toast = showRequestToast(isEdit ? "update-quote" : "create-quote", isEdit ? "Updating quote..." : "Creating quote...");
+    const toastLabel = autoApprove ? "create-invoice" : (isEdit ? "update-quote" : "create-quote");
+    const toastMsg = autoApprove ? "Creating invoice..." : (isEdit ? "Updating quote..." : "Creating quote...");
+    const toast = showRequestToast(toastLabel, toastMsg);
     setIsSubmitting(true);
 
     try {
@@ -906,10 +908,14 @@ function AdminQuoteModal({
         ? await updateQuote(quote.id, payload)
         : await createQuote({
             ...payload,
+            autoApprove,
             projectId: project?.id || quote?.projectId || "",
           });
 
-      toast.success(isEdit ? "Quote was updated." : `Quote created for ${project?.title || "project"}.`);
+      const successMsg = autoApprove
+        ? `Invoice created for ${project?.title || "project"}.`
+        : (isEdit ? "Quote was updated." : `Quote created for ${project?.title || "project"}.`);
+      toast.success(successMsg);
       onSaved?.(savedQuote);
       onCreated?.(savedQuote);
       onClose();
@@ -922,10 +928,29 @@ function AdminQuoteModal({
 
   return (
     <Modal maskClosable={false}
-      okButtonProps={{ loading: isSubmitting }}
-      okText={isEdit ? "Save quote" : "Create quote"}
+      footer={
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Button disabled={isSubmitting} onClick={onClose}>Cancel</Button>
+          <Button
+            loading={isSubmitting}
+            onClick={() => handleSubmit(false)}
+            type="primary"
+          >
+            {isEdit ? "Save quote" : "Create quote"}
+          </Button>
+          {!isEdit && (
+            <Button
+              loading={isSubmitting}
+              onClick={() => handleSubmit(true)}
+              style={{ background: "#16a34a", borderColor: "#16a34a", color: "#fff" }}
+              type="primary"
+            >
+              Create Invoice
+            </Button>
+          )}
+        </div>
+      }
       onCancel={onClose}
-      onOk={handleSubmit}
       open={open}
       title={`${isEdit ? "Edit" : "Create"} quote${project ? ` for ${project.title}` : ""}`}
       width={1040}

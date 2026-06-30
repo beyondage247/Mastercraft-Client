@@ -44,6 +44,7 @@ function AdminQuoteTable({
     return quotes.filter((quote) =>
       [
         quote.title,
+        quote.clientName,
         quote.projectName,
         quote.description,
         quote.total,
@@ -110,6 +111,7 @@ function AdminQuoteTable({
       <div className="admin-record-table admin-record-table--quotes">
         <div className="admin-record-table__head">
           <span>Quote</span>
+          <span>Client</span>
           <span>Project</span>
           <span>Amount</span>
           <span>Valid Until</span>
@@ -124,6 +126,7 @@ function AdminQuoteTable({
           paginatedQuotes.map((quote) => (
             <article className="admin-record-table__row" key={quote.id}>
               <strong>{quote.title}</strong>
+              <span>{quote.clientName || '—'}</span>
               <span>{quote.projectName || quote.description || "Not set"}</span>
               <span>{quote.total || quote.amount}</span>
               <span>{quote.validUntil || "Not set"}</span>

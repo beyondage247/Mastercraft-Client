@@ -60,6 +60,20 @@ export type ProjectUploadItem = {
   size: number;
 };
 
+export type ProjectDocumentItem = {
+  id: string;
+  name: string;
+  size?: number;
+  uploadId?: string;
+  createdAt?: string;
+};
+
+export type DocumentCategoryItem = {
+  id: string;
+  name: string;
+  documents: ProjectDocumentItem[];
+};
+
 export type ProjectListItem = {
   id: string;
   category: string;
@@ -148,6 +162,8 @@ export type QuotePaymentSchedule = {
 export type QuoteListItem = {
   amount: string;
   clientComment?: string;
+  clientId?: string;
+  clientName?: string;
   dateIssued?: string;
   description: string;
   id: string;
@@ -201,17 +217,26 @@ export type InvoiceItem = {
   total?: string;
 };
 
-export type CommissionStatus = 'QUOTED_COMMISSION' | 'APPROVED_COMMISSION' | 'PAID';
+export type CommissionStatus = 'QUOTED_COMMISSION' | 'APPROVED_COMMISSION' | 'INVOICE_COMMISSION' | 'PARTIALLY_PAID' | 'PAID';
 
 export type CommissionItem = {
   clientId?: string;
   clientEmail?: string;
   clientCompany?: string;
   clientName: string;
+  amountPaid?: string;
+  amountPaidValue?: number;
   commissionAmount: string;
   commissionAmountValue: number;
+  commissionAmountPaid?: string;
+  commissionAmountPaidValue?: number;
+  commissionAmountBalance?: string;
+  commissionAmountBalanceValue?: number;
+  invoiceCommission?: string;
+  invoiceCommissionValue?: number;
   createdAt?: string;
   id: string;
+  invoiceId?: string;
   paidAt?: string;
   percentageCommission: number;
   projectId?: string;
@@ -230,11 +255,14 @@ export type CommissionItem = {
   updatedAt?: string;
 };
 
-export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check';
+export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check' | 'Stripe';
 
 export type PaymentItem = {
   amount: string;
+  amountValue: number;
+  clientName?: string;
   date: string;
+  dateISO: string;
   id: string;
   invoice: string;
   invoiceId?: string;
@@ -242,6 +270,14 @@ export type PaymentItem = {
   project: string;
   projectId?: string;
   reference: string;
+};
+
+export type OutstandingPaymentItem = {
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  amountOverdue: string;
+  amountOverdueValue: number;
 };
 
 export const homeMetrics: Metric[] = [
@@ -567,6 +603,7 @@ export const paymentFilters: Array<{ label: string; value: 'All' | PaymentMethod
   { label: 'Wire', value: 'Wire' },
   { label: 'Credit Card', value: 'Credit Card' },
   { label: 'Check', value: 'Check' },
+  { label: 'Stripe', value: 'Stripe' },
 ];
 
 export const payments: PaymentItem[] = [
@@ -578,6 +615,8 @@ export const payments: PaymentItem[] = [
     method: 'ACH',
     project: 'Westside Tower Renovation',
     reference: 'ACH-9928371',
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -587,6 +626,8 @@ export const payments: PaymentItem[] = [
     method: 'Wire',
     project: 'Downtown HVAC Upgrade',
     reference: 'WIRE-7726192',
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -596,6 +637,8 @@ export const payments: PaymentItem[] = [
     method: 'Credit Card',
     project: 'Riverside Complex Phase 2',
     reference: 'CC-4451910',
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -605,6 +648,8 @@ export const payments: PaymentItem[] = [
     method: 'Check',
     project: 'Westside Tower Renovation',
     reference: 'CHK-001234',
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -614,6 +659,8 @@ export const payments: PaymentItem[] = [
     method: 'Credit Card',
     project: 'Northpoint Logistics Center',
     reference: 'CC-98766910',
+    amountValue: 0,
+    dateISO: ''
   },
   {
     amount: '$15,000.00',
@@ -623,6 +670,8 @@ export const payments: PaymentItem[] = [
     method: 'Wire',
     project: 'Marina Bay Electrical',
     reference: 'WIRE-7726143',
+    amountValue: 0,
+    dateISO: ''
   },
 ];
 

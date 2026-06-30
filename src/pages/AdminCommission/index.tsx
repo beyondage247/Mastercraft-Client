@@ -12,8 +12,10 @@ import {
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type CommissionFormState = {
+  commissionAmountPaid: string;
   percentageCommission: string;
   status: CommissionStatus;
 };
@@ -22,15 +24,19 @@ const pageSize = 15;
 
 const statusTone = {
   APPROVED_COMMISSION: "success",
+  INVOICE_COMMISSION: "success",
+  PARTIALLY_PAID: "warning",
   PAID: "info",
   QUOTED_COMMISSION: "warning",
 } as const;
 
 function statusLabel(status: CommissionStatus) {
   const labels: Record<CommissionStatus, string> = {
-    APPROVED_COMMISSION: "APPROVED COMMISSION",
-    PAID: "PAID",
-    QUOTED_COMMISSION: "QUOTED COMMISSION",
+    APPROVED_COMMISSION: "Invoice Commission",
+    INVOICE_COMMISSION: "Invoice Commission",
+    PARTIALLY_PAID: "Partially Paid",
+    PAID: "Paid",
+    QUOTED_COMMISSION: "Quoted Commission",
   };
 
   return labels[status];
@@ -71,13 +77,14 @@ function dateText(value?: string) {
 
 function formFromCommission(commission: CommissionItem): CommissionFormState {
   return {
+    commissionAmountPaid: String(commission.commissionAmountPaidValue || 0),
     percentageCommission: String(commission.percentageCommission),
     status: commission.status,
   };
 }
 
 function statusCanBeChangedByAdmin(status: CommissionStatus) {
-  return status === "APPROVED_COMMISSION";
+  return status === "PARTIALLY_PAID";
 }
 
 function AdminCommission() {
@@ -160,20 +167,36 @@ function AdminCommission() {
 
   const summary = useMemo(() => {
     const now = new Date();
-    const monthCommissions = commissions.filter((commission) => isCurrentMonth(commission.createdAt, now));
-    const yearCommissions = commissions.filter((commission) => isCurrentYear(commission.createdAt, now));
+    const monthCommissions = commissions.filter((c) => isCurrentMonth(c.createdAt, now));
+    const yearCommissions = commissions.filter((c) => isCurrentYear(c.createdAt, now));
+
+    // All / Month / Year cards: sum commissionAmountPaidValue only where a payout has occurred
+    const allTotal = commissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    const monthTotal = monthCommissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    const yearTotal = yearCommissions
+      .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
+
+    // Sum of invoiceCommissionValue for all commissions
+    const invoiceCommissionTotal = commissions
+      .reduce((sum, c) => sum + (c.invoiceCommissionValue ?? 0), 0);
+
+    // Sum of all commission amount balances
+    const outstandingTotal = commissions
+      .reduce((sum, c) => sum + (c.commissionAmountBalanceValue || 0), 0);
 
     return {
-      allTotal: formatMoney(commissions.reduce((sum, commission) => sum + commission.commissionAmountValue, 0)),
-      approvedCount: commissions.filter((commission) => commission.status === "APPROVED_COMMISSION").length,
-      monthTotal: formatMoney(
-        monthCommissions.reduce((sum, commission) => sum + commission.commissionAmountValue, 0),
-      ),
-      paidCount: commissions.filter((commission) => commission.status === "PAID").length,
-      quotedCount: commissions.filter((commission) => commission.status === "QUOTED_COMMISSION").length,
-      yearTotal: formatMoney(
-        yearCommissions.reduce((sum, commission) => sum + commission.commissionAmountValue, 0),
-      ),
+      allTotal: formatMoney(allTotal),
+      monthTotal: formatMoney(monthTotal),
+      yearTotal: formatMoney(yearTotal),
+      invoiceCommissionTotal: formatMoney(invoiceCommissionTotal),
+      outstandingTotal: formatMoney(outstandingTotal),
     };
   }, [commissions]);
 
@@ -195,9 +218,15 @@ function AdminCommission() {
     }
 
     const percentageCommission = Number(form.percentageCommission);
+    const commissionAmountPaid = Number(form.commissionAmountPaid);
 
     if (!Number.isFinite(percentageCommission) || percentageCommission < 0 || percentageCommission > 100) {
       setError("Percentage commission must be between 0 and 100.");
+      return;
+    }
+    
+    if (!Number.isFinite(commissionAmountPaid) || commissionAmountPaid < 0) {
+      setError("Commission amount paid must be a valid number.");
       return;
     }
 
@@ -209,6 +238,7 @@ function AdminCommission() {
     try {
       setIsSaving(true);
       const updatedCommission = await updateCommission(editingCommission, {
+        commissionAmountPaid,
         percentageCommission,
         ...statusUpdate,
       });
@@ -231,6 +261,7 @@ function AdminCommission() {
 
   const editedPreview = editingCommission && form
     ? applyCommissionUpdate(editingCommission, {
+        commissionAmountPaid: Number(form.commissionAmountPaid),
         percentageCommission: Number(form.percentageCommission),
         status: form.status,
       })
@@ -259,16 +290,7 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>This year commission</span>
-            <strong>{summary.yearTotal}</strong>
-          </div>
-          <span className="icon-tile icon-tile--success">
-            <PortalIcon name="calendar" />
-          </span>
-        </article>
-        <article className="billing-metric">
-          <div>
-            <span>This month commission</span>
+            <span>This month's commission</span>
             <strong>{summary.monthTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--danger">
@@ -277,17 +299,17 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Quoted commission status</span>
-            <strong>{summary.quotedCount}</strong>
+            <span>This year's commission</span>
+            <strong>{summary.yearTotal}</strong>
           </div>
-          <span className="icon-tile icon-tile--warning">
-            <PortalIcon name="clock" />
+          <span className="icon-tile icon-tile--success">
+            <PortalIcon name="calendar" />
           </span>
         </article>
         <article className="billing-metric">
           <div>
-            <span>Approved status</span>
-            <strong>{summary.approvedCount}</strong>
+            <span>Invoice commission amount</span>
+            <strong>{summary.invoiceCommissionTotal}</strong>
           </div>
           <span className="icon-tile icon-tile--success">
             <PortalIcon name="check" />
@@ -295,11 +317,11 @@ function AdminCommission() {
         </article>
         <article className="billing-metric">
           <div>
-            <span>Paid status</span>
-            <strong>{summary.paidCount}</strong>
+            <span>Outstanding amount</span>
+            <strong>{summary.outstandingTotal}</strong>
           </div>
-          <span className="icon-tile icon-tile--info">
-            <PortalIcon name="check" />
+          <span className="icon-tile icon-tile--warning">
+            <PortalIcon name="clock" />
           </span>
         </article>
       </section>
@@ -307,7 +329,29 @@ function AdminCommission() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Commission Table</h2>
-          <span>{visibleCommissions.length} showing</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{visibleCommissions.length} showing</span>
+            <ExportButton
+              data={visibleCommissions.map((c) => ({
+                Project: c.projectName,
+                Quote: c.quoteName,
+                'Quote Reference': c.quoteReference ?? '',
+                Client: c.clientName,
+                Staff: c.staffName,
+                'Staff Email': c.staffEmail ?? '',
+                'Invoice Amount': c.totalAmount,
+                'Amount Paid': c.amountPaid ?? '',
+                '% Commission': c.percentageCommission,
+                'Commission Amount': c.commissionAmount,
+                'Commission Amount Paid': c.commissionAmountPaid ?? '',
+                'Commission Amount Balance': c.commissionAmountBalance ?? '',
+                'Invoice Commission Amount': c.invoiceCommission ?? '',
+                Status: c.status,
+              }))}
+              filename="commissions"
+              label="Export"
+            />
+          </div>
         </div>
         <label className="admin-table-search">
           <PortalIcon name="search" />
@@ -325,9 +369,13 @@ function AdminCommission() {
             <span>Quote</span>
             <span>Client</span>
             <span>Staff</span>
-            <span>Total Amount</span>
+            <span>Invoice Amount</span>
+            <span>Amount Paid</span>
             <span>Percentage Commission</span>
             <span>Commission Amount</span>
+            <span>Commission Amount Paid</span>
+            <span>Commission Amount Balance</span>
+            <span>Invoice Commission Amount</span>
             <span>Status</span>
             <span>Action</span>
           </div>
@@ -349,8 +397,12 @@ function AdminCommission() {
                   {commission.staffEmail ? <small>{commission.staffEmail}</small> : null}
                 </span>
                 <span>{commission.totalAmount}</span>
+                <span>{commission.amountPaid}</span>
                 <span>{commission.percentageCommission}%</span>
                 <strong>{commission.commissionAmount}</strong>
+                <span>{commission.commissionAmountPaid}</span>
+                <span>{commission.commissionAmountBalance}</span>
+                <span>{commission.invoiceCommission ?? '—'}</span>
                 <span>
                   <StatusBadge tone={statusTone[commission.status]}>{statusLabel(commission.status)}</StatusBadge>
                 </span>
@@ -434,6 +486,10 @@ function AdminCommission() {
               <strong>{viewingCommission.commissionAmount}</strong>
             </div>
             <div>
+              <span>Invoice commission amount</span>
+              <strong>{viewingCommission.invoiceCommission ?? '—'}</strong>
+            </div>
+            <div>
               <span>Status</span>
               <strong>{statusLabel(viewingCommission.status)}</strong>
             </div>
@@ -476,6 +532,10 @@ function AdminCommission() {
                 <span>Commission amount</span>
                 <strong>{editedPreview?.commissionAmount || editingCommission.commissionAmount}</strong>
               </div>
+              <div>
+                <span>Commission balance</span>
+                <strong>{editedPreview?.commissionAmountBalance || editingCommission.commissionAmountBalance}</strong>
+              </div>
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -491,6 +551,17 @@ function AdminCommission() {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="commissionAmountPaid">Commission amount paid</label>
+                <input
+                  id="commissionAmountPaid"
+                  min="0"
+                  onChange={(event) => updateField("commissionAmountPaid", event.target.value)}
+                  step="0.01"
+                  type="number"
+                  value={form.commissionAmountPaid}
+                />
+              </div>
+              <div className="form-group">
                 <label htmlFor="commissionStatus">Status</label>
                 <select
                   disabled={!statusCanBeChangedByAdmin(editingCommission.status)}
@@ -498,10 +569,11 @@ function AdminCommission() {
                   onChange={(event) => updateField("status", event.target.value as CommissionStatus)}
                   value={form.status}
                 >
-                  <option value="APPROVED_COMMISSION">APPROVED COMMISSION</option>
-                  <option value="PAID">PAID</option>
+                  <option value="APPROVED_COMMISSION">Invoice Commission</option>
+                  <option value="PARTIALLY_PAID">Partially Paid</option>
+                  <option value="PAID">Paid</option>
                   {editingCommission.status === "QUOTED_COMMISSION" ? (
-                    <option value="QUOTED_COMMISSION">QUOTED COMMISSION</option>
+                    <option value="QUOTED_COMMISSION">Quoted Commission</option>
                   ) : null}
                 </select>
               </div>

@@ -20,6 +20,7 @@ import {
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type InventoryStatusFilter = "All" | InventoryAvailabilityStatus | "LOW_STOCK" | "OUT_OF_STOCK";
 
@@ -860,6 +861,27 @@ function AdminInventory() {
           <h2>Inventory Items</h2>
           <div className="panel__actions">
             <span>{filteredItems.length} showing</span>
+            <ExportButton
+              data={filteredItems.map((item) => ({
+                Name: item.name,
+                SKU: item.sku ?? '',
+                Category: item.category,
+                Subcategory: item.subcategory ?? '',
+                Material: item.material ?? '',
+                'Size/Dimension': item.sizeDimension ?? '',
+                'Unit of Measure': item.unitMeasure ?? '',
+                Supplier: item.supplier,
+                'Our Price': item.ourPrice ?? '',
+                'Min Reserve': item.minReserve ?? '',
+                'In Stock': item.inStock ?? '',
+                'Availability Status': item.availabilityStatus.join(', '),
+                Active: item.active ? 'Yes' : 'No',
+                Notes: item.notes ?? '',
+                'Last Price Update': item.lastPriceUpdate ?? '',
+              }))}
+              filename="inventory"
+              label="Export"
+            />
             <button className="primary-action" onClick={openCreate} type="button">
               <PortalIcon name="plus" />
               <span>Add Product</span>

@@ -14,6 +14,7 @@ const methodTone = {
   ACH: "danger",
   Check: "info",
   "Credit Card": "warning",
+  Stripe: "success",
   Wire: "warning",
 } as const;
 

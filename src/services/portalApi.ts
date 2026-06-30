@@ -7,6 +7,8 @@ import type {
   CommissionItem,
   CommissionStatus,
   DocumentItem,
+  DocumentCategoryItem,
+  
   HomeProject,
   InvoiceDetailInfo,
   InvoiceItem,
@@ -20,6 +22,7 @@ import type {
   ProjectUploadItem,
   QuoteDetailInfo,
   QuoteListItem,
+  OutstandingPaymentItem,
 } from "../data/portal";
 import { getCurrentPortalUser, getPortalToken, type PortalUser } from "../auth/session";
 import { formatPortalDate, parsePortalDate } from "../utils/dateFormat";
@@ -493,6 +496,7 @@ export type QuotePaymentScheduleInput = {
 };
 
 export type CreateQuoteInput = {
+  autoApprove?: boolean;
   dateIssued: string;
   discount?: number;
   lineItems: Array<{
@@ -577,6 +581,7 @@ type BackendPaymentResponse = {
 
 type BackendCommissionResponse = {
   amount?: string | number;
+  amountPaid?: string | number;
   client?: {
     company?: unknown;
     email?: string;
@@ -586,6 +591,8 @@ type BackendCommissionResponse = {
   clientId?: string;
   clientName?: unknown;
   commissionAmount?: string | number;
+  commissionAmountBalance?: string | number;
+  commissionAmountPaid?: string | number;
   commissionPercentage?: string | number;
   createdAt?: string | null;
   id: string;
@@ -622,6 +629,7 @@ type BackendCommissionResponse = {
   staffName?: unknown;
   status?: string;
   total?: string | number;
+  invoiceCommission?: string | number;
   updatedAt?: string | null;
 };
 
@@ -644,6 +652,8 @@ export type CommissionCreatePayload = {
 };
 
 export type CommissionUpdatePayload = {
+  commissionAmountPaid?: number;
+  invoiceCommission?: number;
   percentageCommission?: number;
   status?: CommissionStatus;
 };
@@ -733,6 +743,7 @@ export type StaffRecord = {
   id: string;
   name: string;
   isAdmin?: boolean;
+  isActive?: boolean;
   role: "ADMIN" | "STAFF" | "CLIENT";
 };
 
@@ -1468,9 +1479,14 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
   const paymentSchedule = normalizeQuotePaymentSchedule(quote.paymentSchedule);
   const total = moneyText(quote.total);
 
+  // Extract clientId from the project object in the quote response
+  const projectObj = quote.project && typeof quote.project === "object" ? quote.project : undefined;
+  const clientId = projectObj?.clientId;
+
   return {
     amount: moneyText(quote.amount ?? quote.total),
     clientComment: normalizeString(quote.clientComment),
+    clientId,
     dateIssued: formatProjectDate(quote.dateIssued),
     description: quote.description || projectName(quote.project, ""),
     id: quote.id,
@@ -1507,9 +1523,15 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   const project = payment.project && typeof payment.project === "object" ? payment.project : undefined;
   const invoice = payment.invoice && typeof payment.invoice === "object" ? payment.invoice : undefined;
 
+  const amountValue = numberFromDecimal(payment.amount) || 0;
+  const clientName = normalizeString(project?.client?.name ?? project?.clientName);
+
   return {
-    amount: moneyText(payment.amount),
+    amount: formatMoney(amountValue),
+    amountValue,
+    clientName: clientName || undefined,
     date: formatProjectDate(payment.date ?? payment.createdAt),
+    dateISO: payment.date ?? payment.createdAt ?? "",
     id: payment.id,
     invoice: payment.invoiceId || projectName(payment.invoice, payment.id),
     invoiceId: payment.invoiceId || invoice?.id,
@@ -1530,19 +1552,43 @@ function mapBackendCommission(commission: BackendCommissionResponse): Commission
   const percentageCommission = numberFromDecimal(
     commission.percentageCommission ?? commission.commissionPercentage ?? commission.percentage,
   );
+
+  const invoiceId = commission.invoiceId ?? invoice?.invoiceId ?? invoice?.id;
+
+  // amountPaid = what the client has actually paid (not the full invoice amount)
+  const amountPaidValue = numberFromDecimal(commission.amountPaid) || 0;
+
+  // Commission amount is correctly based on what the client has paid, not the invoice total
   const commissionValue =
     numberFromDecimal(commission.amount ?? commission.commissionAmount) ||
-    commissionAmountValue(totalAmountValue, percentageCommission);
+    commissionAmountValue(amountPaidValue, percentageCommission);
+
+  const commissionAmountPaidValue = numberFromDecimal(commission.commissionAmountPaid) || 0;
+  const commissionAmountBalanceValue = numberFromDecimal(commission.commissionAmountBalance) || (commissionValue - commissionAmountPaidValue);
+
+  // invoiceCommission = percentage commission × invoice total (from API or calculated)
+  const invoiceCommissionValue =
+    numberFromDecimal(commission.invoiceCommission) ||
+    (totalAmountValue > 0 ? (percentageCommission / 100) * totalAmountValue : 0);
 
   return {
     clientId: commission.clientId ?? client?.id,
     clientCompany: normalizeString(client?.company),
     clientEmail: client?.email,
     clientName: normalizeString(commission.clientName ?? client?.name) || "Client",
+    amountPaid: formatMoney(amountPaidValue),
+    amountPaidValue,
     commissionAmount: formatMoney(commissionValue),
     commissionAmountValue: commissionValue,
+    commissionAmountPaid: formatMoney(commissionAmountPaidValue),
+    commissionAmountPaidValue,
+    commissionAmountBalance: formatMoney(commissionAmountBalanceValue),
+    commissionAmountBalanceValue,
+    invoiceCommission: formatMoney(invoiceCommissionValue),
+    invoiceCommissionValue,
     createdAt: formatProjectDate(commission.createdAt),
     id: commission.id,
+    invoiceId,
     paidAt: formatProjectDate(commission.paidAt),
     percentageCommission,
     projectId: commission.projectId ?? project?.id,
@@ -1691,6 +1737,7 @@ function normalizePaymentMethod(method: string) {
 
   const normalized = method.toLowerCase();
 
+  if (normalized.includes("stripe")) return "Stripe";
   if (normalized.includes("wire")) return "Wire";
   if (normalized.includes("credit") || normalized.includes("card")) {
     return "Credit Card";
@@ -1708,30 +1755,30 @@ function toBackendPaymentMethod(method: PaymentItem["method"]): PaymentMethodInp
   return "ACH";
 }
 
-function normalizeDocumentType(type: string) {
-  if (["Shop drawing", "CAD File", "Spec Sheet", "Photo"].includes(type)) {
-    return type as DocumentItem["type"];
-  }
+// function normalizeDocumentType(type: string) {
+//   if (["Shop drawing", "CAD File", "Spec Sheet", "Photo"].includes(type)) {
+//     return type as DocumentItem["type"];
+//   }
 
-  const normalized = type.toLowerCase();
+//   const normalized = type.toLowerCase();
 
-  if (normalized.includes("photo") || normalized.includes("image")) return "Photo";
-  if (normalized.includes("cad") || normalized.includes("dwg")) return "CAD File";
-  if (normalized.includes("shop")) return "Shop drawing";
+//   if (normalized.includes("photo") || normalized.includes("image")) return "Photo";
+//   if (normalized.includes("cad") || normalized.includes("dwg")) return "CAD File";
+//   if (normalized.includes("shop")) return "Shop drawing";
 
-  return "Spec Sheet";
-}
+//   return "Spec Sheet";
+// }
 
-function documentFromProjectUpload(project: ProjectListItem, upload: ProjectUploadItem): DocumentItem {
-  return {
-    date: project.startDate || project.dueDate || project.estimatedCompletion || "",
-    downloadUrl: uploadDownloadUrl(upload.id),
-    id: `${project.id}-${upload.id}`,
-    project: project.title,
-    title: upload.name || "Uploaded file",
-    type: normalizeDocumentType(upload.name || "Spec Sheet"),
-  };
-}
+// function documentFromProjectUpload(project: ProjectListItem, upload: ProjectUploadItem): DocumentItem {
+//   return {
+//     date: project.startDate || project.dueDate || project.estimatedCompletion || "",
+//     downloadUrl: uploadDownloadUrl(upload.id),
+//     id: `${project.id}-${upload.id}`,
+//     project: project.title,
+//     title: upload.name || "Uploaded file",
+//     type: normalizeDocumentType(upload.name || "Spec Sheet"),
+//   };
+// }
 
 function buildProjectMetrics(projectList: ProjectListItem[]) {
   return [
@@ -1831,9 +1878,13 @@ function normalizeCommissionStatus(status?: string): CommissionStatus {
   if (normalized === "PAID") {
     return "PAID";
   }
+  
+  if (normalized === "PARTIALLY_PAID") {
+    return "PARTIALLY_PAID";
+  }
 
-  if (normalized === "APPROVED_COMMISSION" || normalized === "APPROVED") {
-    return "APPROVED_COMMISSION";
+  if (normalized === "APPROVED_COMMISSION" || normalized === "APPROVED" || normalized === "INVOICE_COMMISSION") {
+    return "INVOICE_COMMISSION";
   }
 
   return "QUOTED_COMMISSION";
@@ -1883,6 +1934,7 @@ function emptyPaymentResponse(): PaymentResponse {
 function invoiceFromQuote(
   invoice: BackendInvoiceResponse,
   quote: {
+    clientName?: string;
     lineItems?: InvoiceItem["lineItems"];
     paymentSchedule?: QuoteListItem["paymentSchedule"];
     projectId?: string;
@@ -1898,6 +1950,7 @@ function invoiceFromQuote(
 
   return {
     amount: total,
+    clientName: quote.clientName,
     dueDate: quote.validUntil || "",
     id: invoice.id,
     invoiceId: invoice.invoiceId || invoice.id,
@@ -2252,6 +2305,63 @@ export async function attachProjectUploads(projectId: string, uploadIds: string[
   return mapBackendProject(response.project);
 }
 
+export async function getProjectDocumentsCategories(projectId: string): Promise<DocumentCategoryItem[]> {
+  return portalRequest<DocumentCategoryItem[]>(`/documents/project/${encodeURIComponent(projectId)}`, {}, true);
+}
+
+export async function createDocumentCategory(projectId: string, name: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories`,
+    {
+      body: JSON.stringify({ projectId, name }),
+      method: "POST",
+    },
+    true
+  );
+}
+
+export async function updateDocumentCategory(categoryId: string, name: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories/${encodeURIComponent(categoryId)}`,
+    {
+      body: JSON.stringify({ name }),
+      method: "PATCH",
+    },
+    true
+  );
+}
+
+export async function deleteDocumentCategory(categoryId: string): Promise<void> {
+  await portalRequest(
+    `/documents/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: "DELETE",
+    },
+    true
+  );
+}
+
+export async function addProjectDocument(projectId: string, uploadId: string, categoryId?: string): Promise<void> {
+  await portalRequest(
+    `/documents`,
+    {
+      body: JSON.stringify({ projectId, uploadId, categoryId }),
+      method: "POST",
+    },
+    true
+  );
+}
+
+export async function deleteProjectDocument(documentId: string): Promise<void> {
+  await portalRequest(
+    `/documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+    },
+    true
+  );
+}
+
 export async function getCatalogItems() {
   return portalRequest<CatalogItem[]>("/services", {}, true);
 }
@@ -2370,8 +2480,36 @@ export async function respondToQuote(id: string, status: QuoteDecisionStatus, co
 
 export async function getQuotes(): Promise<QuoteResponse> {
   try {
-    const quoteResponse = await portalRequest<BackendQuoteResponse[] | BackendQuoteEnvelopeResponse>("/quotes", {}, true);
-    const mappedQuotes = quotesFromResponse(quoteResponse).map(mapBackendQuote);
+    const [quoteResponse, projectData] = await Promise.all([
+      portalRequest<BackendQuoteResponse[] | BackendQuoteEnvelopeResponse>("/quotes", {}, true),
+      getProjects().catch(() => emptyProjectResponse()),
+    ]);
+
+    // Build a map of clientId -> clientName from projects for quote enrichment
+    const clientNameByClientId = new Map<string, string>();
+    const clientNameByProjectId = new Map<string, string>();
+    for (const project of projectData.projects) {
+      if (project.clientId && project.clientName) {
+        clientNameByClientId.set(project.clientId, project.clientName);
+      }
+      if (project.id && project.clientName) {
+        clientNameByProjectId.set(project.id, project.clientName);
+      }
+    }
+
+    const mappedQuotes = quotesFromResponse(quoteResponse).map((raw) => {
+      const quote = mapBackendQuote(raw);
+      // Resolve clientName: prefer project-level lookup, fall back to clientId lookup
+      const clientName =
+        (quote.projectId ? clientNameByProjectId.get(quote.projectId) : undefined) ??
+        (quote.clientId ? clientNameByClientId.get(quote.clientId) : undefined);
+      if (clientName) {
+        quote.clientName = clientName;
+        // Also propagate clientName to embedded invoices
+        quote.invoices = (quote.invoices ?? []).map((inv) => ({ ...inv, clientName }));
+      }
+      return quote;
+    });
 
     return {
       metrics: buildQuoteMetrics(mappedQuotes),
@@ -2439,11 +2577,41 @@ export async function acceptQuote(uid: string, comment = ""): Promise<QuoteListI
 export async function getDocuments(): Promise<DocumentResponse> {
   try {
     const projectData = await getProjects();
-    const mappedDocuments = projectData.projects.flatMap((project) =>
-      (project.attachment?.uploads ?? []).map((upload) => documentFromProjectUpload(project, upload)),
+    const allDocs: DocumentItem[] = [];
+
+    await Promise.all(
+      projectData.projects.map(async (project) => {
+        try {
+          const categoriesData = await getProjectDocumentsCategories(project.id);
+          let parsedCategories = [];
+          if (Array.isArray(categoriesData)) {
+            parsedCategories = categoriesData;
+          } else if (categoriesData && typeof categoriesData === "object") {
+            parsedCategories = (categoriesData as any).categories || (categoriesData as any).data || (categoriesData as any).documents || [];
+          }
+
+          if (Array.isArray(parsedCategories)) {
+            for (const cat of parsedCategories) {
+              const docs = cat.documents || [];
+              for (const doc of docs) {
+                allDocs.push({
+                  id: doc.id,
+                  date: doc.createdAt ? formatPortalDate(doc.createdAt) : "",
+                  downloadUrl: uploadDownloadUrl(doc.uploadId || doc.id),
+                  project: project.title,
+                  title: doc.name,
+                  type: (cat.id === "uncategorized" ? "Uncategorized" : cat.name) as any,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch documents for project ${project.id}`, e);
+        }
+      })
     );
 
-    return { documents: mappedDocuments };
+    return { documents: allDocs };
   } catch {
     return { documents: [] };
   }
@@ -2476,17 +2644,27 @@ export function downloadInvoicePdf(invoiceId: string, fileName?: string) {
 
 export function applyCommissionUpdate(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus },
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
 ): CommissionItem {
   const percentageCommission = Number.isFinite(input.percentageCommission)
     ? Number(input.percentageCommission)
     : commission.percentageCommission;
-  const commissionValue = commissionAmountValue(commission.totalAmountValue, percentageCommission);
+  // Commission amount is based on what the client has actually paid, not the full invoice total
+  const amountPaidValue = commission.amountPaidValue ?? 0;
+  const commissionValue = commissionAmountValue(amountPaidValue, percentageCommission);
+  const commissionAmountPaidValue = Number.isFinite(input.commissionAmountPaid)
+    ? Number(input.commissionAmountPaid)
+    : (commission.commissionAmountPaidValue || 0);
+  const commissionAmountBalanceValue = commissionValue - commissionAmountPaidValue;
 
   return {
     ...commission,
     commissionAmount: formatMoney(commissionValue),
     commissionAmountValue: commissionValue,
+    commissionAmountPaid: formatMoney(commissionAmountPaidValue),
+    commissionAmountPaidValue,
+    commissionAmountBalance: formatMoney(commissionAmountBalanceValue),
+    commissionAmountBalanceValue,
     percentageCommission,
     status: input.status ?? commission.status,
   };
@@ -2509,17 +2687,26 @@ export function buildCommissionCreatePayload(commission: CommissionItem): Commis
 
 export function buildCommissionUpdatePayload(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus } = {},
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus } = {},
 ): CommissionUpdatePayload {
   const payload: CommissionUpdatePayload = {};
 
   if (Number.isFinite(input.percentageCommission)) {
     payload.percentageCommission = Number(input.percentageCommission);
   }
+  
+  if (Number.isFinite(input.commissionAmountPaid)) {
+    payload.commissionAmountPaid = Number(input.commissionAmountPaid);
+  }
+
+  // Always send invoiceCommission calculated from percentage × total
+  if (Number.isFinite(commission.invoiceCommissionValue) && (commission.invoiceCommissionValue ?? 0) > 0) {
+    payload.invoiceCommission = commission.invoiceCommissionValue;
+  }
 
   if (
     input.status === "PAID" &&
-    commission.status === "APPROVED_COMMISSION"
+    commission.status === "PARTIALLY_PAID"
   ) {
     payload.status = input.status;
   }
@@ -2531,9 +2718,11 @@ export async function getCommissions(): Promise<CommissionResponse> {
   try {
     const currentUser = getCurrentPortalUser();
     const path = currentUser?.role === "staff" ? "/commissions/me" : "/commissions";
+    
     const response = await portalRequest<
       BackendCommissionResponse[] | { commissions?: BackendCommissionResponse[]; data?: BackendCommissionResponse[] }
     >(path, {}, true);
+    
     const commissions = filterCommissionsForRole(commissionsFromResponse(response).map(mapBackendCommission));
 
     return {
@@ -2565,7 +2754,7 @@ export async function getCommissions(): Promise<CommissionResponse> {
 
 export async function updateCommission(
   commission: CommissionItem,
-  input: { percentageCommission?: number; status?: CommissionStatus },
+  input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
 ) {
   const payload = buildCommissionUpdatePayload(commission, input);
 
@@ -2606,6 +2795,52 @@ export async function getPayments(): Promise<PaymentResponse> {
     };
   } catch {
     return emptyPaymentResponse();
+  }
+}
+
+export async function getOutstandingPayments(): Promise<OutstandingPaymentItem[]> {
+  try {
+    const projects = await portalRequest<any[]>("/projects", {}, true);
+    
+    const outstanding: OutstandingPaymentItem[] = [];
+
+    for (const project of projects) {
+      let totalInvoiceAmount = 0;
+      if (project.quotes && Array.isArray(project.quotes)) {
+        for (const quote of project.quotes) {
+          if (quote.invoices && Array.isArray(quote.invoices)) {
+            for (const invoice of quote.invoices) {
+              totalInvoiceAmount += Number(invoice.total) || 0;
+            }
+          }
+        }
+      } else if (project.invoice) {
+        totalInvoiceAmount += Number(project.invoice.total) || 0;
+      }
+
+      let totalPaymentAmount = 0;
+      if (project.payments && Array.isArray(project.payments)) {
+        for (const payment of project.payments) {
+          totalPaymentAmount += Number(payment.amount) || 0;
+        }
+      }
+
+      const overdueValue = totalInvoiceAmount - totalPaymentAmount;
+
+      if (overdueValue > 0) {
+        outstanding.push({
+          projectId: project.id,
+          projectName: project.name || "Unknown Project",
+          clientName: project.client?.name || "Unknown Client",
+          amountOverdue: formatMoney(overdueValue),
+          amountOverdueValue: overdueValue,
+        });
+      }
+    }
+
+    return outstanding.sort((a, b) => b.amountOverdueValue - a.amountOverdueValue);
+  } catch {
+    return [];
   }
 }
 
@@ -2656,6 +2891,28 @@ export async function createPayment(input: CreatePaymentInput): Promise<ProjectP
   };
 
   return summary;
+}
+
+export async function confirmCheckoutSession(sessionId: string) {
+  return portalRequest<{ confirmed: boolean; message: string }>("/payments/confirm", {
+    body: JSON.stringify({ sessionId }),
+    method: "POST",
+  }, true);
+}
+
+export async function createCheckoutSession(invoiceId: string, amount?: number) {
+  const body: Record<string, unknown> = { invoiceId };
+
+  if (amount != null) {
+    body.amount = amount;
+  }
+
+  const response = await portalRequest<{ url: string }>("/payments/checkout", {
+    body: JSON.stringify(body),
+    method: "POST",
+  }, true);
+
+  return response;
 }
 
 export { toBackendPaymentMethod };
@@ -2716,6 +2973,18 @@ export async function createStaffUser(input: CreateStaffInput) {
       name: input.name,
     }),
     method: "POST",
+  }, true);
+}
+
+export async function deactivateStaff(staffId: string) {
+  return portalRequest<PortalMessageResponse>(`/users/staff/${encodeURIComponent(staffId)}/deactivate`, {
+    method: "PATCH",
+  }, true);
+}
+
+export async function reactivateStaff(staffId: string) {
+  return portalRequest<PortalMessageResponse>(`/users/staff/${encodeURIComponent(staffId)}/reactivate`, {
+    method: "PATCH",
   }, true);
 }
 

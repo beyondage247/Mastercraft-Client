@@ -1,4 +1,5 @@
-import { Pagination } from "antd";
+import { Pagination, Tabs, Table, Button } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -7,11 +8,14 @@ import { getCurrentPortalUser } from "../../auth/session";
 import {
   createStaffUser,
   getStaffUsers,
+  deactivateStaff,
+  reactivateStaff,
   type CreateStaffInput,
   type StaffRecord,
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type StaffFormState = CreateStaffInput;
 
@@ -31,8 +35,20 @@ function AdminStaff() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
+  const [activeTab, setActiveTab] = useState("active");
 
   const canManageStaff = currentUser?.role === "admin";
+
+  async function fetchStaff() {
+    try {
+      const staff = await getStaffUsers();
+      setStaffList(staff);
+    } catch (error) {
+      if (error instanceof Error) {
+        setFeedback(error.message || "Unable to load staff.");
+      }
+    }
+  }
 
   useEffect(() => {
     if (!canManageStaff) {
@@ -72,13 +88,18 @@ function AdminStaff() {
     return [...filteredStaff].sort((left, right) => left.name.localeCompare(right.name));
   }, [staffList, search]);
 
+  const activeStaff = useMemo(() => sortedStaff.filter(s => s.isActive !== false), [sortedStaff]);
+  const archivedStaff = useMemo(() => sortedStaff.filter(s => s.isActive === false), [sortedStaff]);
+
+  const currentTabStaff = activeTab === "active" ? activeStaff : archivedStaff;
+
   useEffect(() => {
     setPage(1);
-  }, [search, staffList]);
+  }, [search, staffList, activeTab]);
 
   const paginatedStaff = useMemo(
-    () => sortedStaff.slice((page - 1) * pageSize, page * pageSize),
-    [page, sortedStaff],
+    () => currentTabStaff.slice((page - 1) * pageSize, page * pageSize),
+    [page, currentTabStaff],
   );
 
   function updateField<Field extends keyof StaffFormState>(
@@ -110,16 +131,29 @@ function AdminStaff() {
       setForm(initialForm);
       setFeedback(response.message || `${name} was added.`);
       toast.success(response.message || `${name} was added.`);
-
-      const staff = await getStaffUsers();
-      setStaffList(staff);
+      await fetchStaff();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to add staff.";
-
       setFeedback(message);
       toast.error(message);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleToggleStatus(staffId: string, activate: boolean) {
+    const toast = showRequestToast("toggle-staff", activate ? "Activating staff..." : "Deactivating staff...");
+    try {
+      if (activate) {
+        await reactivateStaff(staffId);
+      } else {
+        await deactivateStaff(staffId);
+      }
+      toast.success(`Staff successfully ${activate ? "activated" : "deactivated"}.`);
+      await fetchStaff();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `Failed to ${activate ? "activate" : "deactivate"} staff.`;
+      toast.error(message);
     }
   }
 
@@ -136,6 +170,63 @@ function AdminStaff() {
       </div>
     );
   }
+
+  const columns: ColumnsType<StaffRecord> = [
+    {
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
+      render: (text) => <strong>{text}</strong>,
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+    },
+    {
+      title: "Role",
+      key: "role",
+      render: (_, staff) => {
+        const isAdmin = staff.isAdmin || staff.role === "ADMIN";
+        return (
+          <StatusBadge tone={isAdmin ? "danger" : "info"}>
+            {isAdmin ? "Admin" : "Staff"}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      title: "Created",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (text) => <span>{formatPortalDateOrFallback(text)}</span>,
+    },
+    {
+      title: "Status",
+      key: "status",
+      render: (_, staff) => {
+        const isActive = staff.isActive !== false;
+        return (
+          <StatusBadge tone={isActive ? "success" : "neutral"}>
+            {isActive ? "Active" : "Archived"}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      title: "Action",
+      key: "action",
+      render: (_, staff) => (
+        <Button 
+          type="primary" 
+          danger={staff.isActive !== false}
+          onClick={() => handleToggleStatus(staff.id, staff.isActive === false)}
+        >
+          {staff.isActive !== false ? "Deactivate" : "Activate"}
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="page-stack admin-page">
@@ -206,8 +297,32 @@ function AdminStaff() {
       <section className="panel admin-client-list">
         <div className="panel__header">
           <h2>Staff Accounts</h2>
-          <span>{sortedStaff.length} total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>{currentTabStaff.length} total</span>
+            <ExportButton
+              data={currentTabStaff.map((s) => ({
+                Name: s.name,
+                Email: s.email,
+                Role: s.isAdmin ? 'Admin' : 'Staff',
+                Status: s.isActive === false ? 'Archived' : 'Active',
+                Created: s.createdAt ? formatPortalDateOrFallback(s.createdAt) : '',
+              }))}
+              filename="staff"
+              label="Export"
+            />
+          </div>
         </div>
+        
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={[
+            { key: 'active', label: 'Staff' },
+            { key: 'archived', label: 'Archived' }
+          ]}
+          style={{ padding: '0 24px' }}
+        />
+
         <label className="admin-table-search">
           <PortalIcon name="search" />
           <input
@@ -218,31 +333,23 @@ function AdminStaff() {
             value={search}
           />
         </label>
-        <div className="admin-client-table admin-client-table--staff">
-          <div className="admin-client-table__head">
-            <span>Name</span>
-            <span>Email</span>
-            <span>Role</span>
-            <span>Created</span>
-            <span>Status</span>
-          </div>
-          {paginatedStaff.map((staff) => (
-            <article className="admin-client-table__row" key={staff.id}>
-              <strong>{staff.name}</strong>
-              <span>{staff.email}</span>
-              <span>{staff.isAdmin || staff.role === "ADMIN" ? "ADMIN" : "STAFF"}</span>
-              <span>{formatPortalDateOrFallback(staff.createdAt)}</span>
-              <span>Active</span>
-            </article>
-          ))}
+        
+        <div style={{ padding: '0 24px 24px' }}>
+          <Table 
+            columns={columns}
+            dataSource={paginatedStaff}
+            rowKey="id"
+            pagination={false}
+          />
         </div>
+        
         <Pagination
           className="admin-client-pagination"
           current={page}
           onChange={setPage}
           pageSize={pageSize}
           showSizeChanger={false}
-          total={sortedStaff.length}
+          total={currentTabStaff.length}
         />
       </section>
     </div>

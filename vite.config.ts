@@ -21,7 +21,7 @@ export default defineConfig({
         proxyTimeout: 60000,
         rewrite: (path) => path.replace(/^\/portal-api/, ''),
         secure: true,
-        target: 'https://dev-api.mastercraft-products.com',
+        target: 'https://api-dev.mastercraft-products.com',
         timeout: 60000,
         agent: new https.Agent({
           keepAlive: false,

@@ -17,6 +17,7 @@ import {
 } from "../../services/weeklyReportsStore";
 import { createReport, getReports, type ReportRecord } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
+import ExportButton from '../../components/ExportButton';
 
 type WeeklyReportFormState = {
   coldCalls: string;
@@ -420,7 +421,28 @@ function AdminWeeklyReports() {
               <section className="panel admin-client-list">
                 <div className="panel__header">
                   <h2>{isAdmin ? "Submitted Reports" : "Report History"}</h2>
-                  <span>{displayedReports.length} showing</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span>{displayedReports.length} showing</span>
+                    <ExportButton
+                      data={displayedReports.map((r) => ({
+                        Staff: r.staffName,
+                        'Staff Email': r.staffEmail,
+                        'Week Start': r.weekStart,
+                        'Week End': r.weekEnd,
+                        'Cold Calls': r.coldCalls,
+                        'Cold Emails': r.coldEmails,
+                        'Site Visits': r.siteVisits,
+                        'Coffee/Lunch': r.coffeeLunch,
+                        'Social Posts': r.socialPosts,
+                        'New Customers': r.newCustomers,
+                        'Networking Events': r.networkingEvents,
+                        Notes: r.notes,
+                        'Outreach Score (%)': reportCompletionScore(r),
+                      }))}
+                      filename="weekly-reports"
+                      label="Export"
+                    />
+                  </div>
                 </div>
                 <label className="admin-table-search">
                   <PortalIcon name="search" />
