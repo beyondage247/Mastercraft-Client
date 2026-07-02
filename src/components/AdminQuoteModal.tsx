@@ -942,7 +942,7 @@ function AdminQuoteModal({
             <Button
               loading={isSubmitting}
               onClick={() => handleSubmit(true)}
-              style={{ background: "#16a34a", borderColor: "#16a34a", color: "#fff" }}
+              style={{ background: "#a31616", borderColor: "#a31616", color: "#fff" }}
               type="primary"
             >
               Create Invoice
