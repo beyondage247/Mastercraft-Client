@@ -18,6 +18,7 @@ import {
   getProjectsForClient,
   getStaffUsers,
   reassignClient,
+  updateClient,
   type ClientRecord,
   type ProjectStageInput,
   type StaffRecord,
@@ -139,6 +140,10 @@ function AdminClients() {
   const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
   const [viewClientOpen, setViewClientOpen] = useState(false);
+  const [editClientOpen, setEditClientOpen] = useState(false);
+  const [editForm, setEditForm] = useState<ClientFormState>(initialForm);
+  const [editClientError, setEditClientError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -249,6 +254,52 @@ function AdminClients() {
     setReassignOpen(true);
   }
 
+  function openEditClient(client: ClientRecord) {
+    setSelectedClient(client);
+    setEditClientError("");
+    setEditForm({
+      additionalEmail: client.additionalEmail || "",
+      assignmentId: client.accountPartnerId || "",
+      clientCredit: client.clientCredit || "COD",
+      company: client.company || "",
+      contactName: client.contactName || "",
+      email: client.email || "",
+      name: client.name,
+      phone: client.phone || "",
+    });
+    setEditClientOpen(true);
+  }
+
+  async function handleEditClient() {
+    if (!selectedClient) return;
+
+    setEditClientError("");
+    const toast = showRequestToast("edit-client", "Updating client...");
+    try {
+      setIsEditing(true);
+      const updated = await updateClient(selectedClient.id, {
+        additionalEmail: editForm.additionalEmail,
+        clientCredit: editForm.clientCredit,
+        company: editForm.company,
+        contactName: editForm.contactName,
+        email: editForm.email,
+        name: editForm.name,
+        phone: editForm.phone,
+      });
+      setClientList((current) =>
+        current.map((c) => (c.id === updated.id ? updated : c)),
+      );
+      setEditClientOpen(false);
+      toast.success(`${updated.name} was updated.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update client.";
+      setEditClientError(message);
+      toast.error(message);
+    } finally {
+      setIsEditing(false);
+    }
+  }
+
   function numberValue(value: string) {
     return Number(value) || 0;
   }
@@ -300,20 +351,14 @@ function AdminClients() {
     return {
       items: [
         { key: "view", label: "View" },
+        { key: "edit", label: "Edit" },
         { key: "create-project", label: "Create project" },
         ...(isAdmin ? [{ key: "reassign", label: "Reassign" }] : []),
       ],
       onClick: ({ key }) => {
-        if (key === "view") {
-          openClientDetails(client);
-          return;
-        }
-
-        if (key === "reassign") {
-          openReassign(client);
-          return;
-        }
-
+        if (key === "view") { openClientDetails(client); return; }
+        if (key === "edit") { openEditClient(client); return; }
+        if (key === "reassign") { openReassign(client); return; }
         openCreateProject(client);
       },
     };
@@ -935,6 +980,96 @@ function AdminClients() {
               ))}
             </select>
           </div>
+        </div>
+      </Modal>
+
+      <Modal maskClosable={false}
+        okButtonProps={{ loading: isEditing }}
+        okText="Save changes"
+        onCancel={() => setEditClientOpen(false)}
+        onOk={handleEditClient}
+        open={editClientOpen}
+        title={`Edit${selectedClient ? ` ${selectedClient.name}` : " client"}`}
+        width={760}
+      >
+        <div className="admin-modal-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Client name</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Amanda Jones"
+                type="text"
+                value={editForm.name}
+              />
+            </div>
+            <div className="form-group">
+              <label>Company</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))}
+                placeholder="e.g. Chevron"
+                type="text"
+                value={editForm.company}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="client@company.com"
+                type="email"
+                value={editForm.email}
+              />
+            </div>
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+1 555 0100"
+                type="tel"
+                value={editForm.phone}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Additional contact</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, contactName: e.target.value }))}
+                placeholder="e.g. Site manager"
+                type="text"
+                value={editForm.contactName}
+              />
+            </div>
+            <div className="form-group">
+              <label>Additional email</label>
+              <input
+                onChange={(e) => setEditForm((f) => ({ ...f, additionalEmail: e.target.value }))}
+                placeholder="secondary@company.com"
+                type="email"
+                value={editForm.additionalEmail}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Client credit</label>
+              <select
+                onChange={(e) => setEditForm((f) => ({ ...f, clientCredit: e.target.value as "COD" | "CREDIT_ACCOUNT" }))}
+                value={editForm.clientCredit}
+              >
+                <option value="COD">COD</option>
+                <option value="CREDIT_ACCOUNT">Credit account</option>
+              </select>
+            </div>
+          </div>
+          {editClientError ? (
+            <p className="admin-feedback" style={{ color: "var(--danger, #dc2626)" }} aria-live="polite">
+              {editClientError}
+            </p>
+          ) : null}
         </div>
       </Modal>
 

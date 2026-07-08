@@ -1,4 +1,4 @@
-import { Pagination, Tabs, Table, Button } from "antd";
+import { Modal, Pagination, Tabs, Table, Button } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
@@ -10,6 +10,7 @@ import {
   getStaffUsers,
   deactivateStaff,
   reactivateStaff,
+  updateStaff,
   type CreateStaffInput,
   type StaffRecord,
 } from "../../services/portalApi";
@@ -36,6 +37,11 @@ function AdminStaff() {
   const [search, setSearch] = useState("");
   const [staffList, setStaffList] = useState<StaffRecord[]>([]);
   const [activeTab, setActiveTab] = useState("active");
+  const [editStaffOpen, setEditStaffOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffRecord | null>(null);
+  const [editStaffForm, setEditStaffForm] = useState<StaffFormState>(initialForm);
+  const [editStaffError, setEditStaffError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   const canManageStaff = currentUser?.role === "admin";
 
@@ -107,6 +113,47 @@ function AdminStaff() {
     value: StaffFormState[Field],
   ) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function openEditStaff(staff: StaffRecord) {
+    setEditStaffError("");
+    setEditingStaff(staff);
+    setEditStaffForm({
+      email: staff.email,
+      isAdmin: staff.isAdmin ?? staff.role === "ADMIN",
+      name: staff.name,
+    });
+    setEditStaffOpen(true);
+  }
+
+  async function handleEditStaff() {
+    if (!editingStaff) return;
+
+    setEditStaffError("");
+    const toast = showRequestToast("edit-staff", "Updating staff...");
+    try {
+      setIsEditing(true);
+      await updateStaff(editingStaff.id, {
+        email: editStaffForm.email,
+        isAdmin: Boolean(editStaffForm.isAdmin),
+        name: editStaffForm.name,
+      });
+      setStaffList((current) =>
+        current.map((s) =>
+          s.id === editingStaff.id
+            ? { ...s, name: editStaffForm.name, email: editStaffForm.email, isAdmin: Boolean(editStaffForm.isAdmin) }
+            : s,
+        ),
+      );
+      setEditStaffOpen(false);
+      toast.success(`${editStaffForm.name} was updated.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update staff.";
+      setEditStaffError(message);
+      toast.error(message);
+    } finally {
+      setIsEditing(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -217,13 +264,16 @@ function AdminStaff() {
       title: "Action",
       key: "action",
       render: (_, staff) => (
-        <Button 
-          type="primary" 
-          danger={staff.isActive !== false}
-          onClick={() => handleToggleStatus(staff.id, staff.isActive === false)}
-        >
-          {staff.isActive !== false ? "Deactivate" : "Activate"}
-        </Button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Button onClick={() => openEditStaff(staff)}>Edit</Button>
+          <Button
+            type="primary"
+            danger={staff.isActive !== false}
+            onClick={() => handleToggleStatus(staff.id, staff.isActive === false)}
+          >
+            {staff.isActive !== false ? "Deactivate" : "Activate"}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -352,6 +402,53 @@ function AdminStaff() {
           total={currentTabStaff.length}
         />
       </section>
+      <Modal
+        maskClosable={false}
+        okButtonProps={{ loading: isEditing }}
+        okText="Save changes"
+        onCancel={() => setEditStaffOpen(false)}
+        onOk={handleEditStaff}
+        open={editStaffOpen}
+        title={`Edit${editingStaff ? ` ${editingStaff.name}` : " staff"}`}
+      >
+        <div className="admin-modal-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name</label>
+              <input
+                onChange={(e) => setEditStaffForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Jane Staff"
+                type="text"
+                value={editStaffForm.name}
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                onChange={(e) => setEditStaffForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="staff@mastercraft.com"
+                type="email"
+                value={editStaffForm.email}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Role</label>
+            <select
+              onChange={(e) => setEditStaffForm((f) => ({ ...f, isAdmin: e.target.value === "ADMIN" }))}
+              value={editStaffForm.isAdmin ? "ADMIN" : "STAFF"}
+            >
+              <option value="STAFF">Staff</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+          {editStaffError ? (
+            <p className="admin-feedback" style={{ color: "var(--danger, #dc2626)" }} aria-live="polite">
+              {editStaffError}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 }
