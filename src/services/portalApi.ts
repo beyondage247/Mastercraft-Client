@@ -2995,6 +2995,53 @@ export async function reassignClient(clientId: string, staffId: string) {
   }, true);
 }
 
+export type UpdateClientInput = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  contactName?: string;
+  additionalEmail?: string;
+  clientCredit?: "COD" | "CREDIT_ACCOUNT";
+};
+
+export async function updateClient(id: string, input: UpdateClientInput): Promise<ClientRecord> {
+  await portalRequest<PortalMessageResponse>(`/users/clients/${encodeURIComponent(id)}`, {
+    body: JSON.stringify({
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.email !== undefined && { email: input.email }),
+      ...(input.phone !== undefined && { phone: input.phone }),
+      ...(input.company !== undefined && { company: input.company }),
+      ...(input.contactName !== undefined && { additionalContact: input.contactName }),
+      ...(input.additionalEmail !== undefined && { additionalEmail: input.additionalEmail }),
+      ...(input.clientCredit !== undefined && { clientCredit: input.clientCredit }),
+    }),
+    method: "PATCH",
+  }, true);
+
+  const clients = await getClients();
+  const client = clients.find((c) => c.id === id);
+  if (!client) throw new Error("Client was updated but could not be found in the refreshed list.");
+  return client;
+}
+
+export type UpdateStaffInput = {
+  name?: string;
+  email?: string;
+  isAdmin?: boolean;
+};
+
+export async function updateStaff(id: string, input: UpdateStaffInput): Promise<PortalMessageResponse> {
+  return portalRequest<PortalMessageResponse>(`/users/staff/${encodeURIComponent(id)}`, {
+    body: JSON.stringify({
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.email !== undefined && { email: input.email }),
+      ...(input.isAdmin !== undefined && { isAdmin: input.isAdmin }),
+    }),
+    method: "PATCH",
+  }, true);
+}
+
 export async function getProjectDetail(id: string): Promise<{ project: ProjectListItem | undefined, details: ProjectDetailInfo | undefined }> {
   let project: ProjectListItem | undefined;
 
