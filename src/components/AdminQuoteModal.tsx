@@ -1,7 +1,8 @@
-import { Button, DatePicker, InputNumber, Modal, Segmented, Select, Switch, Table } from "antd";
+import { Button, DatePicker, Input, InputNumber, Modal, Segmented, Select, Switch, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { useBlocker } from "react-router-dom";
 import type { ProjectListItem, QuoteListItem } from "../data/portal";
 import {
   createQuote,
@@ -237,6 +238,12 @@ function AdminQuoteModal({
   ]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("");
+
+  // Prevent browser navigation (e.g., swipe back) while modal is open to avoid losing work
+  useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      open && currentLocation.pathname !== nextLocation.pathname
+  );
 
   useEffect(() => {
     if (!open || catalogItems.length) {
@@ -1049,13 +1056,16 @@ function AdminQuoteModal({
             {lines.map((line) => (
               <div className="quote-line-table__row" key={line.key}>
                 {line.isCustom ? (
-                  <input
+                  <textarea
                     aria-label="Manual product or service name"
+                    className="ant-input"
                     onChange={(event) =>
                       updateLine(line.key, { productName: event.target.value })
                     }
                     placeholder="Write product or service name"
                     value={line.productName}
+                    rows={2}
+                    style={{ resize: 'vertical' }}
                   />
                 ) : (
                   <Select
