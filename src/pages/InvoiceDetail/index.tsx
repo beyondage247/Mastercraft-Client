@@ -241,7 +241,7 @@ function InvoiceDetail() {
                     <div className="line-item-icon"><PortalIcon name="documents" /></div>
                     <div className="line-item-info">
                       <h4>{item.description}</h4>
-                      <p>Qty: {item.qty} &nbsp;&nbsp;@ {item.rate} / ea</p>
+                      <p>Qty: {item.qty} &nbsp;&nbsp;@ {item.rate} / ea &nbsp;&nbsp;(Tax: {item.tax ?? 0}%)</p>
                     </div>
                     <div className="line-item-amount">{item.amount}</div>
                   </div>
@@ -257,7 +257,7 @@ function InvoiceDetail() {
                 <span>{details.subtotal}</span>
               </div>
               <div className="totals-row">
-                <span>Tax (8%)</span>
+                <span>Tax Amount</span>
                 <span>{details.tax}</span>
               </div>
               <div className="totals-row grand-total">

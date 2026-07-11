@@ -681,6 +681,7 @@ export type LineItem = {
   rate: string;
   amount: string;
   serviceId?: string;
+  tax?: number;
 };
 
 export type LinkedProject = {

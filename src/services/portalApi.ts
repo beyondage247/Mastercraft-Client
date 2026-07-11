@@ -448,6 +448,7 @@ type BackendInvoiceResponse = {
 type BackendQuoteLineItemResponse = {
   id?: string;
   lineTotal?: string | number | null;
+  lineTaxAmount?: string | number | null;
   ourPrice?: string | number | null;
   price?: string | number | null;
   productName?: string;
@@ -460,6 +461,7 @@ type BackendQuoteLineItemResponse = {
     name?: string;
   } | null;
   serviceId?: string;
+  tax?: string | number | null;
   total?: string | number | null;
   unitPrice?: string | number | null;
 };
@@ -1370,6 +1372,7 @@ function normalizeLineItems(
     const rate = moneyText(price);
     const quantity = Number(item.quantity) || 1;
     const lineTotal = numberFromDecimal(item.lineTotal ?? item.total) || numberFromDecimal(price) * quantity;
+    const tax = item.tax != null ? Number(item.tax) : undefined;
 
     return {
       amount: moneyText(lineTotal),
@@ -1377,6 +1380,7 @@ function normalizeLineItems(
       qty: quantity,
       rate,
       serviceId: item.serviceId || service?.id,
+      tax,
     };
   });
 }

@@ -31,6 +31,7 @@ type QuoteLineDraft = {
   key: string;
   productName: string;
   quantity: number;
+  tax: number;
   unitPrice: number;
 };
 
@@ -40,7 +41,6 @@ type QuoteFormState = {
   message: string;
   name: string;
   shippingFee: number;
-  tax: number;
   validUntil: string;
 };
 
@@ -89,6 +89,7 @@ function emptyLine(isCustom = false): QuoteLineDraft {
     key: crypto.randomUUID(),
     productName: "",
     quantity: 1,
+    tax: 0,
     unitPrice: 0,
   };
 }
@@ -199,6 +200,7 @@ function lineFromQuoteItem(
     key: crypto.randomUUID(),
     productName: item.description,
     quantity: item.qty || 1,
+    tax: typeof item.tax === "number" ? item.tax : 0,
     unitPrice: numberFromPrice(item.rate),
   };
 }
@@ -220,7 +222,6 @@ function AdminQuoteModal({
     message: "",
     name: "",
     shippingFee: 0,
-    tax: 0,
     validUntil: dateValue(14),
   });
   const [isPaymentScheduleOpen, setIsPaymentScheduleOpen] = useState(false);
@@ -288,7 +289,6 @@ function AdminQuoteModal({
         message: quote.message || "",
         name: quote.title,
         shippingFee: 0,
-        tax: numberFromPrice(quote.tax),
         validUntil: dateInputValue(quote.validUntil) || dateValue(14),
       });
       setLines(
@@ -345,7 +345,6 @@ function AdminQuoteModal({
         message: "",
         name: `${project.title} Quote`,
         shippingFee: 0,
-        tax: 0,
         validUntil: dateValue(14),
       });
       setLines([emptyLine()]);
@@ -419,7 +418,16 @@ function AdminQuoteModal({
   );
   const discount = Math.max(0, Number(form.discount) || 0);
   const shippingFee = Math.max(0, Number(form.shippingFee) || 0);
-  const taxAmount = (Math.max(0, Number(form.tax) || 0) / 100) * subtotal;
+  // Tax is now calculated per line item: sum of (lineTotal × lineTax%)
+  const taxAmount = useMemo(
+    () =>
+      lines.reduce((sum, line) => {
+        const lineTotal = line.unitPrice * Math.max(0, Number(line.quantity) || 0);
+        const lineTaxRate = Math.max(0, Number(line.tax) || 0);
+        return sum + (lineTotal * lineTaxRate) / 100;
+      }, 0),
+    [lines],
+  );
   const total = Math.max(0, subtotal + taxAmount - discount + shippingFee);
   const depositAmount =
     depositRow.amountType === "percentage"
@@ -878,6 +886,7 @@ function AdminQuoteModal({
       discount,
       lineItems: selectedLines.map((line) => {
         const quantity = Math.max(1, Number(line.quantity) || 1);
+        const tax = Math.max(0, Number(line.tax) || 0);
 
         if (line.isCustom) {
           const productName = line.productName.trim();
@@ -887,12 +896,14 @@ function AdminQuoteModal({
             ourPrice: unitPrice,
             productName,
             quantity,
+            tax,
           };
         }
 
         return {
           quantity,
           serviceId: line.catalogItemId,
+          tax,
         };
       }),
       message: form.message.trim(),
@@ -900,7 +911,8 @@ function AdminQuoteModal({
       paymentSchedule: buildPaymentSchedule(),
       shippingFee,
       subtotal,
-      tax: Math.max(0, Number(form.tax) || 0),
+      // top-level tax: send 0 as it's now per-line; taxAmount is the computed sum
+      tax: 0,
       taxAmount,
       total,
       validUntil: form.validUntil,
@@ -1049,6 +1061,7 @@ function AdminQuoteModal({
             <div className="quote-line-table__head">
               <span>Product or service</span>
               <span>Unit price</span>
+              <span>Tax (%)</span>
               <span>Qty</span>
               <span>Price</span>
               <span>Action</span>
@@ -1091,6 +1104,18 @@ function AdminQuoteModal({
                   value={line.unitPrice}
                 />
                 <input
+                  aria-label="Tax percentage"
+                  min="0"
+                  max="100"
+                  onChange={(event) =>
+                    updateLine(line.key, { tax: Number(event.target.value) || 0 })
+                  }
+                  placeholder="0"
+                  title="Tax % for this line item"
+                  type="number"
+                  value={line.tax}
+                />
+                <input
                   aria-label="Quantity"
                   min="1"
                   onChange={(event) =>
@@ -1113,14 +1138,15 @@ function AdminQuoteModal({
         </div>
 
         <div className="quote-total-panel">
-          <div className="form-group">
+          {/* Global tax input hidden — tax is now set per line item above */}
+          <div className="form-group" style={{ display: 'none' }}>
             <label htmlFor="quoteTax">Tax (%)</label>
             <input
               id="quoteTax"
               min="0"
-              onChange={(event) => updateForm("tax", Number(event.target.value) || 0)}
+              onChange={() => undefined}
               type="number"
-              value={form.tax}
+              value={0}
             />
           </div>
           <div className="form-group">
