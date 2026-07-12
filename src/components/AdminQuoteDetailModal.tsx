@@ -191,6 +191,7 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
                 <span>Product/service</span>
                 <span>Qty</span>
                 <span>Unit price</span>
+                <span>Tax (%)</span>
                 <span>Total</span>
               </div>
               {displayQuote.lineItems?.length ? (
@@ -199,6 +200,7 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
                     <strong>{item.description}</strong>
                     <span>{item.qty}</span>
                     <span>{item.rate}</span>
+                    <span>{item.tax ?? 0}%</span>
                     <span>{item.amount}</span>
                   </article>
                 ))

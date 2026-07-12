@@ -3676,8 +3676,9 @@
   align-items: center;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(300px, 1.8fr) minmax(130px, 0.7fr) minmax(90px, 0.45fr) minmax(120px, 0.7fr) minmax(90px, 0.45fr);
-  min-width: 820px;
+  /* Product | Unit Price | Tax % | Qty | Price | Action */
+  grid-template-columns: minmax(280px, 1.7fr) minmax(120px, 0.65fr) minmax(90px, 0.45fr) minmax(80px, 0.4fr) minmax(110px, 0.65fr) minmax(80px, 0.4fr);
+  min-width: 900px;
 }
 
 .quote-line-table__head {
@@ -4146,7 +4147,7 @@
 
 .admin-quote-line-table .admin-project-stage-table__head,
 .admin-quote-line-table .admin-project-stage-table__row {
-  grid-template-columns: 1.7fr 0.45fr 0.65fr 0.65fr;
+  grid-template-columns: 1.7fr 0.45fr 0.65fr 0.45fr 0.65fr;
 }
 
 .admin-record-table__head,
