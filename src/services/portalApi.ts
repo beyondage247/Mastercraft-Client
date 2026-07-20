@@ -2646,6 +2646,14 @@ export function downloadInvoicePdf(invoiceId: string, fileName?: string) {
   );
 }
 
+export async function deleteInvoice(invoiceId: string): Promise<void> {
+  await portalRequest(
+    `/quotes/invoices/${encodeURIComponent(invoiceId)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
 export function applyCommissionUpdate(
   commission: CommissionItem,
   input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },

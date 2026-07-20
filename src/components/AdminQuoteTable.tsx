@@ -71,7 +71,8 @@ function AdminQuoteTable({
     return {
       items: [
         { key: "view", label: "View" },
-        { key: "edit", label: "Edit" },
+        // Edit is always visible regardless of quote status (including Approved)
+        { key: "edit", label: "Edit", disabled: false },
         { key: "download", label: "Download PDF" },
       ],
       onClick: ({ key }) => {

@@ -6,7 +6,7 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
-import { downloadInvoicePdf, getInvoices } from "../../services/portalApi";
+import { downloadInvoicePdf, getInvoices, deleteInvoice } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 
@@ -25,6 +25,7 @@ function AdminInvoices() {
   const [page, setPage] = useState(1);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,12 +63,34 @@ function AdminInvoices() {
     });
   }
 
+  function handleDeleteInvoice(invoice: InvoiceItem) {
+    if (!window.confirm(`Delete invoice ${invoice.invoiceId || invoice.id}? This cannot be undone.`)) {
+      return;
+    }
+    const toast = showRequestToast(`admin-invoice-delete-${invoice.id}`, "Deleting invoice...");
+    setDeletingId(invoice.id);
+    deleteInvoice(invoice.id)
+      .then(() => {
+        toast.success("Invoice deleted.");
+        setInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete invoice."))
+      .finally(() => setDeletingId(null));
+  }
+
   function actionMenu(invoice: InvoiceItem): MenuProps {
     return {
       items: [
         { disabled: invoice.status === "Paid", key: "record-payment", label: "Record payment" },
         { key: "view", label: "View" },
         { key: "download", label: "Download PDF" },
+        { type: "divider" },
+        {
+          danger: true,
+          disabled: invoice.status === "Paid" || deletingId === invoice.id,
+          key: "delete",
+          label: deletingId === invoice.id ? "Deleting..." : "Delete Invoice",
+        },
       ],
       onClick: ({ key }) => {
         if (key === "record-payment") {
@@ -84,6 +107,11 @@ function AdminInvoices() {
             .catch((error) =>
               toast.error(error instanceof Error ? error.message : "Unable to download invoice PDF."),
             );
+          return;
+        }
+
+        if (key === "delete") {
+          handleDeleteInvoice(invoice);
           return;
         }
 
