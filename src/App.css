@@ -4340,3 +4340,333 @@
   font-size: 15px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVENESS ENHANCEMENTS
+   All rules below are mobile-only. Desktop layouts are untouched.
+   Added breakpoints: ≤820px additions · ≤560px · ≤480px
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── ≤820px: touch targets + layout collapses ───────────────────────── */
+@media (max-width: 820px) {
+  /* Minimum 44px tap area for nav links and profile button */
+  .app-nav__link {
+    min-height: 44px;
+  }
+
+  .user-chip__menu {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Project / Quote detail: right sidebar stacks below main content */
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Admin pages: form panel + list panel stack vertically */
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Weekly report: 3-col summary/input grids → 2-col at tablet */
+  .weekly-report-summary-grid,
+  .weekly-report-input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Products & services: 3-col metrics → 2-col at tablet */
+  .product-service-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Product service toolbar: 3-col → 1-col */
+  .product-service-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── ≤560px: standard phone layout ─────────────────────────────────── */
+@media (max-width: 560px) {
+  /* ---- Navigation -------------------------------------------------- */
+
+  /* Allow nav links to scroll horizontally rather than overflow/clip */
+  .app-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Slightly smaller nav link text + tighter padding on phones */
+  .app-nav__link {
+    font-size: 14px;
+    padding: 4px 10px;
+    gap: 5px;
+  }
+
+  /* More-menu dropdown: anchor to right edge to prevent viewport clip.
+     Overrides the desktop translate(-50%) centering approach. */
+  .more-menu__panel {
+    left: auto;
+    right: 0;
+    transform: translateY(8px);
+  }
+
+  .more-menu:hover .more-menu__panel,
+  .more-menu:focus-within .more-menu__panel {
+    transform: translateY(0);
+  }
+
+  /* ---- Panels ------------------------------------------------------ */
+
+  /* Reduce horizontal panel padding from 28px → 18px */
+  .panel {
+    padding: 18px 18px;
+  }
+
+  /* Compensate negative-margin panel header to match new padding */
+  .panel__header {
+    margin: 0 -18px;
+    padding: 0 18px 18px;
+  }
+
+  /* Active project list uses a negative margin bleed — match panel padding */
+  .active-project-list {
+    margin: 0 -18px;
+  }
+
+  .active-project-row {
+    padding: 18px 22px;
+  }
+
+  /* ---- Toolbars ---------------------------------------------------- */
+
+  /* Asset toolbar: tighten padding (was 24px 44px) */
+  .asset-toolbar {
+    padding: 16px 20px;
+  }
+
+  /* Billing filter panel: tighten side padding (was 26px 42px) */
+  .billing-filter-panel {
+    padding: 16px 20px;
+  }
+
+  /* Asset toolbar inputs/labels: 24px font is too large on phones */
+  .asset-search input,
+  .select-field select,
+  .asset-toolbar__label {
+    font-size: 18px;
+  }
+
+  /* ---- Forms ------------------------------------------------------- */
+
+  /* 2-column form rows collapse to single column on phones */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Review page 2-col grid also collapses */
+  .review-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- Step Indicator (NewProjectRequest) -------------------------- */
+
+  /* Tighten outer padding */
+  .step-indicator {
+    padding: 8px 10px;
+  }
+
+  /* Smaller step labels so text stays on one line at 360px */
+  .step-indicator__label {
+    font-size: 11px;
+  }
+
+  /* Tighter connector lines */
+  .step-indicator__line {
+    margin: 0 8px;
+  }
+
+  /* ---- Detail Tabs (ProjectDetail, QuoteDetail) -------------------- */
+
+  /* Horizontal scroll rather than wrapping / overflowing */
+  .detail-tabs {
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .detail-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Prevent tab items from shrinking; keep them tappable */
+  .detail-tab {
+    font-size: 14px;
+    flex-shrink: 0;
+    padding-bottom: 14px;
+    gap: 6px;
+  }
+
+  /* ---- Summary / Report Grids -------------------------------------- */
+
+  /* Weekly report grids: collapse from 2-col (820px state) → 1-col */
+  .weekly-report-summary-grid,
+  .weekly-report-input-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Product/service metrics: 2-col → 1-col */
+  .product-service-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  /* Product service checks: 4-col → 2-col */
+  .product-service-checks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* ---- Billing / Invoice Detail ------------------------------------ */
+
+  /* Billing page header: stack title + actions vertically */
+  .billing-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .billing-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Billing info: 2-col (from/to addresses) → 1-col */
+  .billing-info-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  /* Invoice card details: reduce the 76px gap between detail items */
+  .invoice-card__details {
+    gap: 24px;
+    font-size: 16px;
+  }
+
+  /* Bottom action buttons on quote/billing detail pages */
+  .action-buttons-bottom {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 20px 0;
+  }
+}
+
+/* ── ≤480px: small phones (~360–390px) ─────────────────────────────── */
+@media (max-width: 480px) {
+  /* Slightly tighter content margins at smallest sizes */
+  .content-container,
+  .page-stack {
+    width: min(100% - 20px, 1298px);
+  }
+
+  /* Header inner: tighten gap between logo and user chip */
+  .site-header__inner {
+    gap: 8px;
+  }
+
+  /* Nav links: smallest font at ~360px so all items stay visible */
+  .app-nav__link {
+    font-size: 13px;
+    padding: 4px 8px;
+  }
+
+  /* ---- Hero Panel -------------------------------------------------- */
+
+  .hero-panel {
+    padding: 20px 16px;
+  }
+
+  .hero-panel h1 {
+    font-size: 22px;
+  }
+
+  .hero-panel p {
+    font-size: 15px;
+  }
+
+  /* ---- Panels: tightest padding at 360px --------------------------- */
+
+  .panel {
+    padding: 14px 14px;
+  }
+
+  .panel__header {
+    margin: 0 -14px;
+    padding: 0 14px 14px;
+  }
+
+  .active-project-list {
+    margin: 0 -14px;
+  }
+
+  .active-project-row {
+    padding: 14px 16px;
+  }
+
+  /* ---- Totals section ---------------------------------------------- */
+
+  /* Fixed 300px width overflows at 360px — make it fluid */
+  .totals-row {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* ---- Typography scale -------------------------------------------- */
+
+  /* Stat card value: slightly smaller at 360px */
+  .stat-card__value {
+    font-size: 26px;
+  }
+
+  /* Quote card description: reduce from 24px */
+  .quote-card p {
+    font-size: 18px;
+  }
+
+  /* ---- Admin pages ------------------------------------------------- */
+
+  /* Admin detail info grid: 2-col → 1-col */
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Weekly report goal articles: 2-col → 1-col */
+  .weekly-report-goal-list article {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- Project Detail header --------------------------------------- */
+
+  .project-detail-header {
+    padding: 20px 16px;
+    flex-wrap: wrap;
+  }
+
+  .project-detail-header h1 {
+    font-size: 20px;
+  }
+
+  /* Meta row (dates, staff) wraps gracefully */
+  .project-detail-header__meta {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Actions button group: take full width and left-align */
+  .project-detail-header__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
