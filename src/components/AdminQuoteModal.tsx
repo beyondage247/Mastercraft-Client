@@ -1091,6 +1091,8 @@ function AdminQuoteModal({
                     onChange={(value) => selectCatalogItem(line.key, value)}
                     options={catalogOptions}
                     placeholder="Search product, category, or subcategory"
+                    popupMatchSelectWidth={false}
+                    popupStyle={{ minWidth: 420, maxWidth: 600 }}
                     showSearch
                     value={line.catalogItemId || undefined}
                   />

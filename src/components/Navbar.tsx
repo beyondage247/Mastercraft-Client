@@ -58,14 +58,6 @@ function Navbar() {
   const isBackOffice = user?.role === "admin" || user?.role === "staff";
   const navItems: NavItem[] = secondaryNavItems;
   const backOfficeVisibleItems = backOfficeNavItems.filter((item) => item.to !== "/admin/staff" || isAdmin);
-  const backOfficePrimaryItems = backOfficeVisibleItems.slice(0, 4);
-  const backOfficeMoreItems = backOfficeVisibleItems.slice(4);
-  const [isMoreActive, setIsMoreActive] = useState(
-    secondaryNavItems.some((item) => item.route && item.to === location.pathname),
-  );
-  const [isBackOfficeMoreActive, setIsBackOfficeMoreActive] = useState(
-    backOfficeMoreItems.some((item) => item.to === location.pathname),
-  );
   const profileMenu: MenuProps = {
     items: [
       { key: "change-password", label: "Change password" },
@@ -111,7 +103,7 @@ function Navbar() {
         <BrandLogo href={isBackOffice ? "/admin/clients" : "/"} />
         {!isBackOffice ? (
           <nav className="app-nav" aria-label="Primary">
-            {primaryNavItems.map((item) => {
+            {[...primaryNavItems, ...navItems].map((item) => {
               const content = (
                 <>
                   <PortalIcon name={item.icon} />
@@ -136,53 +128,10 @@ function Navbar() {
                 </a>
               );
             })}
-            <div className="more-menu">
-              <button
-                className={`app-nav__link more-menu__trigger${isMoreActive ? " is-active" : ""}`}
-                type="button"
-                onClick={() => setIsMoreActive(!isMoreActive)}
-              >
-                <PortalIcon name="down" />
-                <span>More</span>
-              </button>
-              <div className="more-menu__panel">
-                {navItems.map((item) => {
-                  const content = item.route ? (
-                    <NavLink
-                      end={item.to === "/"}
-                      key={item.label}
-                      to={item.to}
-                      className={({ isActive }) =>
-                        `app-nav__link${isActive ? " is-active" : ""}`
-                      }
-                      onClick={() => setIsMoreActive(false)}
-                    >
-                      <>
-                        <PortalIcon name={item.icon} />
-                        <span>{item.label}</span>
-                      </>
-                    </NavLink>
-                  ) : (
-                    <a
-                      className="app-nav__link"
-                      href={item.to}
-                      key={item.label}
-                      onClick={() => setIsMoreActive(false)}
-                    >
-                      <>
-                        <PortalIcon name={item.icon} />
-                        <span>{item.label}</span>
-                      </>
-                    </a>
-                  );
-                  return content;
-                })}
-              </div>
-            </div>
           </nav>
         ) : (
           <nav className="app-nav" aria-label="Primary">
-            {backOfficePrimaryItems.map((item) => (
+            {backOfficeVisibleItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
@@ -192,29 +141,6 @@ function Navbar() {
                 <span>{item.label}</span>
               </NavLink>
             ))}
-            <div className="more-menu">
-              <button
-                className={`app-nav__link more-menu__trigger${isBackOfficeMoreActive ? " is-active" : ""}`}
-                type="button"
-                onClick={() => setIsBackOfficeMoreActive(!isBackOfficeMoreActive)}
-              >
-                <PortalIcon name="down" />
-                <span>More</span>
-              </button>
-              <div className="more-menu__panel">
-                {backOfficeMoreItems.map((item) => (
-                  <NavLink
-                    key={item.label}
-                    to={item.to}
-                    className={({ isActive }) => `app-nav__link${isActive ? " is-active" : ""}`}
-                    onClick={() => setIsBackOfficeMoreActive(false)}
-                  >
-                    <PortalIcon name={item.icon} />
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </div>
           </nav>
         )}
         <div className="user-chip">

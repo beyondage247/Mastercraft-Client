@@ -3948,7 +3948,7 @@
 
 .admin-record-table--payments .admin-record-table__head,
 .admin-record-table--payments .admin-record-table__row {
-  grid-template-columns: minmax(220px, 1.15fr) minmax(220px, 1.15fr) 1fr 0.7fr 0.7fr;
+  grid-template-columns: minmax(220px, 1.15fr) minmax(220px, 1.15fr) 1fr 0.7fr 0.7fr 90px;
 }
 
 .admin-record-table--invoices .admin-record-table__head,
@@ -4141,8 +4141,8 @@
 
 .admin-record-table--payments .admin-record-table__head,
 .admin-record-table--payments .admin-record-table__row {
-  /* Reference | Client | Invoice/Record | Project | Amount | Method */
-  grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr;
+  /* Reference | Client | Invoice/Record | Project | Amount | Method | Action */
+  grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr 90px;
 }
 
 .admin-quote-line-table .admin-project-stage-table__head,

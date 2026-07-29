@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pagination, Tabs } from "antd";
-import type { PaymentItem, OutstandingPaymentItem } from "../../data/portal";
+import { Dropdown, Pagination, Tabs, type MenuProps } from "antd";
+import type { PaymentItem, OutstandingPaymentItem, ProjectListItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
-import { getPayments, getOutstandingPayments } from "../../services/portalApi";
+import { getPayments, getOutstandingPayments, getClientDetails, getProjectsForClient, type ClientRecord } from "../../services/portalApi";
 import ExportButton from '../../components/ExportButton';
+import AdminClientDetailModal from "../../components/AdminClientDetailModal";
+import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import { staffAssignment } from "../../utils/clientUtils";
 
 const pageSize = 15;
 
@@ -25,6 +28,12 @@ function AdminPayments() {
   const [outstandingSearch, setOutstandingSearch] = useState("");
   const [activeTab, setActiveTab] = useState("payments");
   const [outstandingPage, setOutstandingPage] = useState(1);
+
+  const [viewClientOpen, setViewClientOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
+  const [selectedClientProjects, setSelectedClientProjects] = useState<ProjectListItem[]>([]);
+  const [isLoadingClientProjects, setIsLoadingClientProjects] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<ProjectListItem | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,6 +64,23 @@ function AdminPayments() {
       isMounted = false;
     };
   }, []);
+
+  async function openClientDetails(clientId: string) {
+    if (!clientId) return;
+    setIsLoadingClientProjects(true);
+    setViewClientOpen(true);
+    try {
+      const client = await getClientDetails(clientId);
+      setSelectedClient(client);
+      const projects = await getProjectsForClient(clientId);
+      setSelectedClientProjects(projects);
+    } catch (err) {
+      console.error(err);
+      setSelectedClientProjects([]);
+    } finally {
+      setIsLoadingClientProjects(false);
+    }
+  }
 
   const visiblePayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -135,6 +161,10 @@ function AdminPayments() {
     };
   }, [payments, outstandingPayments]);
 
+  const filteredOutstandingTotal = useMemo(() => {
+    return visibleOutstanding.reduce((sum, item) => sum + (item.amountOverdueValue || 0), 0);
+  }, [visibleOutstanding]);
+
   const paymentsTab = (
     <section className="panel admin-client-list" style={{ marginTop: '0px' }}>
       <div className="panel__header">
@@ -174,6 +204,7 @@ function AdminPayments() {
           <span>Project</span>
           <span>Amount</span>
           <span>Method</span>
+          <span>Action</span>
         </div>
         {isLoading ? (
           <div className="admin-empty-row">Loading payments...</div>
@@ -188,6 +219,22 @@ function AdminPayments() {
               <span>{payment.project}</span>
               <span>{payment.amount}</span>
               <span>{payment.method}</span>
+              <span>
+                <Dropdown
+                  menu={{
+                    items: [{ key: "view", label: "View Client", disabled: !payment.clientId }],
+                    onClick: () => {
+                      if (payment.clientId) openClientDetails(payment.clientId);
+                    },
+                  }}
+                  placement="bottomRight"
+                >
+                  <button className="table-action-button" type="button">
+                    <span>Actions</span>
+                    <PortalIcon name="down" />
+                  </button>
+                </Dropdown>
+              </span>
             </article>
           ))
         ) : (
@@ -233,21 +280,46 @@ function AdminPayments() {
         />
       </label>
       <div className="admin-record-table admin-record-table--payments">
-        <div className="admin-record-table__head" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+        <div className="admin-record-table__head" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
           <span>Project Name</span>
           <span>Client Name</span>
           <span>Amount Overdue</span>
+          <span>Action</span>
         </div>
         {isLoading ? (
           <div className="admin-empty-row">Loading outstanding data...</div>
         ) : visibleOutstanding.length ? (
-          paginatedOutstanding.map((item) => (
-            <article className="admin-record-table__row" key={item.projectId} style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-              <strong>{item.projectName}</strong>
-              <span>{item.clientName}</span>
-              <span className="text-danger"><strong>{item.amountOverdue}</strong></span>
+          <>
+            {paginatedOutstanding.map((item) => (
+              <article className="admin-record-table__row" key={item.projectId} style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
+                <strong>{item.projectName}</strong>
+                <span>{item.clientName}</span>
+                <span className="text-danger"><strong>{item.amountOverdue}</strong></span>
+                <span>
+                  <Dropdown
+                    menu={{
+                      items: [{ key: "view", label: "View Client", disabled: !item.clientId }],
+                      onClick: () => {
+                        if (item.clientId) openClientDetails(item.clientId);
+                      },
+                    }}
+                    placement="bottomRight"
+                  >
+                    <button className="table-action-button" type="button">
+                      <span>Actions</span>
+                      <PortalIcon name="down" />
+                    </button>
+                  </Dropdown>
+                </span>
+              </article>
+            ))}
+            <article className="admin-record-table__row" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px", borderTop: "2px solid #eaeaea", backgroundColor: "#fafafa" }}>
+              <strong>Total</strong>
+              <span></span>
+              <span className="text-danger"><strong>{formatMoney(filteredOutstandingTotal)}</strong></span>
+              <span></span>
             </article>
-          ))
+          </>
         ) : (
           <div className="admin-empty-row">No outstanding balances found.</div>
         )}
@@ -313,6 +385,22 @@ function AdminPayments() {
           { key: 'payments', label: 'Payments', children: paymentsTab },
           { key: 'outstanding', label: 'Outstanding', children: outstandingTab }
         ]}
+      />
+
+      <AdminClientDetailModal
+        client={selectedClient}
+        isLoadingProjects={isLoadingClientProjects}
+        onCancel={() => setViewClientOpen(false)}
+        onViewProject={setSelectedProject}
+        open={viewClientOpen}
+        projects={selectedClientProjects}
+        staffAssignmentText={selectedClient ? staffAssignment(selectedClient) : "Unassigned"}
+      />
+
+      <AdminProjectDetailModal
+        onClose={() => setSelectedProject(null)}
+        open={Boolean(selectedProject)}
+        project={selectedProject}
       />
     </div>
   );

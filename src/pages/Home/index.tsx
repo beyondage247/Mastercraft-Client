@@ -57,10 +57,10 @@ function Home() {
           </Link> */}
           <Link
             className="portal-button portal-button--outline-light"
-            to="/quotes"
+            to="/invoices"
           >
             <PortalIcon name="folder" />
-            <span>View Documents</span>
+            <span>View Invoices</span>
           </Link>
         </div>
       </section>
@@ -74,10 +74,8 @@ function Home() {
         ))}
       </section>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
         <div className="dashboard-stack">
-        
-
           <section className="panel active-projects-panel">
             <div className="panel__header">
               <h2>Active Projects</h2>
@@ -103,33 +101,6 @@ function Home() {
             </div>
           </section>
         </div>
-
-        <section className="panel recent-activity-panel">
-          <h2>Recent Activity</h2>
-          <div className="timeline" aria-label="Recent activity timeline">
-            {dashboard.recentActivity.map((activity, index) => (
-              <article
-                className={`timeline-item timeline-item--${index % 2 === 0 ? "right" : "left"}`}
-                key={activity.title}
-              >
-                <span className="timeline-item__node">
-                  <PortalIcon name="tool" />
-                </span>
-                <div className="timeline-card">
-                  <h3>{activity.title}</h3>
-                  <p>{activity.project}</p>
-                  <span>
-                    <PortalIcon name="clock" />
-                    {activity.time}
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
-          <button className="secondary-action" type="button">
-            View all Activity
-          </button>
-        </section>
       </section>
     </div>
   );

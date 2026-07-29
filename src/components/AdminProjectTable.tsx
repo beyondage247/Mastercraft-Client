@@ -12,9 +12,9 @@ type AdminProjectTableProps = {
   emptyMessage?: string;
   error?: string;
   isLoading?: boolean;
-  onCreateQuote: (project: ProjectListItem) => void;
-  onEdit: (project: ProjectListItem) => void;
-  onView: (project: ProjectListItem) => void;
+  onCreateQuote?: (project: ProjectListItem) => void;
+  onEdit?: (project: ProjectListItem) => void;
+  onView?: (project: ProjectListItem) => void;
   projects: ProjectListItem[];
 };
 
@@ -66,25 +66,31 @@ function AdminProjectTable({
     return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
   }
 
+  const hasActions = Boolean(onView || onEdit || onCreateQuote);
+
   function actionMenu(project: ProjectListItem): MenuProps {
+    const items = [
+      ...(onView ? [{ key: "view", label: "View" }] : []),
+      ...(onEdit && project.status !== "Completed" ? [{ key: "edit", label: "Edit" }] : []),
+      ...(onCreateQuote ? [{ key: "create-quote", label: "Create quote" }] : []),
+    ];
+
     return {
-      items: [
-        { key: "view", label: "View" },
-        ...(project.status === "Completed" ? [] : [{ key: "edit", label: "Edit" }]),
-        { key: "create-quote", label: "Create quote" },
-      ],
+      items,
       onClick: ({ key }) => {
-        if (key === "view") {
+        if (key === "view" && onView) {
           onView(project);
           return;
         }
 
-        if (key === "edit") {
+        if (key === "edit" && onEdit) {
           onEdit(project);
           return;
         }
 
-        onCreateQuote(project);
+        if (key === "create-quote" && onCreateQuote) {
+          onCreateQuote(project);
+        }
       },
     };
   }
@@ -110,7 +116,7 @@ function AdminProjectTable({
         <span>Estimated Completion</span>
         <span>Fabrication</span>
         <span>Status</span>
-        <span>Action</span>
+        <span>{hasActions ? "Action" : ""}</span>
       </div>
       {isLoading ? (
         <div className="admin-empty-row">Loading projects...</div>
@@ -133,12 +139,14 @@ function AdminProjectTable({
               </span>
               <StatusBadge tone={projectStatusTone(project.status)}>{project.status}</StatusBadge>
               <span>
-                <Dropdown menu={actionMenu(project)} placement="bottomRight">
-                  <button className="table-action-button" type="button">
-                    <span>Actions</span>
-                    <PortalIcon name="down" />
-                  </button>
-                </Dropdown>
+                {hasActions && (
+                  <Dropdown menu={actionMenu(project)} placement="bottomRight">
+                    <button className="table-action-button" type="button">
+                      <span>Actions</span>
+                      <PortalIcon name="down" />
+                    </button>
+                  </Dropdown>
+                )}
               </span>
             </article>
           );

@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import AdminClientDetailModal from "../../components/AdminClientDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
 import AdminProjectTable from "../../components/AdminProjectTable";
@@ -492,8 +493,8 @@ function AdminClients() {
     const description = projectForm.description.trim();
     const location = projectForm.location.trim();
 
-    if (!projectName || !description || !location || !projectForm.startDate || !projectForm.endDate) {
-      setFeedback("Project name, description, location, start date, and end date are required.");
+    if (!projectName) {
+      setFeedback("Project name is required.");
       return;
     }
 
@@ -505,14 +506,14 @@ function AdminClients() {
         buildAssemble: stageInput("buildAssemble"),
         clientId: selectedClient.id,
         delivery: stageInput("delivery"),
-        description,
-        endDate: projectForm.endDate,
+        description: description || undefined,
+        endDate: projectForm.endDate || undefined,
         finishing: stageInput("finishing"),
         install: stageInput("install"),
-        location,
+        location: location || undefined,
         mil: stageInput("mil"),
         name: projectName,
-        startDate: projectForm.startDate,
+        startDate: projectForm.startDate || undefined,
       });
 
       setSelectedClientProjects((current) => [
@@ -762,80 +763,17 @@ function AdminClients() {
         />
       </section>
 
-      <Modal maskClosable={false}
-        footer={null}
+      <AdminClientDetailModal
+        client={selectedClient}
+        isLoadingProjects={isLoadingClientProjects}
         onCancel={() => setViewClientOpen(false)}
+        onCreateQuote={handleCreateQuote}
+        onEditProject={setEditingProject}
+        onViewProject={setSelectedProject}
         open={viewClientOpen}
-        style={{ maxWidth: "calc(100vw - 32px)" }}
-        title={selectedClient?.name || "Client details"}
-        width={1320}
-      >
-        {selectedClient ? (
-          <Tabs
-            items={[
-              {
-                key: "details",
-                label: "Detail",
-                children: (
-                  <div className="admin-detail-grid">
-                    <div>
-                      <span>Name</span>
-                      <strong>{selectedClient.name}</strong>
-                    </div>
-                    <div>
-                      <span>Company</span>
-                      <strong>{selectedClient.company || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Email</span>
-                      <strong>{selectedClient.email || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Phone</span>
-                      <strong>{selectedClient.phone || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Contact</span>
-                      <strong>{selectedClient.contactName || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Additional email</span>
-                      <strong>{selectedClient.additionalEmail || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Credit</span>
-                      <strong>{selectedClient.clientCredit || "Not set"}</strong>
-                    </div>
-                    <div>
-                      <span>Team Project</span>
-                      <strong>{staffAssignment(selectedClient)}</strong>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                key: "projects",
-                label: "Projects",
-                children: isLoadingClientProjects ? (
-                  <p className="admin-empty-copy">Loading projects...</p>
-                ) : selectedClientProjects.length ? (
-                  <AdminProjectTable
-                    emptyMessage="No projects have been attached to this client yet."
-                    onCreateQuote={handleCreateQuote}
-                    onEdit={setEditingProject}
-                    onView={setSelectedProject}
-                    projects={selectedClientProjects}
-                  />
-                ) : (
-                  <p className="admin-empty-copy">
-                    No projects have been attached to this client yet.
-                  </p>
-                ),
-              },
-            ]}
-          />
-        ) : null}
-      </Modal>
+        projects={selectedClientProjects}
+        staffAssignmentText={selectedClient ? staffAssignment(selectedClient) : "Unassigned"}
+      />
 
       <Modal maskClosable={false}
         okButtonProps={{ loading: isCreatingProject }}

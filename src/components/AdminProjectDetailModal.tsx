@@ -10,6 +10,7 @@ import ProgressBar from "./ProgressBar";
 import ProjectAttachmentsPanel from "./ProjectAttachmentsPanel";
 import ProjectCommentsPanel from "./ProjectCommentsPanel";
 import AdminProjectPaymentPanel from "./AdminProjectPaymentPanel";
+import AdminProjectInvoicePanel from "./AdminProjectInvoicePanel";
 import StatusBadge from "./StatusBadge";
 
 const stageLabels: Record<ProjectStageType, string> = {
@@ -192,6 +193,11 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                 key: "payments",
                 label: "Payments",
                 children: <AdminProjectPaymentPanel project={project} />,
+              },
+              {
+                key: "invoices",
+                label: "Invoices",
+                children: <AdminProjectInvoicePanel quotes={quotes} />,
               },
               {
                 key: "quotes",

@@ -260,6 +260,7 @@ export type PaymentMethod = 'ACH' | 'Wire' | 'Credit Card' | 'Check' | 'Stripe';
 export type PaymentItem = {
   amount: string;
   amountValue: number;
+  clientId?: string;
   clientName?: string;
   date: string;
   dateISO: string;
@@ -275,6 +276,7 @@ export type PaymentItem = {
 export type OutstandingPaymentItem = {
   projectId: string;
   projectName: string;
+  clientId?: string;
   clientName: string;
   amountOverdue: string;
   amountOverdueValue: number;

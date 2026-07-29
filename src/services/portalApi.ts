@@ -368,14 +368,14 @@ export type CreateProjectInput = {
   buildAssemble?: ProjectStageInput;
   clientId: string;
   delivery?: ProjectStageInput;
-  description: string;
-  endDate: string;
+  description?: string;
+  endDate?: string;
   finishing?: ProjectStageInput;
   install?: ProjectStageInput;
-  location: string;
+  location?: string;
   mil?: ProjectStageInput;
   name: string;
-  startDate: string;
+  startDate?: string;
 };
 
 type BackendCreateProjectResponse = {
@@ -1533,6 +1533,7 @@ function mapBackendPayment(payment: BackendPaymentResponse): PaymentItem {
   return {
     amount: formatMoney(amountValue),
     amountValue,
+    clientId: project?.client?.id || project?.clientId || undefined,
     clientName: clientName || undefined,
     date: formatProjectDate(payment.date ?? payment.createdAt),
     dateISO: payment.date ?? payment.createdAt ?? "",
@@ -2105,15 +2106,15 @@ function createProjectPayload(input: CreateProjectInput) {
     ...(buildAssemble ? { buildAssemble } : {}),
     clientId: input.clientId,
     ...(input.delivery ? { delivery: projectStagePayload(input.delivery) } : {}),
-    description: input.description,
-    endDate: toApiDate(input.endDate),
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.endDate ? { endDate: toApiDate(input.endDate) } : {}),
     fabrication: calculateFabricationProgress({ buildAssemble, finishing, mil }),
     ...(finishing ? { finishing } : {}),
     ...(input.install ? { install: projectStagePayload(input.install) } : {}),
-    location: input.location,
+    ...(input.location ? { location: input.location } : {}),
     ...(mil ? { mil } : {}),
     name: input.name,
-    startDate: toApiDate(input.startDate),
+    ...(input.startDate ? { startDate: toApiDate(input.startDate) } : {}),
   };
 }
 
@@ -2843,6 +2844,7 @@ export async function getOutstandingPayments(): Promise<OutstandingPaymentItem[]
         outstanding.push({
           projectId: project.id,
           projectName: project.name || "Unknown Project",
+          clientId: project.client?.id || project.clientId || undefined,
           clientName: project.client?.name || "Unknown Client",
           amountOverdue: formatMoney(overdueValue),
           amountOverdueValue: overdueValue,
