@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dropdown, Pagination, Tabs, type MenuProps } from "antd";
+import { Dropdown, Pagination, Tabs } from "antd";
 import type { PaymentItem, OutstandingPaymentItem, ProjectListItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
@@ -394,7 +394,7 @@ function AdminPayments() {
         onViewProject={setSelectedProject}
         open={viewClientOpen}
         projects={selectedClientProjects}
-        staffAssignmentText={selectedClient ? staffAssignment(selectedClient) : "Unassigned"}
+        staffAssignmentText={selectedClient ? (staffAssignment(selectedClient) || "Unassigned") : "Unassigned"}
       />
 
       <AdminProjectDetailModal

@@ -8,7 +8,7 @@ type AdminProjectInvoicePanelProps = {
 function invoiceStatusTone(status: string) {
   if (status === "Paid") return "success";
   if (status === "Overdue") return "danger";
-  if (status === "Approved") return "primary";
+  if (status === "Approved") return "info";
   return "neutral";
 }
 

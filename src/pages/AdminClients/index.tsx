@@ -1,4 +1,4 @@
-import { DatePicker, Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
+import { DatePicker, Dropdown, Modal, Pagination, type MenuProps } from "antd";
 import dayjs from "dayjs";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
@@ -6,7 +6,6 @@ import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
 import AdminClientDetailModal from "../../components/AdminClientDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
-import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";

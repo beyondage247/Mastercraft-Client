@@ -1,7 +1,7 @@
 import { Dropdown, type MenuProps } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { clearPortalSession, getCurrentPortalUser, updatePortalUser } from "../auth/session";
 import { PortalIcon } from "./PortalIcon";
 import type { PortalIconName } from "./PortalIcon";
@@ -50,7 +50,6 @@ function BrandLogo({ href = "/" }: { href?: string }) {
 }
 
 function Navbar() {
-  const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState(getCurrentPortalUser);
   const displayName = user?.name || "User";
