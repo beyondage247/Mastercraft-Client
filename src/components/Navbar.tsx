@@ -1,7 +1,7 @@
 import { Dropdown, type MenuProps } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { clearPortalSession, getCurrentPortalUser, updatePortalUser } from "../auth/session";
 import { PortalIcon } from "./PortalIcon";
 import type { PortalIconName } from "./PortalIcon";
@@ -54,9 +54,15 @@ function Navbar() {
   const [user, setUser] = useState(getCurrentPortalUser);
   const displayName = user?.name || "User";
   const isAdmin = user?.role === "admin";
+  const location = useLocation();
   const isBackOffice = user?.role === "admin" || user?.role === "staff";
   const navItems: NavItem[] = secondaryNavItems;
   const backOfficeVisibleItems = backOfficeNavItems.filter((item) => item.to !== "/admin/staff" || isAdmin);
+  const backOfficePrimaryItems = backOfficeVisibleItems.slice(0, 4);
+  const backOfficeMoreItems = backOfficeVisibleItems.slice(4);
+  const [isBackOfficeMoreActive, setIsBackOfficeMoreActive] = useState(
+    backOfficeMoreItems.some((item) => item.to === location.pathname),
+  );
   const profileMenu: MenuProps = {
     items: [
       { key: "change-password", label: "Change password" },
@@ -130,7 +136,7 @@ function Navbar() {
           </nav>
         ) : (
           <nav className="app-nav" aria-label="Primary">
-            {backOfficeVisibleItems.map((item) => (
+            {backOfficePrimaryItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
@@ -140,6 +146,29 @@ function Navbar() {
                 <span>{item.label}</span>
               </NavLink>
             ))}
+            <div className="more-menu">
+              <button
+                className={`app-nav__link more-menu__trigger${isBackOfficeMoreActive ? " is-active" : ""}`}
+                type="button"
+                onClick={() => setIsBackOfficeMoreActive(!isBackOfficeMoreActive)}
+              >
+                <PortalIcon name="down" />
+                <span>More</span>
+              </button>
+              <div className="more-menu__panel">
+                {backOfficeMoreItems.map((item) => (
+                  <NavLink
+                    key={item.label}
+                    to={item.to}
+                    className={({ isActive }) => `app-nav__link${isActive ? " is-active" : ""}`}
+                    onClick={() => setIsBackOfficeMoreActive(false)}
+                  >
+                    <PortalIcon name={item.icon} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           </nav>
         )}
         <div className="user-chip">
