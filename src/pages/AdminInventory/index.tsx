@@ -1,4 +1,4 @@
-import { Modal, Table } from "antd";
+import { Dropdown, Modal, Table } from "antd";
 import type { TableProps } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
@@ -11,6 +11,7 @@ import {
   getInventorySummary,
   importInventoryItems,
   updateInventoryItem,
+  deleteInventoryItem,
   type CreateInventoryItemInput,
   type InventoryAvailabilityStatus,
   type InventoryImportResponse,
@@ -644,9 +645,24 @@ function AdminInventory() {
       fixed: "right",
       key: "action",
       render: (_, item) => (
-        <button className="table-action-button" onClick={() => openEdit(item)} type="button">
-          Edit
-        </button>
+        <Dropdown
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: "edit", label: "Edit" },
+              { key: "delete", label: "Delete", danger: true },
+            ],
+            onClick: ({ key }) => {
+              if (key === "edit") openEdit(item);
+              if (key === "delete") handleDeleteInventoryItem(item);
+            },
+          }}
+        >
+          <button className="table-action-button" type="button">
+            <span>Actions</span>
+            <PortalIcon name="down" />
+          </button>
+        </Dropdown>
       ),
       title: "Action",
       width: 110,
@@ -682,8 +698,27 @@ function AdminInventory() {
 
   function openEdit(item: InventoryItem) {
     setEditItem(item);
-    setIsCreateOpen(false);
+    setIsCreateOpen(true);
     setForm(formFromItem(item));
+  }
+
+  function handleDeleteInventoryItem(item: InventoryItem) {
+    Modal.confirm({
+      title: "Delete inventory item?",
+      content: `Delete "${item.name}"? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-inventory-delete-${item.id}`, "Deleting item...");
+        return deleteInventoryItem(item.id)
+          .then(() => {
+            toast.success("Item deleted.");
+            return refreshInventory();
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete item."));
+      },
+    });
   }
 
   function openCreate() {

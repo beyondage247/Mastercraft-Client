@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dropdown, Pagination, type MenuProps } from "antd";
+import { Dropdown, Modal, Pagination, type MenuProps } from "antd";
 import { useNavigate } from "react-router-dom";
 import AdminPaymentModal from "../../components/AdminPaymentModal";
 import PageHeader from "../../components/PageHeader";
@@ -64,18 +64,24 @@ function AdminInvoices() {
   }
 
   function handleDeleteInvoice(invoice: InvoiceItem) {
-    if (!window.confirm(`Delete invoice ${invoice.invoiceId || invoice.id}? This cannot be undone.`)) {
-      return;
-    }
-    const toast = showRequestToast(`admin-invoice-delete-${invoice.id}`, "Deleting invoice...");
-    setDeletingId(invoice.id);
-    deleteInvoice(invoice.id)
-      .then(() => {
-        toast.success("Invoice deleted.");
-        setInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
-      })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete invoice."))
-      .finally(() => setDeletingId(null));
+    Modal.confirm({
+      title: "Delete invoice?",
+      content: `Delete invoice ${invoice.invoiceId || invoice.id}? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-invoice-delete-${invoice.id}`, "Deleting invoice...");
+        setDeletingId(invoice.id);
+        return deleteInvoice(invoice.id)
+          .then(() => {
+            toast.success("Invoice deleted.");
+            setInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete invoice."))
+          .finally(() => setDeletingId(null));
+      },
+    });
   }
 
   function actionMenu(invoice: InvoiceItem): MenuProps {

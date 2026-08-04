@@ -12,8 +12,11 @@ type AdminProjectTableProps = {
   emptyMessage?: string;
   error?: string;
   isLoading?: boolean;
+  onArchive?: (project: ProjectListItem) => void;
   onCreateQuote?: (project: ProjectListItem) => void;
+  onDelete?: (project: ProjectListItem) => void;
   onEdit?: (project: ProjectListItem) => void;
+  onRestore?: (project: ProjectListItem) => void;
   onView?: (project: ProjectListItem) => void;
   projects: ProjectListItem[];
 };
@@ -22,8 +25,11 @@ function AdminProjectTable({
   emptyMessage = "No projects have been created yet.",
   error,
   isLoading = false,
+  onArchive,
   onCreateQuote,
+  onDelete,
   onEdit,
+  onRestore,
   onView,
   projects,
 }: AdminProjectTableProps) {
@@ -66,31 +72,32 @@ function AdminProjectTable({
     return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
   }
 
-  const hasActions = Boolean(onView || onEdit || onCreateQuote);
+  const isArchived = (project: ProjectListItem) =>
+    (project.status as string) === "Archived";
+
+  const hasActions = Boolean(onView || onEdit || onCreateQuote || onArchive || onRestore || onDelete);
 
   function actionMenu(project: ProjectListItem): MenuProps {
+    const archived = isArchived(project);
     const items = [
       ...(onView ? [{ key: "view", label: "View" }] : []),
-      ...(onEdit && project.status !== "Completed" ? [{ key: "edit", label: "Edit" }] : []),
-      ...(onCreateQuote ? [{ key: "create-quote", label: "Create quote" }] : []),
+      ...(!archived && onEdit && project.status !== "Completed" ? [{ key: "edit", label: "Edit" }] : []),
+      ...(!archived && onCreateQuote ? [{ key: "create-quote", label: "Create quote" }] : []),
+      ...((onArchive || onRestore || onDelete) ? [{ type: "divider" as const }] : []),
+      ...(!archived && onArchive ? [{ key: "archive", label: "Archive" }] : []),
+      ...(archived && onRestore ? [{ key: "restore", label: "Restore" }] : []),
+      ...(onDelete ? [{ key: "delete", label: "Delete", danger: true }] : []),
     ];
 
     return {
       items,
       onClick: ({ key }) => {
-        if (key === "view" && onView) {
-          onView(project);
-          return;
-        }
-
-        if (key === "edit" && onEdit) {
-          onEdit(project);
-          return;
-        }
-
-        if (key === "create-quote" && onCreateQuote) {
-          onCreateQuote(project);
-        }
+        if (key === "view" && onView) { onView(project); return; }
+        if (key === "edit" && onEdit) { onEdit(project); return; }
+        if (key === "create-quote" && onCreateQuote) { onCreateQuote(project); return; }
+        if (key === "archive" && onArchive) { onArchive(project); return; }
+        if (key === "restore" && onRestore) { onRestore(project); return; }
+        if (key === "delete" && onDelete) { onDelete(project); }
       },
     };
   }

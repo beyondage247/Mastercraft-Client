@@ -85,13 +85,28 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
     setEditingQuote(null);
   }
 
+  function handleQuoteDeleted(deletedQuote: QuoteListItem) {
+    setQuotes((current) => current.filter((quote) => quote.id !== deletedQuote.id));
+  }
+
+  function handleInvoiceDeleted() {
+    // Reload quotes to reflect deleted invoice
+    if (!project) return;
+    setIsLoadingQuotes(true);
+    getQuotesForProject(project.id)
+      .then((projectQuotes) => setQuotes(projectQuotes))
+      .catch(() => {})
+      .finally(() => setIsLoadingQuotes(false));
+  }
+
   return (
     <Modal maskClosable={false}
       footer={null}
       onCancel={onClose}
       open={open}
       title={project?.title || "Project details"}
-      width={1120}
+      width={1320}
+      style={{ maxWidth: "calc(100vw - 32px)" }}
     >
       {project ? (
         <>
@@ -197,7 +212,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
               {
                 key: "invoices",
                 label: "Invoices",
-                children: <AdminProjectInvoicePanel quotes={quotes} />,
+                children: <AdminProjectInvoicePanel quotes={quotes} onInvoiceDeleted={handleInvoiceDeleted} />,
               },
               {
                 key: "quotes",
@@ -207,6 +222,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                     emptyMessage="No quotes have been created for this project yet."
                     error={error}
                     isLoading={isLoadingQuotes}
+                    onDelete={handleQuoteDeleted}
                     onEdit={setEditingQuote}
                     onView={setViewingQuote}
                     quotes={quotes}

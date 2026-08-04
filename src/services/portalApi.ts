@@ -78,6 +78,7 @@ export type ClientRecord = {
   phone?: string;
   phoneNumber?: string;
   temporaryPassword?: string;
+  isArchived?: boolean;
 };
 
 export type ClientInviteInput = {
@@ -263,6 +264,7 @@ type BackendUserResponse = {
   phoneNumber?: unknown;
   role?: string;
   temporaryPassword?: string;
+  isArchived?: boolean;
 };
 
 type BackendProjectClientResponse = {
@@ -842,6 +844,7 @@ function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): Cl
     phone: normalizeString(data.phone ?? data.phoneNumber),
     phoneNumber: normalizeString(data.phone ?? data.phoneNumber),
     temporaryPassword: data.temporaryPassword,
+    isArchived: Boolean(data.isArchived),
   };
 }
 
@@ -2239,6 +2242,30 @@ export async function updateProjectStatus(projectId: string, input: UpdateProjec
   return mapBackendProject(response.project);
 }
 
+export async function deleteProject(projectId: string): Promise<void> {
+  await portalRequest(
+    `/projects/${encodeURIComponent(projectId)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
+export async function archiveProject(projectId: string): Promise<void> {
+  await portalRequest(
+    `/projects/${encodeURIComponent(projectId)}/archive`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
+export async function restoreProject(projectId: string): Promise<void> {
+  await portalRequest(
+    `/projects/${encodeURIComponent(projectId)}/restore`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
 export async function addProjectComment(projectId: string, message: string) {
   const response = await portalRequest<BackendProjectCommentCreateResponse>(
     "/projects/comments",
@@ -2405,6 +2432,14 @@ export async function importCatalogItems(file: File) {
   }, true);
 }
 
+export async function deleteCatalogItem(id: string): Promise<void> {
+  await portalRequest(
+    `/services/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
 export async function getInventoryItems() {
   return portalRequest<InventoryItem[]>("/inventory", {}, true);
 }
@@ -2443,6 +2478,14 @@ export async function importInventoryItems(file: File) {
     body,
     method: "POST",
   }, true);
+}
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  await portalRequest(
+    `/inventory/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
 }
 
 export async function createQuote(input: CreateQuoteInput) {
@@ -2650,6 +2693,14 @@ export function downloadInvoicePdf(invoiceId: string, fileName?: string) {
 export async function deleteInvoice(invoiceId: string): Promise<void> {
   await portalRequest(
     `/quotes/invoices/${encodeURIComponent(invoiceId)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
+export async function deleteQuote(quoteId: string): Promise<void> {
+  await portalRequest(
+    `/quotes/${encodeURIComponent(quoteId)}`,
     { method: "DELETE" },
     true,
   );
@@ -2944,10 +2995,18 @@ export async function createReport(input: CreateReportInput) {
   return response.report;
 }
 
-export async function getClients(): Promise<ClientRecord[]> {
+export async function getClients(includeArchived = false): Promise<ClientRecord[]> {
+  if (includeArchived) {
+    const [active, archived] = await Promise.all([
+      portalRequest<BackendUserResponse[]>("/users/clients", {}, true),
+      portalRequest<BackendUserResponse[]>("/users/clients?archived=true", {}, true),
+    ]);
+    return [...active, ...archived].map(normalizeClientRecord);
+  }
+
   const data = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
 
-  return data.map((client) => normalizeClientRecord(client));
+  return data.map(normalizeClientRecord);
 }
 
 export async function createClient(input: ClientInviteInput) {
@@ -2965,7 +3024,7 @@ export async function createClient(input: ClientInviteInput) {
     method: "POST",
   }, true);
 
-  const clients = await getClients();
+  const clients = await getClients(true);
   const client = clients.find((item) => item.email === input.email);
 
   if (!client) {
@@ -3002,6 +3061,14 @@ export async function reactivateStaff(staffId: string) {
   }, true);
 }
 
+export async function deleteStaffUser(staffId: string): Promise<void> {
+  await portalRequest(
+    `/users/staff/${encodeURIComponent(staffId)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
 export async function reassignClient(clientId: string, staffId: string) {
   return portalRequest<PortalMessageResponse>("/users/clients/reassign", {
     body: JSON.stringify({ clientId, staffId }),
@@ -3033,10 +3100,34 @@ export async function updateClient(id: string, input: UpdateClientInput): Promis
     method: "PATCH",
   }, true);
 
-  const clients = await getClients();
+  const clients = await getClients(true);
   const client = clients.find((c) => c.id === id);
   if (!client) throw new Error("Client was updated but could not be found in the refreshed list.");
   return client;
+}
+
+export async function archiveClient(id: string): Promise<void> {
+  await portalRequest(
+    `/users/clients/${encodeURIComponent(id)}/archive`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
+export async function restoreClient(id: string): Promise<void> {
+  await portalRequest(
+    `/users/clients/${encodeURIComponent(id)}/restore`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  await portalRequest(
+    `/users/clients/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
 }
 
 export type UpdateStaffInput = {

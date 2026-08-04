@@ -8,6 +8,7 @@ type AdminClientDetailModalProps = {
   isLoadingProjects: boolean;
   onCancel: () => void;
   onCreateQuote?: (project: ProjectListItem) => void;
+  onDeleteProject?: (project: ProjectListItem) => void;
   onEditProject?: (project: ProjectListItem) => void;
   onViewProject?: (project: ProjectListItem) => void;
   open: boolean;
@@ -20,6 +21,7 @@ function AdminClientDetailModal({
   isLoadingProjects,
   onCancel,
   onCreateQuote,
+  onDeleteProject,
   onEditProject,
   onViewProject,
   open,
@@ -88,6 +90,7 @@ function AdminClientDetailModal({
                 <AdminProjectTable
                   emptyMessage="No projects have been attached to this client yet."
                   onCreateQuote={onCreateQuote}
+                  onDelete={onDeleteProject}
                   onEdit={onEditProject}
                   onView={onViewProject}
                   projects={projects}

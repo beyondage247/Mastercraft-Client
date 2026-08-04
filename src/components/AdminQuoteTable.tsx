@@ -12,6 +12,7 @@ type AdminQuoteTableProps = {
   emptyMessage?: string;
   error?: string;
   isLoading?: boolean;
+  onDelete?: (quote: QuoteListItem) => void;
   onEdit: (quote: QuoteListItem) => void;
   onView: (quote: QuoteListItem) => void;
   quotes: QuoteListItem[];
@@ -28,6 +29,7 @@ function AdminQuoteTable({
   emptyMessage = "No quotes have been created yet.",
   error,
   isLoading = false,
+  onDelete,
   onEdit,
   onView,
   quotes,
@@ -71,9 +73,9 @@ function AdminQuoteTable({
     return {
       items: [
         { key: "view", label: "View" },
-        // Edit is always visible regardless of quote status (including Approved)
-        { key: "edit", label: "Edit", disabled: false },
+        { key: "edit", label: "Edit" },
         { key: "download", label: "Download PDF" },
+        ...(onDelete ? [{ key: "delete", label: "Delete", danger: true }] : []),
       ],
       onClick: ({ key }) => {
         if (key === "edit") {
@@ -89,6 +91,11 @@ function AdminQuoteTable({
             .catch((error) =>
               toast.error(error instanceof Error ? error.message : "Unable to download quote PDF."),
             );
+          return;
+        }
+
+        if (key === "delete" && onDelete) {
+          onDelete(quote);
           return;
         }
 

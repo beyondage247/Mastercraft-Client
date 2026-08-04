@@ -1,4 +1,4 @@
-import { DatePicker, Dropdown, Modal, Pagination, type MenuProps } from "antd";
+import { DatePicker, Dropdown, Modal, Pagination, Tabs, type MenuProps } from "antd";
 import dayjs from "dayjs";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
@@ -14,6 +14,10 @@ import {
   calculateStageProgress,
   createClient,
   createProject,
+  deleteProject,
+  archiveClient,
+  restoreClient,
+  deleteClient,
   getClients,
   getProjectsForClient,
   getStaffUsers,
@@ -126,6 +130,7 @@ function AdminClients() {
   const [isReassigning, setIsReassigning] = useState(false);
   const [page, setPage] = useState(1);
   const [clientList, setClientList] = useState<ClientRecord[]>([]);
+  const [clientTab, setClientTab] = useState<"active" | "archived">("active");
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isLoadingClientProjects, setIsLoadingClientProjects] = useState(false);
@@ -148,7 +153,7 @@ function AdminClients() {
   useEffect(() => {
     let isMounted = true;
 
-    getClients()
+    getClients(true)
       .then((clients) => {
         if (isMounted) {
           setClientList(clients);
@@ -174,14 +179,21 @@ function AdminClients() {
     };
   }, [isAdmin]);
 
+  const filteredByTab = useMemo(() => {
+    if (clientTab === "archived") {
+      return clientList.filter((c) => c.isArchived);
+    }
+    return clientList.filter((c) => !c.isArchived);
+  }, [clientList, clientTab]);
+
   const clients = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     if (!normalizedSearch) {
-      return clientList;
+      return filteredByTab;
     }
 
-    return clientList.filter((client) =>
+    return filteredByTab.filter((client) =>
       [
         client.name,
         client.company,
@@ -196,7 +208,7 @@ function AdminClients() {
         .toLowerCase()
         .includes(normalizedSearch),
     );
-  }, [clientList, search]);
+  }, [filteredByTab, search]);
   const visibleClients = useMemo(() => {
     const start = (page - 1) * pageSize;
 
@@ -348,17 +360,25 @@ function AdminClients() {
   });
 
   function actionMenu(client: ClientRecord): MenuProps {
+    const archived = client.isArchived;
     return {
       items: [
         { key: "view", label: "View" },
-        { key: "edit", label: "Edit" },
-        { key: "create-project", label: "Create project" },
-        ...(isAdmin ? [{ key: "reassign", label: "Reassign" }] : []),
+        ...(!archived ? [{ key: "edit", label: "Edit" }] : []),
+        ...(!archived ? [{ key: "create-project", label: "Create project" }] : []),
+        ...(isAdmin && !archived ? [{ key: "reassign", label: "Reassign" }] : []),
+        { type: "divider" as const },
+        ...(!archived ? [{ key: "archive", label: "Archive" }] : []),
+        ...(archived ? [{ key: "restore", label: "Restore" }] : []),
+        { key: "delete", label: "Delete", danger: true },
       ],
       onClick: ({ key }) => {
         if (key === "view") { openClientDetails(client); return; }
         if (key === "edit") { openEditClient(client); return; }
         if (key === "reassign") { openReassign(client); return; }
+        if (key === "archive") { handleArchiveClient(client); return; }
+        if (key === "restore") { handleRestoreClient(client); return; }
+        if (key === "delete") { handleDeleteClient(client); return; }
         openCreateProject(client);
       },
     };
@@ -373,6 +393,73 @@ function AdminClients() {
       current.map((item) => (item.id === project.id ? project : item)),
     );
     setSelectedProject((current) => (current?.id === project.id ? project : current));
+  }
+
+  function handleDeleteProject(project: ProjectListItem) {
+    Modal.confirm({
+      title: "Delete project?",
+      content: `Delete project "${project.title}"? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-project-delete-${project.id}`, "Deleting project...");
+        return deleteProject(project.id)
+          .then(() => {
+            toast.success("Project deleted.");
+            setSelectedClientProjects((current) => current.filter((p) => p.id !== project.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete project."));
+      },
+    });
+  }
+
+  function handleArchiveClient(client: ClientRecord) {
+    Modal.confirm({
+      title: "Archive client?",
+      content: `Archive ${client.name}? Their account will be hidden but can be restored.`,
+      okText: "Archive",
+      okType: "default",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-client-archive-${client.id}`, "Archiving client...");
+        return archiveClient(client.id)
+          .then(() => {
+            toast.success("Client archived.");
+            return getClients(true).then(setClientList);
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to archive client."));
+      },
+    });
+  }
+
+  function handleRestoreClient(client: ClientRecord) {
+    const toast = showRequestToast(`admin-client-restore-${client.id}`, "Restoring client...");
+    restoreClient(client.id)
+      .then(() => {
+        toast.success("Client restored.");
+        return getClients(true).then(setClientList);
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to restore client."));
+  }
+
+  function handleDeleteClient(client: ClientRecord) {
+    Modal.confirm({
+      title: "Delete client?",
+      content: `Permanently delete ${client.name} and all their data? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-client-delete-${client.id}`, "Deleting client...");
+        return deleteClient(client.id)
+          .then(() => {
+            toast.success("Client deleted.");
+            setClientList((current) => current.filter((c) => c.id !== client.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete client."));
+      },
+    });
   }
 
   function staffName(staffId?: string) {
@@ -710,6 +797,15 @@ function AdminClients() {
             />
           </div>
         </div>
+        <Tabs
+          activeKey={clientTab}
+          onChange={(key) => { setClientTab(key as "active" | "archived"); setPage(1); }}
+          items={[
+            { key: "active", label: `Active (${clientList.filter((c) => !c.isArchived).length})` },
+            { key: "archived", label: `Archived (${clientList.filter((c) => c.isArchived).length})` },
+          ]}
+          style={{ marginBottom: 0 }}
+        />
         <label className="admin-table-search">
           <PortalIcon name="search" />
           <input
@@ -767,6 +863,7 @@ function AdminClients() {
         isLoadingProjects={isLoadingClientProjects}
         onCancel={() => setViewClientOpen(false)}
         onCreateQuote={handleCreateQuote}
+        onDeleteProject={handleDeleteProject}
         onEditProject={setEditingProject}
         onViewProject={setSelectedProject}
         open={viewClientOpen}

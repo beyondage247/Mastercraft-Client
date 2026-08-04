@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { Modal } from "antd";
 import type { QuoteListItem } from "../../data/portal";
 import AdminQuoteDetailModal from "../../components/AdminQuoteDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
-import { getQuotes } from "../../services/portalApi";
+import { getQuotes, deleteQuote } from "../../services/portalApi";
+import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 
 function AdminQuotes() {
@@ -57,6 +59,25 @@ function AdminQuotes() {
     setEditingQuote(null);
   }
 
+  function handleDeleteQuote(quote: QuoteListItem) {
+    Modal.confirm({
+      title: "Delete quote?",
+      content: `Delete quote ${quote.uid || quote.id}? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-quote-delete-${quote.id}`, "Deleting quote...");
+        return deleteQuote(quote.id)
+          .then(() => {
+            toast.success("Quote deleted.");
+            setQuotes((current) => current.filter((q) => q.id !== quote.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete quote."));
+      },
+    });
+  }
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Quotes created for projects" title="Quotes" />
@@ -83,6 +104,7 @@ function AdminQuotes() {
         <AdminQuoteTable
           error={error}
           isLoading={isLoading}
+          onDelete={handleDeleteQuote}
           onEdit={setEditingQuote}
           onView={setViewingQuote}
           quotes={quotes}

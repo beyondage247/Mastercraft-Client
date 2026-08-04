@@ -11,6 +11,7 @@ import {
   deactivateStaff,
   reactivateStaff,
   updateStaff,
+  deleteStaffUser,
   type CreateStaffInput,
   type StaffRecord,
 } from "../../services/portalApi";
@@ -204,6 +205,27 @@ function AdminStaff() {
     }
   }
 
+  function handleDeleteStaff(staffId: string) {
+    Modal.confirm({
+      title: "Delete staff account?",
+      content: "Delete this staff account? This cannot be undone and will clear their partner status from clients.",
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: async () => {
+        const toast = showRequestToast("delete-staff", "Deleting staff...");
+        try {
+          await deleteStaffUser(staffId);
+          toast.success("Staff account deleted.");
+          await fetchStaff();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to delete staff account.";
+          toast.error(message);
+        }
+      },
+    });
+  }
+
   if (!canManageStaff) {
     return (
       <div className="page-stack admin-page">
@@ -272,6 +294,13 @@ function AdminStaff() {
             onClick={() => handleToggleStatus(staff.id, staff.isActive === false)}
           >
             {staff.isActive !== false ? "Deactivate" : "Activate"}
+          </Button>
+          <Button 
+            type="primary" 
+            danger 
+            onClick={() => handleDeleteStaff(staff.id)}
+          >
+            Delete
           </Button>
         </div>
       ),

@@ -1,4 +1,4 @@
-import { Modal, Table } from "antd";
+import { Dropdown, Modal, Table } from "antd";
 import type { TableProps } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
@@ -10,6 +10,7 @@ import {
   getCatalogItems,
   importCatalogItems,
   updateCatalogItem,
+  deleteCatalogItem,
   type CatalogAvailabilityStatus,
   type CreateCatalogItemInput,
   type CatalogImportResponse,
@@ -557,9 +558,24 @@ function AdminProductsServices() {
       fixed: "right",
       key: "action",
       render: (_, item) => (
-        <button className="table-action-button" onClick={() => openEdit(item)} type="button">
-          Edit
-        </button>
+        <Dropdown
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: "edit", label: "Edit" },
+              { key: "delete", label: "Delete", danger: true },
+            ],
+            onClick: ({ key }) => {
+              if (key === "edit") openEdit(item);
+              if (key === "delete") handleDeleteCatalogItem(item);
+            },
+          }}
+        >
+          <button className="table-action-button" type="button">
+            <span>Actions</span>
+            <PortalIcon name="down" />
+          </button>
+        </Dropdown>
       ),
       title: "Action",
       width: 110,
@@ -602,8 +618,27 @@ function AdminProductsServices() {
 
   function openEdit(item: CatalogItem) {
     setEditItem(item);
-    setIsCreateOpen(false);
+    setIsCreateOpen(true);
     setForm(formFromItem(item));
+  }
+
+  function handleDeleteCatalogItem(item: CatalogItem) {
+    Modal.confirm({
+      title: "Delete item?",
+      content: `Delete "${item.productName}"? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-catalog-delete-${item.id}`, "Deleting item...");
+        return deleteCatalogItem(item.id)
+          .then(() => {
+            toast.success("Item deleted.");
+            return refreshCatalog();
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete item."));
+      },
+    });
   }
 
   function openCreate() {
