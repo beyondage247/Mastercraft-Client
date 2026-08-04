@@ -3001,12 +3001,12 @@ export async function getClients(includeArchived = false): Promise<ClientRecord[
       portalRequest<BackendUserResponse[]>("/users/clients", {}, true),
       portalRequest<BackendUserResponse[]>("/users/clients?archived=true", {}, true),
     ]);
-    return [...active, ...archived].map(normalizeClientRecord);
+    return [...active, ...archived].map((item) => normalizeClientRecord(item));
   }
 
   const data = await portalRequest<BackendUserResponse[]>("/users/clients", {}, true);
 
-  return data.map(normalizeClientRecord);
+  return data.map((item) => normalizeClientRecord(item));
 }
 
 export async function createClient(input: ClientInviteInput) {
