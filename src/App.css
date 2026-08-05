@@ -2617,6 +2617,10 @@
   min-width: 620px;
 }
 
+.quote-payment-schedule__action {
+  text-align: right;
+}
+
 .quote-payment-schedule__head {
   border-bottom: 1px solid var(--color-border);
   color: var(--color-muted);
@@ -4559,6 +4563,18 @@
     flex-wrap: wrap;
     gap: 12px;
     padding: 20px 0;
+  }
+
+  /* Reposition Pay button to the left side on mobile */
+  .quote-payment-schedule__head,
+  .quote-payment-schedule__row {
+    grid-template-columns: 0.6fr 1.2fr 1fr 0.55fr 0.8fr;
+  }
+
+  .quote-payment-schedule__head > span:last-child,
+  .quote-payment-schedule__action {
+    order: -1;
+    text-align: left;
   }
 }
 

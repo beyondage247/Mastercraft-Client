@@ -159,7 +159,7 @@ function QuotePaymentSchedulePanel({
                 <span>{formatScheduleDate(row.date)}</span>
                 <span>{formatSchedulePercent(row.percentage)}</span>
                 <strong>{formatScheduleAmount(row.amount)}</strong>
-                <span style={{ textAlign: "right" }}>
+                <span className="quote-payment-schedule__action">
                   {showPayButtons && status === "paid" ? (
                     <span style={{ color: "var(--color-success, #22c55e)", fontSize: 13, fontWeight: 600 }}>Paid</span>
                   ) : showPayButtons && status === "next" ? (
