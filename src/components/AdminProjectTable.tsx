@@ -16,6 +16,7 @@ type AdminProjectTableProps = {
   onCreateQuote?: (project: ProjectListItem) => void;
   onDelete?: (project: ProjectListItem) => void;
   onEdit?: (project: ProjectListItem) => void;
+  onMarkCompleted?: (project: ProjectListItem) => void;
   onRestore?: (project: ProjectListItem) => void;
   onView?: (project: ProjectListItem) => void;
   projects: ProjectListItem[];
@@ -29,6 +30,7 @@ function AdminProjectTable({
   onCreateQuote,
   onDelete,
   onEdit,
+  onMarkCompleted,
   onRestore,
   onView,
   projects,
@@ -82,6 +84,7 @@ function AdminProjectTable({
     const items = [
       ...(onView ? [{ key: "view", label: "View" }] : []),
       ...(!archived && onEdit && project.status !== "Completed" ? [{ key: "edit", label: "Edit" }] : []),
+      ...(!archived && onMarkCompleted ? [{ key: "mark-completed", label: "Mark as Completed" }] : []),
       ...(!archived && onCreateQuote ? [{ key: "create-quote", label: "Create quote" }] : []),
       ...((onArchive || onRestore || onDelete) ? [{ type: "divider" as const }] : []),
       ...(!archived && onArchive ? [{ key: "archive", label: "Archive" }] : []),
@@ -94,6 +97,7 @@ function AdminProjectTable({
       onClick: ({ key }) => {
         if (key === "view" && onView) { onView(project); return; }
         if (key === "edit" && onEdit) { onEdit(project); return; }
+        if (key === "mark-completed" && onMarkCompleted) { onMarkCompleted(project); return; }
         if (key === "create-quote" && onCreateQuote) { onCreateQuote(project); return; }
         if (key === "archive" && onArchive) { onArchive(project); return; }
         if (key === "restore" && onRestore) { onRestore(project); return; }

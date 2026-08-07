@@ -5,7 +5,7 @@ import AdminQuoteDetailModal from "../../components/AdminQuoteDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
-import { getQuotes, deleteQuote } from "../../services/portalApi";
+import { getQuotes, deleteQuote, reactivateQuote } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 
@@ -78,6 +78,16 @@ function AdminQuotes() {
     });
   }
 
+  function handleReactivateQuote(quote: QuoteListItem) {
+    const toast = showRequestToast(`admin-quote-reactivate-${quote.id}`, "Reactivating quote...");
+    reactivateQuote(quote.id)
+      .then(() => {
+        toast.success("Quote reactivated.");
+        loadQuotes();
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to reactivate quote."));
+  }
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Quotes created for projects" title="Quotes" />
@@ -106,6 +116,7 @@ function AdminQuotes() {
           isLoading={isLoading}
           onDelete={handleDeleteQuote}
           onEdit={setEditingQuote}
+          onReactivate={handleReactivateQuote}
           onView={setViewingQuote}
           quotes={quotes}
         />

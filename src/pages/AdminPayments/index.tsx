@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dropdown, Pagination, Tabs } from "antd";
+import { Dropdown, Modal, Pagination, Tabs } from "antd";
 import type { PaymentItem, OutstandingPaymentItem, ProjectListItem } from "../../data/portal";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
-import { getPayments, getOutstandingPayments, getClientDetails, getProjectsForClient, type ClientRecord } from "../../services/portalApi";
+import { getPayments, getOutstandingPayments, getClientDetails, getProjectsForClient, deletePayment, type ClientRecord } from "../../services/portalApi";
 import ExportButton from '../../components/ExportButton';
 import AdminClientDetailModal from "../../components/AdminClientDetailModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
 import { staffAssignment } from "../../utils/clientUtils";
+import { showRequestToast } from "../../utils/portalToast";
 
 const pageSize = 15;
 
@@ -165,6 +166,26 @@ function AdminPayments() {
     return visibleOutstanding.reduce((sum, item) => sum + (item.amountOverdueValue || 0), 0);
   }, [visibleOutstanding]);
 
+  function handleDeletePayment(payment: PaymentItem) {
+    Modal.confirm({
+      title: "Delete payment?",
+      content: `Are you sure you want to delete payment ${payment.reference}? This action cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-payment-delete-${payment.id}`, "Deleting payment...");
+        return deletePayment(payment.id)
+          .then(() => {
+            toast.success("Payment deleted.");
+            setPayments((current) => current.filter((p) => p.id !== payment.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete payment."));
+      },
+    });
+  }
+
+
   const paymentsTab = (
     <section className="panel admin-client-list" style={{ marginTop: '0px' }}>
       <div className="panel__header">
@@ -222,9 +243,16 @@ function AdminPayments() {
               <span>
                 <Dropdown
                   menu={{
-                    items: [{ key: "view", label: "View Client", disabled: !payment.clientId }],
-                    onClick: () => {
-                      if (payment.clientId) openClientDetails(payment.clientId);
+                    items: [
+                      { key: "view", label: "View Client", disabled: !payment.clientId },
+                      { key: "delete", label: "Delete", danger: true },
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === "view" && payment.clientId) {
+                        openClientDetails(payment.clientId);
+                      } else if (key === "delete") {
+                        handleDeletePayment(payment);
+                      }
                     },
                   }}
                   placement="bottomRight"

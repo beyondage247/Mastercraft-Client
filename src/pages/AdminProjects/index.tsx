@@ -6,7 +6,7 @@ import AdminProjectTable from "../../components/AdminProjectTable";
 import PageHeader from "../../components/PageHeader";
 import { Modal, Tabs } from "antd";
 import type { ProjectListItem } from "../../data/portal";
-import { getProjects, deleteProject, archiveProject, restoreProject } from "../../services/portalApi";
+import { getProjects, deleteProject, archiveProject, restoreProject, updateProjectStatus } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 
@@ -22,7 +22,7 @@ function AdminProjects() {
   useEffect(() => {
     let isMounted = true;
 
-    getProjects()
+    getProjects(true)
       .then((data) => {
         if (isMounted) {
           setProjects(data.projects);
@@ -111,9 +111,28 @@ function AdminProjects() {
     restoreProject(project.id)
       .then(() => {
         toast.success("Project restored.");
-        getProjects().then((data) => setProjects(data.projects)).catch(() => undefined);
+        getProjects(true).then((data) => setProjects(data.projects)).catch(() => undefined);
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to restore project."));
+  }
+
+  function handleMarkCompleted(project: ProjectListItem) {
+    Modal.confirm({
+      title: "Mark project as completed?",
+      content: `Are you sure you want to mark "${project.title}" as completed?`,
+      okText: "Confirm",
+      okType: "primary",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-project-complete-${project.id}`, "Marking as completed...");
+        return updateProjectStatus(project.id, { status: "Completed" })
+          .then(() => {
+            toast.success("Project marked as completed.");
+            getProjects(true).then((data) => setProjects(data.projects)).catch(() => undefined);
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to mark project as completed."));
+      },
+    });
   }
 
   return (
@@ -162,6 +181,7 @@ function AdminProjects() {
           onCreateQuote={tab === "active" ? handleCreateQuote : undefined}
           onDelete={handleDeleteProject}
           onEdit={tab === "active" ? setEditingProject : undefined}
+          onMarkCompleted={tab === "active" ? handleMarkCompleted : undefined}
           onRestore={tab === "archived" ? handleRestoreProject : undefined}
           onView={setActiveProject}
           projects={tab === "active" ? activeProjects : archivedProjects}
@@ -183,7 +203,7 @@ function AdminProjects() {
       <AdminQuoteModal
         onClose={() => setQuoteProject(null)}
         onCreated={() => {
-          getProjects().then((data) => setProjects(data.projects)).catch(() => undefined);
+          getProjects(true).then((data) => setProjects(data.projects)).catch(() => undefined);
         }}
         open={Boolean(quoteProject)}
         project={quoteProject}

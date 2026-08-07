@@ -18,11 +18,13 @@ import {
   archiveClient,
   restoreClient,
   deleteClient,
+  resendClientInvitation,
   getClients,
   getProjectsForClient,
   getStaffUsers,
   reassignClient,
   updateClient,
+  updateProjectStatus,
   type ClientRecord,
   type ProjectStageInput,
   type StaffRecord,
@@ -367,6 +369,7 @@ function AdminClients() {
         ...(!archived ? [{ key: "edit", label: "Edit" }] : []),
         ...(!archived ? [{ key: "create-project", label: "Create project" }] : []),
         ...(isAdmin && !archived ? [{ key: "reassign", label: "Reassign" }] : []),
+        ...(!archived ? [{ key: "resend-invitation", label: "Resend Invitation" }] : []),
         { type: "divider" as const },
         ...(!archived ? [{ key: "archive", label: "Archive" }] : []),
         ...(archived ? [{ key: "restore", label: "Restore" }] : []),
@@ -376,6 +379,7 @@ function AdminClients() {
         if (key === "view") { openClientDetails(client); return; }
         if (key === "edit") { openEditClient(client); return; }
         if (key === "reassign") { openReassign(client); return; }
+        if (key === "resend-invitation") { handleResendInvitation(client); return; }
         if (key === "archive") { handleArchiveClient(client); return; }
         if (key === "restore") { handleRestoreClient(client); return; }
         if (key === "delete") { handleDeleteClient(client); return; }
@@ -410,6 +414,25 @@ function AdminClients() {
             setSelectedClientProjects((current) => current.filter((p) => p.id !== project.id));
           })
           .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete project."));
+      },
+    });
+  }
+
+  function handleMarkProjectCompleted(project: ProjectListItem) {
+    Modal.confirm({
+      title: "Mark project as completed?",
+      content: `Are you sure you want to mark "${project.title}" as completed?`,
+      okText: "Confirm",
+      okType: "primary",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-client-project-complete-${project.id}`, "Marking as completed...");
+        return updateProjectStatus(project.id, { status: "Completed" })
+          .then((updatedProject) => {
+            toast.success("Project marked as completed.");
+            setSelectedClientProjects((current) => current.map((p) => p.id === project.id ? updatedProject : p));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to mark project as completed."));
       },
     });
   }
@@ -455,11 +478,18 @@ function AdminClients() {
         return deleteClient(client.id)
           .then(() => {
             toast.success("Client deleted.");
-            setClientList((current) => current.filter((c) => c.id !== client.id));
+            return getClients(true).then(setClientList);
           })
           .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete client."));
       },
     });
+  }
+
+  function handleResendInvitation(client: ClientRecord) {
+    const toast = showRequestToast(`admin-client-resend-${client.id}`, "Resending invitation...");
+    resendClientInvitation(client.id)
+      .then(() => toast.success(`Invitation resent to ${client.email || client.name}.`))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to resend invitation."));
   }
 
   function staffName(staffId?: string) {
@@ -865,6 +895,7 @@ function AdminClients() {
         onCreateQuote={handleCreateQuote}
         onDeleteProject={handleDeleteProject}
         onEditProject={setEditingProject}
+        onMarkProjectCompleted={handleMarkProjectCompleted}
         onViewProject={setSelectedProject}
         open={viewClientOpen}
         projects={selectedClientProjects}

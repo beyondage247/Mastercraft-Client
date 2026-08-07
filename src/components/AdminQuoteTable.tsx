@@ -14,6 +14,7 @@ type AdminQuoteTableProps = {
   isLoading?: boolean;
   onDelete?: (quote: QuoteListItem) => void;
   onEdit: (quote: QuoteListItem) => void;
+  onReactivate?: (quote: QuoteListItem) => void;
   onView: (quote: QuoteListItem) => void;
   quotes: QuoteListItem[];
 };
@@ -31,6 +32,7 @@ function AdminQuoteTable({
   isLoading = false,
   onDelete,
   onEdit,
+  onReactivate,
   onView,
   quotes,
 }: AdminQuoteTableProps) {
@@ -70,11 +72,13 @@ function AdminQuoteTable({
   );
 
   function actionMenu(quote: QuoteListItem): MenuProps {
+    const canReactivate = onReactivate && (quote.status === "Expired" || quote.status === "Rejected");
     return {
       items: [
         { key: "view", label: "View" },
         { key: "edit", label: "Edit" },
         { key: "download", label: "Download PDF" },
+        ...(canReactivate ? [{ key: "reactivate", label: "Reactivate" }] : []),
         ...(onDelete ? [{ key: "delete", label: "Delete", danger: true }] : []),
       ],
       onClick: ({ key }) => {
@@ -91,6 +95,11 @@ function AdminQuoteTable({
             .catch((error) =>
               toast.error(error instanceof Error ? error.message : "Unable to download quote PDF."),
             );
+          return;
+        }
+
+        if (key === "reactivate" && onReactivate) {
+          onReactivate(quote);
           return;
         }
 

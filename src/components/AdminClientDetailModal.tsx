@@ -10,6 +10,7 @@ type AdminClientDetailModalProps = {
   onCreateQuote?: (project: ProjectListItem) => void;
   onDeleteProject?: (project: ProjectListItem) => void;
   onEditProject?: (project: ProjectListItem) => void;
+  onMarkProjectCompleted?: (project: ProjectListItem) => void;
   onViewProject?: (project: ProjectListItem) => void;
   open: boolean;
   projects: ProjectListItem[];
@@ -23,6 +24,7 @@ function AdminClientDetailModal({
   onCreateQuote,
   onDeleteProject,
   onEditProject,
+  onMarkProjectCompleted,
   onViewProject,
   open,
   projects,
@@ -92,6 +94,7 @@ function AdminClientDetailModal({
                   onCreateQuote={onCreateQuote}
                   onDelete={onDeleteProject}
                   onEdit={onEditProject}
+                  onMarkCompleted={onMarkProjectCompleted}
                   onView={onViewProject}
                   projects={projects}
                 />

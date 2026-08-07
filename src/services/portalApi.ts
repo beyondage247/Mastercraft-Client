@@ -2178,13 +2178,20 @@ function quotesFromResponse(response: BackendQuoteResponse[] | BackendQuoteEnvel
   return [];
 }
 
-export async function getProjects(): Promise<ProjectResponse> {
+export async function getProjects(includeArchived = false): Promise<ProjectResponse> {
   const currentUser = getCurrentPortalUser();
-  const path = "/projects";
   let backendProjects: BackendProjectResponse[];
 
   try {
-    backendProjects = await portalRequest<BackendProjectResponse[]>(path, {}, true);
+    if (includeArchived) {
+      const [active, archived] = await Promise.all([
+        portalRequest<BackendProjectResponse[]>("/projects", {}, true),
+        portalRequest<BackendProjectResponse[]>("/projects?archived=true", {}, true),
+      ]);
+      backendProjects = [...active, ...archived];
+    } else {
+      backendProjects = await portalRequest<BackendProjectResponse[]>("/projects", {}, true);
+    }
   } catch (error) {
     if (currentUser?.role === "client") {
       return emptyProjectResponse();
@@ -2210,7 +2217,15 @@ export async function getProjects(): Promise<ProjectResponse> {
   };
 }
 
-export async function getProjectsForClient(clientId: string) {
+export async function getProjectsForClient(clientId: string, includeArchived = false) {
+  if (includeArchived) {
+    const [active, archived] = await Promise.all([
+      portalRequest<BackendProjectResponse[]>(`/projects/client/${encodeURIComponent(clientId)}`, {}, true),
+      portalRequest<BackendProjectResponse[]>(`/projects/client/${encodeURIComponent(clientId)}?archived=true`, {}, true),
+    ]);
+    return [...active, ...archived].map(mapBackendProject);
+  }
+
   const backendProjects = await portalRequest<BackendProjectResponse[]>(
     `/projects/client/${encodeURIComponent(clientId)}`,
     {},
@@ -2706,6 +2721,14 @@ export async function deleteQuote(quoteId: string): Promise<void> {
   );
 }
 
+export async function reactivateQuote(quoteId: string): Promise<void> {
+  await portalRequest(
+    `/quotes/${encodeURIComponent(quoteId)}/reactivate`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
 export function applyCommissionUpdate(
   commission: CommissionItem,
   input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
@@ -2836,6 +2859,14 @@ export async function updateCommission(
   } catch {
     return applyCommissionUpdate(commission, input);
   }
+}
+
+export async function deleteCommission(id: string): Promise<void> {
+  await portalRequest(
+    `/commissions/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
 }
 
 export async function getPayments(): Promise<PaymentResponse> {
@@ -2982,6 +3013,14 @@ export async function createCheckoutSession(invoiceId: string, amount?: number) 
 
 export { toBackendPaymentMethod };
 
+export async function deletePayment(id: string): Promise<void> {
+  await portalRequest(
+    `/payments/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
 export async function getReports() {
   return portalRequest<ReportRecord[]>("/reports", {}, true);
 }
@@ -3126,6 +3165,14 @@ export async function deleteClient(id: string): Promise<void> {
   await portalRequest(
     `/users/clients/${encodeURIComponent(id)}`,
     { method: "DELETE" },
+    true,
+  );
+}
+
+export async function resendClientInvitation(id: string): Promise<void> {
+  await portalRequest(
+    `/users/clients/${encodeURIComponent(id)}/resend-invitation`,
+    { method: "POST" },
     true,
   );
 }

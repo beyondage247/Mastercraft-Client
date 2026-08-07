@@ -9,6 +9,7 @@ import {
   applyCommissionUpdate,
   getCommissions,
   updateCommission,
+  deleteCommission,
 } from "../../services/portalApi";
 import { formatPortalDateOrFallback } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
@@ -259,6 +260,25 @@ function AdminCommission() {
     }
   }
 
+  function handleDeleteCommission(commission: CommissionItem) {
+    Modal.confirm({
+      title: "Delete commission?",
+      content: `Are you sure you want to delete the commission for ${commission.projectName}? This cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-commission-delete-${commission.id}`, "Deleting commission...");
+        return deleteCommission(commission.id)
+          .then(() => {
+            toast.success("Commission deleted.");
+            setCommissions((current) => current.filter((c) => c.id !== commission.id));
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to delete commission."));
+      },
+    });
+  }
+
   const editedPreview = editingCommission && form
     ? applyCommissionUpdate(editingCommission, {
         commissionAmountPaid: Number(form.commissionAmountPaid),
@@ -411,9 +431,14 @@ function AdminCommission() {
                     View
                   </button>
                   {isAdmin ? (
-                    <button className="table-action-button" onClick={() => openEdit(commission)} type="button">
-                      Edit
-                    </button>
+                    <>
+                      <button className="table-action-button" onClick={() => openEdit(commission)} type="button">
+                        Edit
+                      </button>
+                      <button className="table-action-button" onClick={() => handleDeleteCommission(commission)} type="button" style={{ color: "var(--color-danger)" }}>
+                        Delete
+                      </button>
+                    </>
                   ) : null}
                 </span>
               </article>
