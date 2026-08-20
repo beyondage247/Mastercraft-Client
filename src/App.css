@@ -3950,6 +3950,63 @@
   min-width: 1160px;
 }
 
+.table-responsive-wrapper {
+  max-height: 70vh;
+  overflow: auto;
+  width: 100%;
+}
+
+.table-responsive-wrapper .admin-record-table__head,
+.table-responsive-wrapper .admin-client-table__head,
+.table-responsive-wrapper .weekly-report-table__head {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface, #fff);
+  z-index: 2;
+}
+
+.table-responsive-wrapper .admin-record-table__head > span:last-child,
+.table-responsive-wrapper .admin-client-table__head > span:last-child,
+.table-responsive-wrapper .weekly-report-table__head > span:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+}
+
+.table-responsive-wrapper .admin-record-table__row > span:last-child,
+.table-responsive-wrapper .admin-client-table__row > span:last-child,
+.table-responsive-wrapper .weekly-report-table__row > span:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+}
+
+.table-responsive-wrapper .admin-record-table__head > span:last-child::before,
+.table-responsive-wrapper .admin-client-table__head > span:last-child::before,
+.table-responsive-wrapper .weekly-report-table__head > span:last-child::before {
+  content: "";
+  position: absolute;
+  top: -24px;
+  bottom: -14px;
+  left: -18px;
+  right: -5px;
+  background-color: #ffffff;
+  z-index: -1;
+}
+
+.table-responsive-wrapper .admin-record-table__row > span:last-child::before,
+.table-responsive-wrapper .admin-client-table__row > span:last-child::before,
+.table-responsive-wrapper .weekly-report-table__row > span:last-child::before {
+  content: "";
+  position: absolute;
+  top: -18px;
+  bottom: -18px;
+  left: -18px;
+  right: -5px;
+  background-color: #ffffff;
+  z-index: -1;
+}
+
 .admin-record-table--payments .admin-record-table__head,
 .admin-record-table--payments .admin-record-table__row {
   grid-template-columns: minmax(220px, 1.15fr) minmax(220px, 1.15fr) 1fr 0.7fr 0.7fr 90px;

@@ -992,7 +992,7 @@ function AdminInventory() {
           }}
           pagination={{ pageSize: 15, showSizeChanger: false }}
           rowKey="id"
-          scroll={{ x: 2640 }}
+          scroll={{ x: 2640, y: "65vh" }}
           size="middle"
         />
       </section>

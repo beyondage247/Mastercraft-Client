@@ -118,53 +118,60 @@ function AdminProjectTable({
           value={search}
         />
       </label>
-      <div className="admin-record-table admin-record-table--projects">
-      <div className="admin-record-table__head">
-        <span>Project</span>
-        <span>Client</span>
-        <span>Staff</span>
-        <span>Location</span>
-        <span>Estimated Completion</span>
-        <span>Fabrication</span>
-        <span>Status</span>
-        <span>{hasActions ? "Action" : ""}</span>
-      </div>
-      {isLoading ? (
-        <div className="admin-empty-row">Loading projects...</div>
-      ) : error ? (
-        <div className="admin-empty-row">{error}</div>
-      ) : visibleProjects.length ? (
-        paginatedProjects.map((project) => {
-          const fabrication = project.fabrication ?? project.progress;
+      <div className="table-responsive-wrapper">
+        <div className="admin-record-table admin-record-table--projects">
+        <div className="admin-record-table__head">
+          <span>Project</span>
+          <span>Client</span>
+          <span>Staff</span>
+          <span>Location</span>
+          <span>Estimated Completion</span>
+          <span>Fabrication</span>
+          <span>Status</span>
+          <span>{hasActions ? "Action" : ""}</span>
+        </div>
+        {isLoading ? (
+          <div className="admin-empty-row">Loading projects...</div>
+        ) : error ? (
+          <div className="admin-empty-row">{error}</div>
+        ) : visibleProjects.length ? (
+          paginatedProjects.map((project) => {
+            const fabrication = project.fabrication ?? project.progress;
 
-          return (
-            <article className="admin-record-table__row" key={project.id}>
-              <strong>{project.title}</strong>
-              <span>{project.clientName || '—'}</span>
-              <span>{assignedStaffText(project)}</span>
-              <span>{project.location || "Not set"}</span>
-              <span>{project.estimatedCompletion || project.dueDate || "Not set"}</span>
-              <span className="admin-project-progress-cell">
-                <strong>{fabrication}%</strong>
-                <ProgressBar value={fabrication} />
-              </span>
-              <StatusBadge tone={projectStatusTone(project.status)}>{project.status}</StatusBadge>
-              <span>
-                {hasActions && (
-                  <Dropdown menu={actionMenu(project)} placement="bottomRight">
-                    <button className="table-action-button" type="button">
-                      <span>Actions</span>
-                      <PortalIcon name="down" />
-                    </button>
-                  </Dropdown>
-                )}
-              </span>
-            </article>
-          );
-        })
-      ) : (
-        <div className="admin-empty-row">{emptyMessage}</div>
-      )}
+            return (
+              <article 
+                className="admin-record-table__row" 
+                key={project.id}
+                onClick={() => onView && onView(project)}
+                style={{ cursor: onView ? "pointer" : "default" }}
+              >
+                <strong>{project.title}</strong>
+                <span>{project.clientName || '—'}</span>
+                <span>{assignedStaffText(project)}</span>
+                <span>{project.location || "Not set"}</span>
+                <span>{project.estimatedCompletion || project.dueDate || "Not set"}</span>
+                <span className="admin-project-progress-cell">
+                  <strong>{fabrication}%</strong>
+                  <ProgressBar value={fabrication} />
+                </span>
+                <StatusBadge tone={projectStatusTone(project.status)}>{project.status}</StatusBadge>
+                <span onClick={(e) => e.stopPropagation()}>
+                  {hasActions && (
+                    <Dropdown menu={actionMenu(project)} placement="bottomRight">
+                      <button className="table-action-button" type="button">
+                        <span>Actions</span>
+                        <PortalIcon name="down" />
+                      </button>
+                    </Dropdown>
+                  )}
+                </span>
+              </article>
+            );
+          })
+        ) : (
+          <div className="admin-empty-row">{emptyMessage}</div>
+        )}
+        </div>
       </div>
       <Pagination
         className="admin-client-pagination"

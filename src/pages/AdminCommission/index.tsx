@@ -1,4 +1,4 @@
-import { Modal, Pagination } from "antd";
+import { Modal, Pagination, Dropdown, Tabs } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentPortalUser } from "../../auth/session";
 import PageHeader from "../../components/PageHeader";
@@ -99,6 +99,7 @@ function AdminCommission() {
   const [page, setPage] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const [viewingCommission, setViewingCommission] = useState<CommissionItem | null>(null);
 
   useEffect(() => {
@@ -130,7 +131,7 @@ function AdminCommission() {
     };
   }, []);
 
-  const visibleCommissions = useMemo(() => {
+  const searchFilteredCommissions = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     if (!normalizedSearch) {
@@ -157,9 +158,25 @@ function AdminCommission() {
     );
   }, [commissions, search]);
 
+  const visibleCommissions = useMemo(() => {
+    if (activeTab === "awaiting-payment") {
+      return searchFilteredCommissions.filter(
+        (c) =>
+          (c.status === "APPROVED_COMMISSION" || c.status === "INVOICE_COMMISSION") &&
+          (c.amountPaidValue ?? 0) === 0,
+      );
+    }
+    if (activeTab === "commission-owed") {
+      return searchFilteredCommissions.filter(
+        (c) => (c.amountPaidValue ?? 0) > 0 && (c.commissionAmountBalanceValue ?? 0) > 0,
+      );
+    }
+    return searchFilteredCommissions;
+  }, [searchFilteredCommissions, activeTab]);
+
   useEffect(() => {
     setPage(1);
-  }, [commissions, search]);
+  }, [commissions, search, activeTab]);
 
   const paginatedCommissions = useMemo(
     () => visibleCommissions.slice((page - 1) * pageSize, page * pageSize),
@@ -171,7 +188,6 @@ function AdminCommission() {
     const monthCommissions = commissions.filter((c) => isCurrentMonth(c.createdAt, now));
     const yearCommissions = commissions.filter((c) => isCurrentYear(c.createdAt, now));
 
-    // All / Month / Year cards: sum commissionAmountPaidValue only where a payout has occurred
     const allTotal = commissions
       .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
       .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
@@ -184,13 +200,25 @@ function AdminCommission() {
       .filter((c) => (c.commissionAmountPaidValue ?? 0) > 0)
       .reduce((sum, c) => sum + (c.commissionAmountPaidValue ?? 0), 0);
 
-    // Sum of invoiceCommissionValue for all commissions
     const invoiceCommissionTotal = commissions
       .reduce((sum, c) => sum + (c.invoiceCommissionValue ?? 0), 0);
 
-    // Sum of all commission amount balances
     const outstandingTotal = commissions
       .reduce((sum, c) => sum + (c.commissionAmountBalanceValue || 0), 0);
+
+    // Invoiced but client hasn't paid yet
+    const awaitingClientPaymentTotal = commissions
+      .filter(
+        (c) =>
+          (c.status === "APPROVED_COMMISSION" || c.status === "INVOICE_COMMISSION") &&
+          (c.amountPaidValue ?? 0) === 0,
+      )
+      .reduce((sum, c) => sum + c.commissionAmountValue, 0);
+
+    // Client paid but commission not yet disbursed to staff
+    const commissionOwedToStaffTotal = commissions
+      .filter((c) => (c.amountPaidValue ?? 0) > 0 && (c.commissionAmountBalanceValue ?? 0) > 0)
+      .reduce((sum, c) => sum + (c.commissionAmountBalanceValue ?? 0), 0);
 
     return {
       allTotal: formatMoney(allTotal),
@@ -198,6 +226,8 @@ function AdminCommission() {
       yearTotal: formatMoney(yearTotal),
       invoiceCommissionTotal: formatMoney(invoiceCommissionTotal),
       outstandingTotal: formatMoney(outstandingTotal),
+      awaitingClientPaymentTotal: formatMoney(awaitingClientPaymentTotal),
+      commissionOwedToStaffTotal: formatMoney(commissionOwedToStaffTotal),
     };
   }, [commissions]);
 
@@ -344,6 +374,32 @@ function AdminCommission() {
             <PortalIcon name="clock" />
           </span>
         </article>
+        <article
+          className="billing-metric"
+          style={{ cursor: "pointer" }}
+          onClick={() => setActiveTab("awaiting-payment")}
+        >
+          <div>
+            <span>Invoiced, awaiting client payment</span>
+            <strong>{summary.awaitingClientPaymentTotal}</strong>
+          </div>
+          <span className="icon-tile icon-tile--neutral">
+            <PortalIcon name="invoices" />
+          </span>
+        </article>
+        <article
+          className="billing-metric"
+          style={{ cursor: "pointer", borderLeft: "3px solid var(--color-warning, #f59e0b)" }}
+          onClick={() => setActiveTab("commission-owed")}
+        >
+          <div>
+            <span>Commission owed to staff</span>
+            <strong>{summary.commissionOwedToStaffTotal}</strong>
+          </div>
+          <span className="icon-tile icon-tile--danger">
+            <PortalIcon name="dollar" />
+          </span>
+        </article>
       </section>
 
       <section className="panel admin-client-list">
@@ -383,69 +439,115 @@ function AdminCommission() {
             value={search}
           />
         </label>
-        <div className="admin-record-table admin-record-table--commission">
-          <div className="admin-record-table__head">
-            <span>Project</span>
-            <span>Quote</span>
-            <span>Client</span>
-            <span>Staff</span>
-            <span>Invoice Amount</span>
-            <span>Amount Paid</span>
-            <span>Percentage Commission</span>
-            <span>Commission Amount</span>
-            <span>Commission Amount Paid</span>
-            <span>Commission Amount Balance</span>
-            <span>Invoice Commission Amount</span>
-            <span>Status</span>
-            <span>Action</span>
+        <Tabs
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key)}
+          style={{ padding: "0 0 8px" }}
+          items={[
+            { key: "all", label: `All (${commissions.length})` },
+            {
+              key: "awaiting-payment",
+              label: `Invoiced, Awaiting Client Payment (${commissions.filter((c) => (c.status === "APPROVED_COMMISSION" || c.status === "INVOICE_COMMISSION") && (c.amountPaidValue ?? 0) === 0).length})`,
+            },
+            {
+              key: "commission-owed",
+              label: `Client Paid, Commission Owed (${commissions.filter((c) => (c.amountPaidValue ?? 0) > 0 && (c.commissionAmountBalanceValue ?? 0) > 0).length})`,
+            },
+          ]}
+        />
+        <div className="table-responsive-wrapper">
+          <div className="admin-record-table admin-record-table--commission">
+            <div className="admin-record-table__head">
+              <span>Project</span>
+              <span>Quote</span>
+              <span>Client</span>
+              <span>Staff</span>
+              <span>Invoice Amount</span>
+              <span>Amount Paid</span>
+              <span>Percentage Commission</span>
+              <span>Commission Amount</span>
+              <span>Commission Amount Paid</span>
+              <span>Commission Amount Balance</span>
+              <span>Invoice Commission Amount</span>
+              <span>Status</span>
+              <span>Action</span>
+            </div>
+            {isLoading ? (
+              <div className="admin-empty-row">Loading commissions...</div>
+            ) : error ? (
+              <div className="admin-empty-row">{error}</div>
+            ) : visibleCommissions.length ? (
+              paginatedCommissions.map((commission) => {
+                const isCommissionOwed =
+                  (commission.amountPaidValue ?? 0) > 0 &&
+                  (commission.commissionAmountBalanceValue ?? 0) > 0;
+                return (
+                  <article
+                    className="admin-record-table__row"
+                    key={commission.id}
+                    onClick={() => setViewingCommission(commission)}
+                    style={{
+                      cursor: "pointer",
+                      borderLeft: isCommissionOwed ? "3px solid var(--color-warning, #f59e0b)" : undefined,
+                    }}
+                  >
+                    <strong>{commission.projectName}</strong>
+                    <span>
+                      {commission.quoteName}
+                      {commission.quoteReference ? <small>{commission.quoteReference}</small> : null}
+                    </span>
+                    <span>{commission.clientName}</span>
+                    <span>
+                      {commission.staffName}
+                      {commission.staffEmail ? <small>{commission.staffEmail}</small> : null}
+                    </span>
+                    <span>{commission.totalAmount}</span>
+                    <span>{commission.amountPaid}</span>
+                    <span>{commission.percentageCommission}%</span>
+                    <strong>{commission.commissionAmount}</strong>
+                    <span>{commission.commissionAmountPaid}</span>
+                    <span>{commission.commissionAmountBalance}</span>
+                    <span>{commission.invoiceCommission ?? '—'}</span>
+                    <span>
+                      <StatusBadge tone={statusTone[commission.status]}>{statusLabel(commission.status)}</StatusBadge>
+                    </span>
+                    <span className="commission-action-cell" onClick={(e) => e.stopPropagation()}>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            { key: "view", label: "View" },
+                            ...(isAdmin ? [
+                              { key: "edit", label: "Edit" },
+                              { key: "delete", label: "Delete", danger: true },
+                            ] : []),
+                          ],
+                          onClick: ({ key }) => {
+                            if (key === "view") setViewingCommission(commission);
+                            if (key === "edit") openEdit(commission);
+                            if (key === "delete") handleDeleteCommission(commission);
+                          },
+                        }}
+                        placement="bottomRight"
+                      >
+                        <button className="table-action-button" type="button">
+                          <span>Actions</span>
+                          <PortalIcon name="down" />
+                        </button>
+                      </Dropdown>
+                    </span>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="admin-empty-row">
+                {activeTab === "awaiting-payment"
+                  ? "No invoiced commissions are awaiting client payment."
+                  : activeTab === "commission-owed"
+                  ? "No commissions are currently owed to staff."
+                  : "No commissions have been generated yet."}
+              </div>
+            )}
           </div>
-          {isLoading ? (
-            <div className="admin-empty-row">Loading commissions...</div>
-          ) : error ? (
-            <div className="admin-empty-row">{error}</div>
-          ) : visibleCommissions.length ? (
-            paginatedCommissions.map((commission) => (
-              <article className="admin-record-table__row" key={commission.id}>
-                <strong>{commission.projectName}</strong>
-                <span>
-                  {commission.quoteName}
-                  {commission.quoteReference ? <small>{commission.quoteReference}</small> : null}
-                </span>
-                <span>{commission.clientName}</span>
-                <span>
-                  {commission.staffName}
-                  {commission.staffEmail ? <small>{commission.staffEmail}</small> : null}
-                </span>
-                <span>{commission.totalAmount}</span>
-                <span>{commission.amountPaid}</span>
-                <span>{commission.percentageCommission}%</span>
-                <strong>{commission.commissionAmount}</strong>
-                <span>{commission.commissionAmountPaid}</span>
-                <span>{commission.commissionAmountBalance}</span>
-                <span>{commission.invoiceCommission ?? '—'}</span>
-                <span>
-                  <StatusBadge tone={statusTone[commission.status]}>{statusLabel(commission.status)}</StatusBadge>
-                </span>
-                <span className="commission-action-cell">
-                  <button className="table-action-button" onClick={() => setViewingCommission(commission)} type="button">
-                    View
-                  </button>
-                  {isAdmin ? (
-                    <>
-                      <button className="table-action-button" onClick={() => openEdit(commission)} type="button">
-                        Edit
-                      </button>
-                      <button className="table-action-button" onClick={() => handleDeleteCommission(commission)} type="button" style={{ color: "var(--color-danger)" }}>
-                        Delete
-                      </button>
-                    </>
-                  ) : null}
-                </span>
-              </article>
-            ))
-          ) : (
-            <div className="admin-empty-row">No commissions have been generated yet.</div>
-          )}
         </div>
         <Pagination
           className="admin-client-pagination"

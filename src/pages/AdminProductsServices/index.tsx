@@ -901,7 +901,7 @@ function AdminProductsServices() {
           }}
           pagination={{ pageSize: 15, showSizeChanger: false }}
           rowKey="id"
-          scroll={{ x: 2800 }}
+          scroll={{ x: 2800, y: "65vh" }}
           size="middle"
         />
       </section>

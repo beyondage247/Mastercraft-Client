@@ -454,44 +454,51 @@ function AdminWeeklyReports() {
                     value={reportSearch}
                   />
                 </label>
-                <div className="weekly-report-table">
-                  <div className="weekly-report-table__head">
-                    <span>Staff</span>
-                    <span>Week</span>
-                    <span>Outreach score</span>
-                    <span>New customers</span>
-                    <span>Status</span>
-                    <span>Action</span>
-                  </div>
-                  {displayedReports.length ? (
-                    paginatedReports.map((report) => (
-                      <article className="weekly-report-table__row" key={report.id}>
-                        <strong>{report.staffName}</strong>
-                        <span>{reportWeekLabel(report)}</span>
-                        <span className="admin-project-progress-cell">
-                          <strong>{reportCompletionScore(report)}%</strong>
-                          <ProgressBar value={reportCompletionScore(report)} />
-                        </span>
-                        <span>{report.newCustomers} / {weeklyReportGoals.newCustomers}</span>
-                        <StatusBadge tone={reportMetCustomerGoal(report) ? "success" : "warning"}>
-                          {reportMetCustomerGoal(report) ? "Target met" : "Needs follow-up"}
-                        </StatusBadge>
-                        <span>
-                          <button
-                            className="table-action-button"
-                            onClick={() => setSelectedReport(report)}
-                            type="button"
-                          >
-                            View
-                          </button>
-                        </span>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="admin-empty-row">
-                      {isAdmin ? "No staff weekly reports have been submitted yet." : "You have not submitted a weekly report yet."}
+                <div className="table-responsive-wrapper">
+                  <div className="weekly-report-table">
+                    <div className="weekly-report-table__head">
+                      <span>Staff</span>
+                      <span>Week</span>
+                      <span>Outreach score</span>
+                      <span>New customers</span>
+                      <span>Status</span>
+                      <span>Action</span>
                     </div>
-                  )}
+                    {displayedReports.length ? (
+                      paginatedReports.map((report) => (
+                        <article 
+                          className="weekly-report-table__row" 
+                          key={report.id}
+                          onClick={() => setSelectedReport(report)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <strong>{report.staffName}</strong>
+                          <span>{reportWeekLabel(report)}</span>
+                          <span className="admin-project-progress-cell">
+                            <strong>{reportCompletionScore(report)}%</strong>
+                            <ProgressBar value={reportCompletionScore(report)} />
+                          </span>
+                          <span>{report.newCustomers} / {weeklyReportGoals.newCustomers}</span>
+                          <StatusBadge tone={reportMetCustomerGoal(report) ? "success" : "warning"}>
+                            {reportMetCustomerGoal(report) ? "Target met" : "Needs follow-up"}
+                          </StatusBadge>
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="table-action-button"
+                              onClick={() => setSelectedReport(report)}
+                              type="button"
+                            >
+                              View
+                            </button>
+                          </span>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="admin-empty-row">
+                        {isAdmin ? "No staff weekly reports have been submitted yet." : "You have not submitted a weekly report yet."}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <Pagination
                   className="admin-client-pagination"

@@ -192,45 +192,47 @@ function AdminInvoices() {
             value={search}
           />
         </label>
-        <div className="admin-record-table admin-record-table--invoices">
-          <div className="admin-record-table__head">
-            <span>Invoice</span>
-            <span>Client</span>
-            <span>Project</span>
-            <span>Amount</span>
-            <span>Status</span>
-            <span>Action</span>
+        <div className="table-responsive-wrapper">
+          <div className="admin-record-table admin-record-table--invoices">
+            <div className="admin-record-table__head">
+              <span>Invoice</span>
+              <span>Client</span>
+              <span>Project</span>
+              <span>Amount</span>
+              <span>Status</span>
+              <span>Action</span>
+            </div>
+            {loading ? (
+              <div className="admin-empty-row">Loading invoices...</div>
+            ) : error ? (
+              <div className="admin-empty-row">{error}</div>
+            ) : visibleInvoices.length ? (
+              paginatedInvoices.map((invoice) => (
+                <article
+                  className="admin-record-table__row"
+                  key={invoice.id}
+                  onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <strong>{invoice.invoiceId || invoice.id}</strong>
+                  <span>{invoice.clientName || "Not set"}</span>
+                  <span>{invoice.project || "Not set"}</span>
+                  <span>{invoice.total || invoice.amount}</span>
+                  <StatusBadge tone={invoiceTone(invoice.status)}>{invoice.status}</StatusBadge>
+                  <span onClick={(event) => event.stopPropagation()}>
+                    <Dropdown menu={actionMenu(invoice)} placement="bottomRight">
+                      <button className="table-action-button" type="button">
+                        <span>Actions</span>
+                        <PortalIcon name="down" />
+                      </button>
+                    </Dropdown>
+                  </span>
+                </article>
+              ))
+            ) : (
+              <div className="admin-empty-row">No invoices have been created yet.</div>
+            )}
           </div>
-          {loading ? (
-            <div className="admin-empty-row">Loading invoices...</div>
-          ) : error ? (
-            <div className="admin-empty-row">{error}</div>
-          ) : visibleInvoices.length ? (
-            paginatedInvoices.map((invoice) => (
-              <article
-                className="admin-record-table__row"
-                key={invoice.id}
-                onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <strong>{invoice.invoiceId || invoice.id}</strong>
-                <span>{invoice.clientName || "Not set"}</span>
-                <span>{invoice.project || "Not set"}</span>
-                <span>{invoice.total || invoice.amount}</span>
-                <StatusBadge tone={invoiceTone(invoice.status)}>{invoice.status}</StatusBadge>
-                <span onClick={(event) => event.stopPropagation()}>
-                  <Dropdown menu={actionMenu(invoice)} placement="bottomRight">
-                    <button className="table-action-button" type="button">
-                      <span>Actions</span>
-                      <PortalIcon name="down" />
-                    </button>
-                  </Dropdown>
-                </span>
-              </article>
-            ))
-          ) : (
-            <div className="admin-empty-row">No invoices have been created yet.</div>
-          )}
         </div>
         <Pagination
           className="admin-client-pagination"

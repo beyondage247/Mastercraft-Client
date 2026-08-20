@@ -849,34 +849,41 @@ function AdminClients() {
             value={search}
           />
         </label>
-        <div className="admin-client-table">
-          <div className="admin-client-table__head">
-            <span>Name</span>
-            <span>Company</span>
-            <span>Email</span>
-            <span>Phone</span>
-            <span>Created</span>
-            <span>Assignment</span>
-            <span>Action</span>
+        <div className="table-responsive-wrapper">
+          <div className="admin-client-table">
+            <div className="admin-client-table__head">
+              <span>Name</span>
+              <span>Company</span>
+              <span>Email</span>
+              <span>Phone</span>
+              <span>Created</span>
+              <span>Assignment</span>
+              <span>Action</span>
+            </div>
+            {visibleClients.map((client) => (
+              <article 
+                className="admin-client-table__row" 
+                key={client.id}
+                onClick={() => openClientDetails(client)}
+                style={{ cursor: "pointer" }}
+              >
+                <strong>{client.name}</strong>
+                <span>{client.company || "Not set"}</span>
+                <span>{client.email || "Not set"}</span>
+                <span>{client.phone || "Not set"}</span>
+                <span>{formatPortalDateOrFallback(client.createdAt)}</span>
+                <span>{staffAssignment(client)}</span>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Dropdown menu={actionMenu(client)} placement="bottomRight">
+                    <button className="table-action-button" type="button">
+                      <span>Actions</span>
+                      <PortalIcon name="down" />
+                    </button>
+                  </Dropdown>
+                </span>
+              </article>
+            ))}
           </div>
-          {visibleClients.map((client) => (
-            <article className="admin-client-table__row" key={client.id}>
-              <strong>{client.name}</strong>
-              <span>{client.company || "Not set"}</span>
-              <span>{client.email || "Not set"}</span>
-              <span>{client.phone || "Not set"}</span>
-              <span>{formatPortalDateOrFallback(client.createdAt)}</span>
-              <span>{staffAssignment(client)}</span>
-              <span>
-                <Dropdown menu={actionMenu(client)} placement="bottomRight">
-                  <button className="table-action-button" type="button">
-                    <span>Actions</span>
-                    <PortalIcon name="down" />
-                  </button>
-                </Dropdown>
-              </span>
-            </article>
-          ))}
         </div>
         <Pagination
           className="admin-client-pagination"

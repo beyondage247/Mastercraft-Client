@@ -217,57 +217,64 @@ function AdminPayments() {
           value={search}
         />
       </label>
-      <div className="admin-record-table admin-record-table--payments">
-        <div className="admin-record-table__head">
-          <span>Reference</span>
-          <span>Client</span>
-          <span>Invoice/Record</span>
-          <span>Project</span>
-          <span>Amount</span>
-          <span>Method</span>
-          <span>Action</span>
+      <div className="table-responsive-wrapper">
+        <div className="admin-record-table admin-record-table--payments">
+          <div className="admin-record-table__head">
+            <span>Reference</span>
+            <span>Client</span>
+            <span>Invoice/Record</span>
+            <span>Project</span>
+            <span>Amount</span>
+            <span>Method</span>
+            <span>Action</span>
+          </div>
+          {isLoading ? (
+            <div className="admin-empty-row">Loading payments...</div>
+          ) : error ? (
+            <div className="admin-empty-row">{error}</div>
+          ) : visiblePayments.length ? (
+            paginatedPayments.map((payment) => (
+              <article 
+                className="admin-record-table__row" 
+                key={payment.id}
+                onClick={() => { if (payment.clientId) openClientDetails(payment.clientId); }}
+                style={{ cursor: payment.clientId ? "pointer" : "default" }}
+              >
+                <strong>{payment.reference}</strong>
+                <span>{payment.clientName || '—'}</span>
+                <span>{payment.invoice}</span>
+                <span>{payment.project}</span>
+                <span>{payment.amount}</span>
+                <span>{payment.method}</span>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Dropdown
+                    menu={{
+                      items: [
+                        { key: "view", label: "View Client", disabled: !payment.clientId },
+                        { key: "delete", label: "Delete", danger: true },
+                      ],
+                      onClick: ({ key }) => {
+                        if (key === "view" && payment.clientId) {
+                          openClientDetails(payment.clientId);
+                        } else if (key === "delete") {
+                          handleDeletePayment(payment);
+                        }
+                      },
+                    }}
+                    placement="bottomRight"
+                  >
+                    <button className="table-action-button" type="button">
+                      <span>Actions</span>
+                      <PortalIcon name="down" />
+                    </button>
+                  </Dropdown>
+                </span>
+              </article>
+            ))
+          ) : (
+            <div className="admin-empty-row">No payments have been recorded yet.</div>
+          )}
         </div>
-        {isLoading ? (
-          <div className="admin-empty-row">Loading payments...</div>
-        ) : error ? (
-          <div className="admin-empty-row">{error}</div>
-        ) : visiblePayments.length ? (
-          paginatedPayments.map((payment) => (
-            <article className="admin-record-table__row" key={payment.id}>
-              <strong>{payment.reference}</strong>
-              <span>{payment.clientName || '—'}</span>
-              <span>{payment.invoice}</span>
-              <span>{payment.project}</span>
-              <span>{payment.amount}</span>
-              <span>{payment.method}</span>
-              <span>
-                <Dropdown
-                  menu={{
-                    items: [
-                      { key: "view", label: "View Client", disabled: !payment.clientId },
-                      { key: "delete", label: "Delete", danger: true },
-                    ],
-                    onClick: ({ key }) => {
-                      if (key === "view" && payment.clientId) {
-                        openClientDetails(payment.clientId);
-                      } else if (key === "delete") {
-                        handleDeletePayment(payment);
-                      }
-                    },
-                  }}
-                  placement="bottomRight"
-                >
-                  <button className="table-action-button" type="button">
-                    <span>Actions</span>
-                    <PortalIcon name="down" />
-                  </button>
-                </Dropdown>
-              </span>
-            </article>
-          ))
-        ) : (
-          <div className="admin-empty-row">No payments have been recorded yet.</div>
-        )}
       </div>
       <Pagination
         className="admin-client-pagination"
@@ -307,50 +314,57 @@ function AdminPayments() {
           value={outstandingSearch}
         />
       </label>
-      <div className="admin-record-table admin-record-table--payments">
-        <div className="admin-record-table__head" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
-          <span>Project Name</span>
-          <span>Client Name</span>
-          <span>Amount Overdue</span>
-          <span>Action</span>
-        </div>
-        {isLoading ? (
-          <div className="admin-empty-row">Loading outstanding data...</div>
-        ) : visibleOutstanding.length ? (
-          <>
-            {paginatedOutstanding.map((item) => (
-              <article className="admin-record-table__row" key={item.projectId} style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
-                <strong>{item.projectName}</strong>
-                <span>{item.clientName}</span>
-                <span className="text-danger"><strong>{item.amountOverdue}</strong></span>
-                <span>
-                  <Dropdown
-                    menu={{
-                      items: [{ key: "view", label: "View Client", disabled: !item.clientId }],
-                      onClick: () => {
-                        if (item.clientId) openClientDetails(item.clientId);
-                      },
-                    }}
-                    placement="bottomRight"
-                  >
-                    <button className="table-action-button" type="button">
-                      <span>Actions</span>
-                      <PortalIcon name="down" />
-                    </button>
-                  </Dropdown>
-                </span>
+      <div className="table-responsive-wrapper">
+        <div className="admin-record-table admin-record-table--payments">
+          <div className="admin-record-table__head" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
+            <span>Project Name</span>
+            <span>Client Name</span>
+            <span>Amount Overdue</span>
+            <span>Action</span>
+          </div>
+          {isLoading ? (
+            <div className="admin-empty-row">Loading outstanding data...</div>
+          ) : visibleOutstanding.length ? (
+            <>
+              {paginatedOutstanding.map((item) => (
+                <article 
+                  className="admin-record-table__row" 
+                  key={item.projectId} 
+                  style={{ gridTemplateColumns: "1fr 1fr 1fr 100px", cursor: item.clientId ? "pointer" : "default" }}
+                  onClick={() => { if (item.clientId) openClientDetails(item.clientId); }}
+                >
+                  <strong>{item.projectName}</strong>
+                  <span>{item.clientName}</span>
+                  <span className="text-danger"><strong>{item.amountOverdue}</strong></span>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Dropdown
+                      menu={{
+                        items: [{ key: "view", label: "View Client", disabled: !item.clientId }],
+                        onClick: () => {
+                          if (item.clientId) openClientDetails(item.clientId);
+                        },
+                      }}
+                      placement="bottomRight"
+                    >
+                      <button className="table-action-button" type="button">
+                        <span>Actions</span>
+                        <PortalIcon name="down" />
+                      </button>
+                    </Dropdown>
+                  </span>
+                </article>
+              ))}
+              <article className="admin-record-table__row" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px", borderTop: "2px solid #eaeaea", backgroundColor: "#fafafa" }}>
+                <strong>Total</strong>
+                <span></span>
+                <span className="text-danger"><strong>{formatMoney(filteredOutstandingTotal)}</strong></span>
+                <span></span>
               </article>
-            ))}
-            <article className="admin-record-table__row" style={{ gridTemplateColumns: "1fr 1fr 1fr 100px", borderTop: "2px solid #eaeaea", backgroundColor: "#fafafa" }}>
-              <strong>Total</strong>
-              <span></span>
-              <span className="text-danger"><strong>{formatMoney(filteredOutstandingTotal)}</strong></span>
-              <span></span>
-            </article>
-          </>
-        ) : (
-          <div className="admin-empty-row">No outstanding balances found.</div>
-        )}
+            </>
+          ) : (
+            <div className="admin-empty-row">No outstanding balances found.</div>
+          )}
+        </div>
       </div>
       <Pagination
         className="admin-client-pagination"

@@ -1,4 +1,4 @@
-import { Modal, Pagination, Tabs, Table, Button } from "antd";
+import { Modal, Pagination, Tabs, Table, Dropdown } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
@@ -285,24 +285,34 @@ function AdminStaff() {
     {
       title: "Action",
       key: "action",
+      fixed: "right",
       render: (_, staff) => (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <Button onClick={() => openEditStaff(staff)}>Edit</Button>
-          <Button
-            type="primary"
-            danger={staff.isActive !== false}
-            onClick={() => handleToggleStatus(staff.id, staff.isActive === false)}
-          >
-            {staff.isActive !== false ? "Deactivate" : "Activate"}
-          </Button>
-          <Button 
-            type="primary" 
-            danger 
-            onClick={() => handleDeleteStaff(staff.id)}
-          >
-            Delete
-          </Button>
-        </div>
+        <Dropdown
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: "edit", label: "Edit" },
+              { key: "toggle", label: staff.isActive !== false ? "Deactivate" : "Activate" },
+              { key: "delete", label: "Delete", danger: true },
+            ],
+            onClick: ({ key }) => {
+              if (key === "edit") openEditStaff(staff);
+              if (key === "toggle") handleToggleStatus(staff.id, staff.isActive === false);
+              if (key === "delete") {
+                Modal.confirm({
+                  title: "Are you sure you want to delete this staff?",
+                  content: "This action cannot be undone.",
+                  onOk: () => handleDeleteStaff(staff.id)
+                });
+              }
+            }
+          }}
+        >
+          <button className="table-action-button" type="button">
+            <span>Actions</span>
+            <PortalIcon name="down" />
+          </button>
+        </Dropdown>
       ),
     },
   ];
@@ -418,6 +428,7 @@ function AdminStaff() {
             columns={columns}
             dataSource={paginatedStaff}
             rowKey="id"
+            scroll={{ x: 'max-content', y: "65vh" }}
             pagination={false}
           />
         </div>
