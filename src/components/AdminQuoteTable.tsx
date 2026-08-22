@@ -12,6 +12,7 @@ type AdminQuoteTableProps = {
   emptyMessage?: string;
   error?: string;
   isLoading?: boolean;
+  onApprove?: (quote: QuoteListItem) => void;
   onDelete?: (quote: QuoteListItem) => void;
   onEdit: (quote: QuoteListItem) => void;
   onReactivate?: (quote: QuoteListItem) => void;
@@ -30,6 +31,7 @@ function AdminQuoteTable({
   emptyMessage = "No quotes have been created yet.",
   error,
   isLoading = false,
+  onApprove,
   onDelete,
   onEdit,
   onReactivate,
@@ -73,9 +75,11 @@ function AdminQuoteTable({
 
   function actionMenu(quote: QuoteListItem): MenuProps {
     const canReactivate = onReactivate && (quote.status === "Expired" || quote.status === "Rejected");
+    const canApprove = onApprove && quote.status !== "Approved";
     return {
       items: [
         { key: "view", label: "View" },
+        ...(canApprove ? [{ key: "approve", label: "Approve" }] : []),
         { key: "edit", label: "Edit" },
         { key: "download", label: "Download PDF" },
         ...(canReactivate ? [{ key: "reactivate", label: "Reactivate" }] : []),
@@ -84,6 +88,11 @@ function AdminQuoteTable({
       onClick: ({ key }) => {
         if (key === "edit") {
           onEdit(quote);
+          return;
+        }
+
+        if (key === "approve" && onApprove) {
+          onApprove(quote);
           return;
         }
 

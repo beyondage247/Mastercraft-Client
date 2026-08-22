@@ -2729,6 +2729,14 @@ export async function reactivateQuote(quoteId: string): Promise<void> {
   );
 }
 
+export async function approveQuote(quoteId: string): Promise<void> {
+  await portalRequest(
+    `/quotes/${encodeURIComponent(quoteId)}/approve`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
 export function applyCommissionUpdate(
   commission: CommissionItem,
   input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },

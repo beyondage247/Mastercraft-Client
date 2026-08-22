@@ -1,7 +1,7 @@
 import { Modal, Tabs } from "antd";
 import { useEffect, useState } from "react";
 import type { ProjectListItem, ProjectStageItem, ProjectStageType, QuoteListItem } from "../data/portal";
-import { getQuotesForProject } from "../services/portalApi";
+import { getQuotesForProject, approveQuote } from "../services/portalApi";
 import { projectStatusTone } from "../utils/projectStatus";
 import AdminQuoteDetailModal from "./AdminQuoteDetailModal";
 import AdminQuoteModal from "./AdminQuoteModal";
@@ -87,6 +87,23 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
 
   function handleQuoteDeleted(deletedQuote: QuoteListItem) {
     setQuotes((current) => current.filter((quote) => quote.id !== deletedQuote.id));
+  }
+
+  function handleQuoteApproved(quote: QuoteListItem) {
+    Modal.confirm({
+      title: "Approve quote?",
+      content: `Approve quote "${quote.title}"? This will mark it as approved.`,
+      okText: "Approve",
+      cancelText: "Cancel",
+      onOk: () =>
+        approveQuote(quote.id)
+          .then(() => {
+            setQuotes((current) =>
+              current.map((q) => (q.id === quote.id ? { ...q, status: "Approved" } : q)),
+            );
+          })
+          .catch(() => {}),
+    });
   }
 
   function handleInvoiceDeleted() {
@@ -222,6 +239,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                     emptyMessage="No quotes have been created for this project yet."
                     error={error}
                     isLoading={isLoadingQuotes}
+                    onApprove={handleQuoteApproved}
                     onDelete={handleQuoteDeleted}
                     onEdit={setEditingQuote}
                     onView={setViewingQuote}

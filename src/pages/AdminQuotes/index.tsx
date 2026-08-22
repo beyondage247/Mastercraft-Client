@@ -5,7 +5,7 @@ import AdminQuoteDetailModal from "../../components/AdminQuoteDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
-import { getQuotes, deleteQuote, reactivateQuote } from "../../services/portalApi";
+import { getQuotes, deleteQuote, reactivateQuote, approveQuote } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 
@@ -88,6 +88,26 @@ function AdminQuotes() {
       .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to reactivate quote."));
   }
 
+  function handleApproveQuote(quote: QuoteListItem) {
+    Modal.confirm({
+      title: "Approve quote?",
+      content: `Approve quote "${quote.title}"? This will mark it as approved.`,
+      okText: "Approve",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-quote-approve-${quote.id}`, "Approving quote...");
+        return approveQuote(quote.id)
+          .then(() => {
+            toast.success("Quote approved.");
+            setQuotes((current) =>
+              current.map((q) => (q.id === quote.id ? { ...q, status: "Approved" } : q)),
+            );
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to approve quote."));
+      },
+    });
+  }
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Quotes created for projects" title="Quotes" />
@@ -114,6 +134,7 @@ function AdminQuotes() {
         <AdminQuoteTable
           error={error}
           isLoading={isLoading}
+          onApprove={handleApproveQuote}
           onDelete={handleDeleteQuote}
           onEdit={setEditingQuote}
           onReactivate={handleReactivateQuote}
