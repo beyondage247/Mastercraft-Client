@@ -874,9 +874,9 @@ function AdminQuoteModal({
       return;
     }
 
-    if (selectedLines.some((line) => line.isCustom && (!line.productName.trim() || line.unitPrice <= 0))) {
+    if (selectedLines.some((line) => line.isCustom && (!line.productName.trim() || line.unitPrice < 0))) {
       showRequestToast("quote-validation", "Checking quote...").error(
-        "Manual line items need a product name and unit price greater than zero.",
+        "Manual line items need a product name and a unit price of zero or greater.",
       );
       return;
     }
