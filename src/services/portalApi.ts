@@ -1788,7 +1788,7 @@ function toBackendPaymentMethod(method: PaymentItem["method"]): PaymentMethodInp
 //   };
 // }
 
-function buildProjectMetrics(projectList: ProjectListItem[]) {
+export function buildProjectMetrics(projectList: ProjectListItem[]) {
   return [
     { icon: "projects", label: "All", tone: "danger", value: `${projectList.length}` },
     { icon: "projects", label: "Quoted", tone: "danger", value: `${projectList.filter((project) => project.status === "Quoted").length}` },
@@ -1821,7 +1821,7 @@ function emptyProjectResponse(): ProjectResponse {
   };
 }
 
-function buildQuoteMetrics(quoteList: QuoteListItem[]) {
+export function buildQuoteMetrics(quoteList: QuoteListItem[]) {
   const total = quoteList.reduce((sum, quote) => sum + amountNumber(quote.amount), 0);
 
   return [
@@ -1849,7 +1849,7 @@ function emptyQuoteResponse(): QuoteResponse {
   };
 }
 
-function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
+export function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
   const outstanding = invoiceList
     .filter((invoice) => invoice.status !== "Paid")
     .reduce((sum, invoice) => sum + amountNumber(invoice.amount), 0);
@@ -1866,7 +1866,7 @@ function buildInvoiceMetrics(invoiceList: InvoiceItem[]) {
   ] as Metric[];
 }
 
-function buildPaymentMetrics(paymentList: PaymentItem[]) {
+export function buildPaymentMetrics(paymentList: PaymentItem[]) {
   const total = paymentList.reduce((sum, payment) => sum + amountNumber(payment.amount), 0);
 
   return [
@@ -2637,13 +2637,13 @@ export async function acceptQuote(uid: string, comment = ""): Promise<QuoteListI
   return respondToQuote(uid, "APPROVED", comment);
 }
 
-export async function getDocuments(): Promise<DocumentResponse> {
+export async function getDocuments(projectsOverride?: ProjectListItem[]): Promise<DocumentResponse> {
   try {
-    const projectData = await getProjects();
+    const projects = projectsOverride ?? (await getProjects()).projects;
     const allDocs: DocumentItem[] = [];
 
     await Promise.all(
-      projectData.projects.map(async (project) => {
+      projects.map(async (project) => {
         try {
           const categoriesData = await getProjectDocumentsCategories(project.id);
           let parsedCategories = [];

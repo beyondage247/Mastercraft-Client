@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal } from "antd";
 import type { QuoteListItem } from "../../data/portal";
 import AdminQuoteDetailModal from "../../components/AdminQuoteDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
-import { getQuotes, deleteQuote, reactivateQuote, approveQuote } from "../../services/portalApi";
+import { getQuotes, deleteQuote, reactivateQuote, approveQuote, getCatalogItems, type CatalogItem } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
+import ReportFilterBar from "../../components/ReportFilterBar";
+import { buildCatalogLookup, describeLineItemTaxonomy } from "../../utils/lineItemCatalog";
+import { isDateWithinRange, type PortalDateRange } from "../../utils/dateFormat";
 
 function AdminQuotes() {
   const [editingQuote, setEditingQuote] = useState<QuoteListItem | null>(null);
@@ -15,6 +18,26 @@ function AdminQuotes() {
   const [isLoading, setIsLoading] = useState(true);
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]);
   const [viewingQuote, setViewingQuote] = useState<QuoteListItem | null>(null);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const catalogById = useMemo(() => buildCatalogLookup(catalogItems), [catalogItems]);
+  const [dateRange, setDateRange] = useState<PortalDateRange>(null);
+  const [clientFilter, setClientFilter] = useState("All");
+
+  const clientOptions = useMemo(
+    () => Array.from(new Set(quotes.map((q) => q.clientName).filter((name): name is string => Boolean(name)))).sort(),
+    [quotes],
+  );
+
+  const filteredQuotes = useMemo(
+    () =>
+      quotes.filter((q) => {
+        const matchesClient = clientFilter === "All" || q.clientName === clientFilter;
+        const matchesDate = isDateWithinRange(q.dateIssued || q.validUntil, dateRange);
+
+        return matchesClient && matchesDate;
+      }),
+    [quotes, clientFilter, dateRange],
+  );
 
   function loadQuotes() {
     let isMounted = true;
@@ -46,6 +69,12 @@ function AdminQuotes() {
 
   useEffect(() => {
     return loadQuotes();
+  }, []);
+
+  useEffect(() => {
+    getCatalogItems()
+      .then(setCatalogItems)
+      .catch(() => setCatalogItems([]));
   }, []);
 
   function handleQuoteSaved(savedQuote: QuoteListItem) {
@@ -116,21 +145,36 @@ function AdminQuotes() {
         <div className="panel__header">
           <h2>Quote List</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span>{quotes.length} total</span>
+            <span>{filteredQuotes.length} total</span>
             <ExportButton
-              data={quotes.map((q) => ({
-                'Quote ID': q.uid,
-                Title: q.title,
-                Project: q.projectName ?? q.description,
-                Amount: q.total ?? q.amount,
-                Status: q.status,
-                'Valid Until': q.validUntil,
-              }))}
+              data={filteredQuotes.map((q) => {
+                const taxonomy = describeLineItemTaxonomy(q.lineItems, catalogById);
+
+                return {
+                  'Quote ID': q.uid,
+                  Title: q.title,
+                  Client: q.clientName ?? '',
+                  Project: q.projectName ?? q.description,
+                  Amount: q.total ?? q.amount,
+                  Status: q.status,
+                  'Valid Until': q.validUntil,
+                  Category: taxonomy.category,
+                  Subcategory: taxonomy.subcategory,
+                  Supplier: taxonomy.supplier,
+                };
+              })}
               filename="quotes"
               label="Export"
             />
           </div>
         </div>
+        <ReportFilterBar
+          clientOptions={clientOptions}
+          clientValue={clientFilter}
+          dateRange={dateRange}
+          onClientChange={setClientFilter}
+          onDateRangeChange={setDateRange}
+        />
         <AdminQuoteTable
           error={error}
           isLoading={isLoading}
@@ -139,7 +183,7 @@ function AdminQuotes() {
           onEdit={setEditingQuote}
           onReactivate={handleReactivateQuote}
           onView={setViewingQuote}
-          quotes={quotes}
+          quotes={filteredQuotes}
         />
       </section>
 

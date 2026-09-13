@@ -14,6 +14,7 @@ import QuoteDetail from './pages/QuoteDetail';
 import InvoiceDetail from './pages/InvoiceDetail';
 import Quotes from './pages/Quotes';
 import AdminClients from './pages/AdminClients';
+import AdminCustomerPortalView from './pages/AdminCustomerPortalView';
 import AdminCommission from './pages/AdminCommission';
 import AdminInvoices from './pages/AdminInvoices';
 import AdminInventory from './pages/AdminInventory';
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
     element: <RequireAuth adminOnly />,
     children: [
       { path: 'clients', element: <AdminClients /> },
+      { path: 'clients/:clientId/portal-view', element: <AdminCustomerPortalView /> },
       { path: 'projects', element: <AdminProjects /> },
       { path: 'inventory', element: <AdminInventory /> },
       { path: 'products-services', element: <AdminProductsServices /> },

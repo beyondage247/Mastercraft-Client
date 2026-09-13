@@ -16,19 +16,20 @@ const projectStatusTone = {
 } as const;
 
 type ProjectCardProps = {
+  onOpen?: (project: ProjectListItem) => void;
   project: ProjectListItem;
 };
 
-function ProjectCard({ project }: ProjectCardProps) {
+function ProjectCard({ onOpen, project }: ProjectCardProps) {
   const navigate = useNavigate();
   const assignedStaff = project.assignedStaffEmail
     ? `${project.assignedStaffName || "Assigned staff"} (${project.assignedStaffEmail})`
     : project.assignedStaffName || "Not assigned";
 
   return (
-    <article 
-      className="record-card project-card" 
-      onClick={() => navigate(`/projects/${project.id}`)}
+    <article
+      className="record-card project-card"
+      onClick={() => (onOpen ? onOpen(project) : navigate(`/projects/${project.id}`))}
       style={{ cursor: 'pointer' }}
     >
       <div className="record-card__body">

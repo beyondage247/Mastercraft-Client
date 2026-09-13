@@ -5,8 +5,47 @@ import ProgressBar from "./ProgressBar";
 import { PortalIcon } from "./PortalIcon";
 import StatusBadge from "./StatusBadge";
 import { projectStatusTone } from "../utils/projectStatus";
+import { parsePortalDate } from "../utils/dateFormat";
 
 const pageSize = 15;
+
+type SortKey = "title" | "clientName" | "assignedStaff" | "location" | "estimatedCompletion" | "fabrication" | "status";
+type SortState = { direction: "asc" | "desc"; key: SortKey } | null;
+
+const sortableColumns: { key: SortKey; label: string }[] = [
+  { key: "title", label: "Project" },
+  { key: "clientName", label: "Client" },
+  { key: "assignedStaff", label: "Staff" },
+  { key: "location", label: "Location" },
+  { key: "estimatedCompletion", label: "Estimated Completion" },
+  { key: "fabrication", label: "Fabrication" },
+  { key: "status", label: "Status" },
+];
+
+function assignedStaffText(project: ProjectListItem) {
+  return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
+}
+
+function sortValue(project: ProjectListItem, key: SortKey): string | number {
+  switch (key) {
+    case "title":
+      return project.title || "";
+    case "clientName":
+      return project.clientName || "";
+    case "assignedStaff":
+      return assignedStaffText(project);
+    case "location":
+      return project.location || "";
+    case "estimatedCompletion": {
+      const date = parsePortalDate(project.estimatedCompletion || project.dueDate);
+      return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+    }
+    case "fabrication":
+      return project.fabrication ?? project.progress ?? 0;
+    case "status":
+      return project.status || "";
+  }
+}
 
 type AdminProjectTableProps = {
   emptyMessage?: string;
@@ -37,6 +76,17 @@ function AdminProjectTable({
 }: AdminProjectTableProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortState>(null);
+
+  function toggleSort(key: SortKey) {
+    setSort((current) => {
+      if (current?.key === key) {
+        return current.direction === "asc" ? { direction: "desc", key } : null;
+      }
+      return { direction: "asc", key };
+    });
+  }
+
   const visibleProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -61,18 +111,33 @@ function AdminProjectTable({
     );
   }, [projects, search]);
 
+  const sortedProjects = useMemo(() => {
+    if (!sort) {
+      return visibleProjects;
+    }
+
+    const factor = sort.direction === "asc" ? 1 : -1;
+
+    return [...visibleProjects].sort((a, b) => {
+      const valueA = sortValue(a, sort.key);
+      const valueB = sortValue(b, sort.key);
+
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        return (valueA - valueB) * factor;
+      }
+
+      return String(valueA).localeCompare(String(valueB)) * factor;
+    });
+  }, [visibleProjects, sort]);
+
   useEffect(() => {
     setPage(1);
-  }, [projects, search]);
+  }, [projects, search, sort]);
 
   const paginatedProjects = useMemo(
-    () => visibleProjects.slice((page - 1) * pageSize, page * pageSize),
-    [page, visibleProjects],
+    () => sortedProjects.slice((page - 1) * pageSize, page * pageSize),
+    [page, sortedProjects],
   );
-
-  function assignedStaffText(project: ProjectListItem) {
-    return project.assignedStaffName || project.assignedStaffEmail || "Not assigned";
-  }
 
   const isArchived = (project: ProjectListItem) =>
     (project.status as string) === "Archived";
@@ -121,20 +186,24 @@ function AdminProjectTable({
       <div className="table-responsive-wrapper">
         <div className="admin-record-table admin-record-table--projects">
         <div className="admin-record-table__head">
-          <span>Project</span>
-          <span>Client</span>
-          <span>Staff</span>
-          <span>Location</span>
-          <span>Estimated Completion</span>
-          <span>Fabrication</span>
-          <span>Status</span>
+          {sortableColumns.map((column) => (
+            <button
+              className="admin-table-sort-header"
+              key={column.key}
+              onClick={() => toggleSort(column.key)}
+              type="button"
+            >
+              <span>{column.label}</span>
+              {sort?.key === column.key ? <span aria-hidden="true">{sort.direction === "asc" ? "▲" : "▼"}</span> : null}
+            </button>
+          ))}
           <span>{hasActions ? "Action" : ""}</span>
         </div>
         {isLoading ? (
           <div className="admin-empty-row">Loading projects...</div>
         ) : error ? (
           <div className="admin-empty-row">{error}</div>
-        ) : visibleProjects.length ? (
+        ) : sortedProjects.length ? (
           paginatedProjects.map((project) => {
             const fabrication = project.fabrication ?? project.progress;
 
@@ -179,7 +248,7 @@ function AdminProjectTable({
         onChange={setPage}
         pageSize={pageSize}
         showSizeChanger={false}
-        total={visibleProjects.length}
+        total={sortedProjects.length}
       />
     </div>
   );

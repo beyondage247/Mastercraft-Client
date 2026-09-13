@@ -1,7 +1,9 @@
 import { Modal, Tabs } from "antd";
+import { useNavigate } from "react-router-dom";
 import AdminProjectTable from "./AdminProjectTable";
 import type { ClientRecord } from "../services/portalApi";
 import type { ProjectListItem } from "../data/portal";
+import { formatMoney, type ClientPaymentTotals } from "../utils/clientPaymentTotals";
 
 type AdminClientDetailModalProps = {
   client: ClientRecord | null;
@@ -13,6 +15,7 @@ type AdminClientDetailModalProps = {
   onMarkProjectCompleted?: (project: ProjectListItem) => void;
   onViewProject?: (project: ProjectListItem) => void;
   open: boolean;
+  paymentTotals?: ClientPaymentTotals;
   projects: ProjectListItem[];
   staffAssignmentText: string;
 };
@@ -27,9 +30,12 @@ function AdminClientDetailModal({
   onMarkProjectCompleted,
   onViewProject,
   open,
+  paymentTotals,
   projects,
   staffAssignmentText,
 }: AdminClientDetailModalProps) {
+  const navigate = useNavigate();
+
   return (
     <Modal
       footer={null}
@@ -37,7 +43,25 @@ function AdminClientDetailModal({
       onCancel={onCancel}
       open={open}
       style={{ maxWidth: "calc(100vw - 32px)" }}
-      title={client?.name || "Client details"}
+      title={
+        client ? (
+          <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", paddingRight: "32px" }}>
+            <span>{client.name}</span>
+            <button
+              className="secondary-action-btn"
+              onClick={() => {
+                onCancel();
+                navigate(`/admin/clients/${client.id}/portal-view`);
+              }}
+              type="button"
+            >
+              View Customer Portal
+            </button>
+          </div>
+        ) : (
+          "Client details"
+        )
+      }
       width={1320}
     >
       {client ? (
@@ -79,6 +103,16 @@ function AdminClientDetailModal({
                   <div>
                     <span>Team Project</span>
                     <strong>{staffAssignmentText}</strong>
+                  </div>
+                  <div>
+                    <span>Total Paid</span>
+                    <strong>{formatMoney(paymentTotals?.paid ?? 0)}</strong>
+                  </div>
+                  <div>
+                    <span>Amount Owed</span>
+                    <strong style={paymentTotals && paymentTotals.owed > 0 ? { color: "var(--danger, #dc2626)" } : undefined}>
+                      {formatMoney(paymentTotals?.owed ?? 0)}
+                    </strong>
                   </div>
                 </div>
               ),

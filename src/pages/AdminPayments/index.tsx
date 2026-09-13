@@ -7,8 +7,11 @@ import { getPayments, getOutstandingPayments, getClientDetails, getProjectsForCl
 import ExportButton from '../../components/ExportButton';
 import AdminClientDetailModal from "../../components/AdminClientDetailModal";
 import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
+import ReportFilterBar from "../../components/ReportFilterBar";
 import { staffAssignment } from "../../utils/clientUtils";
 import { showRequestToast } from "../../utils/portalToast";
+import { buildClientPaymentTotals, getClientPaymentTotals } from "../../utils/clientPaymentTotals";
+import { isDateWithinRange, type PortalDateRange } from "../../utils/dateFormat";
 
 const pageSize = 15;
 
@@ -28,6 +31,8 @@ function AdminPayments() {
   const [search, setSearch] = useState("");
   const [outstandingSearch, setOutstandingSearch] = useState("");
   const [activeTab, setActiveTab] = useState("payments");
+  const [dateRange, setDateRange] = useState<PortalDateRange>(null);
+  const [clientFilter, setClientFilter] = useState("All");
   const [outstandingPage, setOutstandingPage] = useState(1);
 
   const [viewClientOpen, setViewClientOpen] = useState(false);
@@ -83,24 +88,31 @@ function AdminPayments() {
     }
   }
 
+  const clientOptions = useMemo(
+    () => Array.from(new Set(payments.map((p) => p.clientName).filter((name): name is string => Boolean(name)))).sort(),
+    [payments],
+  );
+
   const visiblePayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    if (!normalizedSearch) {
-      return payments;
-    }
+    return payments.filter((payment) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        [payment.reference, payment.invoice, payment.project, payment.amount, payment.method, payment.date]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
+      const matchesClient = clientFilter === "All" || payment.clientName === clientFilter;
+      const matchesDate = isDateWithinRange(payment.date, dateRange);
 
-    return payments.filter((payment) =>
-      [payment.reference, payment.invoice, payment.project, payment.amount, payment.method, payment.date]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch),
-    );
-  }, [payments, search]);
+      return matchesSearch && matchesClient && matchesDate;
+    });
+  }, [payments, search, clientFilter, dateRange]);
 
   useEffect(() => {
     setPage(1);
-  }, [payments, search]);
+  }, [payments, search, clientFilter, dateRange]);
 
   const paginatedPayments = useMemo(
     () => visiblePayments.slice((page - 1) * pageSize, page * pageSize),
@@ -166,6 +178,11 @@ function AdminPayments() {
     return visibleOutstanding.reduce((sum, item) => sum + (item.amountOverdueValue || 0), 0);
   }, [visibleOutstanding]);
 
+  const paymentTotalsByClient = useMemo(
+    () => buildClientPaymentTotals(payments, outstandingPayments),
+    [payments, outstandingPayments],
+  );
+
   function handleDeletePayment(payment: PaymentItem) {
     Modal.confirm({
       title: "Delete payment?",
@@ -217,6 +234,13 @@ function AdminPayments() {
           value={search}
         />
       </label>
+      <ReportFilterBar
+        clientOptions={clientOptions}
+        clientValue={clientFilter}
+        dateRange={dateRange}
+        onClientChange={setClientFilter}
+        onDateRangeChange={setDateRange}
+      />
       <div className="table-responsive-wrapper">
         <div className="admin-record-table admin-record-table--payments">
           <div className="admin-record-table__head">
@@ -435,6 +459,7 @@ function AdminPayments() {
         onCancel={() => setViewClientOpen(false)}
         onViewProject={setSelectedProject}
         open={viewClientOpen}
+        paymentTotals={selectedClient ? getClientPaymentTotals(paymentTotalsByClient, selectedClient.id) : undefined}
         projects={selectedClientProjects}
         staffAssignmentText={selectedClient ? (staffAssignment(selectedClient) || "Unassigned") : "Unassigned"}
       />

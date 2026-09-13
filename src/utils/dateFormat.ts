@@ -1,4 +1,8 @@
+import type { Dayjs } from "dayjs";
+
 export const PORTAL_DATE_FORMAT = "MM/DD/YYYY";
+
+export type PortalDateRange = [Dayjs | null, Dayjs | null] | null;
 
 export function parsePortalDate(value?: string | null) {
   if (!value) {
@@ -40,4 +44,28 @@ export function formatPortalDate(value?: string | null) {
 
 export function formatPortalDateOrFallback(value?: string | null, fallback = "Not set") {
   return formatPortalDate(value) || fallback;
+}
+
+export function isDateWithinRange(value: string | undefined | null, range: PortalDateRange): boolean {
+  if (!range || (!range[0] && !range[1])) {
+    return true;
+  }
+
+  const date = parsePortalDate(value);
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const time = date.getTime();
+
+  if (range[0] && time < range[0].startOf("day").valueOf()) {
+    return false;
+  }
+
+  if (range[1] && time > range[1].endOf("day").valueOf()) {
+    return false;
+  }
+
+  return true;
 }

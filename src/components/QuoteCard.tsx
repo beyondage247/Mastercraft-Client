@@ -16,8 +16,10 @@ const quoteStatusTone = {
 } as const;
 
 type QuoteCardProps = {
-  onRespond: (quote: QuoteListItem, status: "APPROVED" | "REJECTED" | "IN_REVIEW") => void;
+  onOpen?: (quote: QuoteListItem) => void;
+  onRespond?: (quote: QuoteListItem, status: "APPROVED" | "REJECTED" | "IN_REVIEW") => void;
   quote: QuoteListItem;
+  readOnly?: boolean;
 };
 
 function formatScheduleAmount(value?: number | null) {
@@ -59,9 +61,9 @@ function nextScheduleText(quote: QuoteListItem) {
   return "";
 }
 
-function QuoteCard({ onRespond, quote }: QuoteCardProps) {
+function QuoteCard({ onOpen, onRespond, quote, readOnly }: QuoteCardProps) {
   const navigate = useNavigate();
-  const canRespond = quote.status === "Sent" || quote.status === "Draft";
+  const canRespond = !readOnly && Boolean(onRespond) && (quote.status === "Sent" || quote.status === "Draft");
   const displayQuoteId = quote.uid || quote.id;
   const scheduleType = scheduleTypeText(quote);
   const nextSchedule = nextScheduleText(quote);
@@ -80,7 +82,11 @@ function QuoteCard({ onRespond, quote }: QuoteCardProps) {
   }
 
   return (
-    <article className="record-card quote-card" onClick={() => navigate(`/quotes/${quote.uid}`)} style={{ cursor: 'pointer' }}>
+    <article
+      className="record-card quote-card"
+      onClick={() => (onOpen ? onOpen(quote) : navigate(`/quotes/${quote.uid}`))}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="record-card__body">
         <div className="quote-card__idline">
           <span>{displayQuoteId}</span>
@@ -117,7 +123,7 @@ function QuoteCard({ onRespond, quote }: QuoteCardProps) {
           <PortalIcon name="download" />
           PDF
         </button>
-        {canRespond ? (
+        {canRespond && onRespond ? (
           <>
             <button className="accept-button" onClick={(e) => { e.stopPropagation(); onRespond(quote, "APPROVED"); }} type="button">
               Approve

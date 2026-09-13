@@ -6,9 +6,12 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
-import { downloadInvoicePdf, getInvoices, deleteInvoice } from "../../services/portalApi";
+import { downloadInvoicePdf, getInvoices, deleteInvoice, getCatalogItems, type CatalogItem } from "../../services/portalApi";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
+import ReportFilterBar from "../../components/ReportFilterBar";
+import { buildCatalogLookup, describeLineItemTaxonomy } from "../../utils/lineItemCatalog";
+import { isDateWithinRange, type PortalDateRange } from "../../utils/dateFormat";
 
 const pageSize = 15;
 
@@ -26,7 +29,17 @@ function AdminInvoices() {
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const catalogById = useMemo(() => buildCatalogLookup(catalogItems), [catalogItems]);
+  const [dateRange, setDateRange] = useState<PortalDateRange>(null);
+  const [clientFilter, setClientFilter] = useState("All");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getCatalogItems()
+      .then(setCatalogItems)
+      .catch(() => setCatalogItems([]));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -126,32 +139,39 @@ function AdminInvoices() {
     };
   }
 
+  const clientOptions = useMemo(
+    () => Array.from(new Set(invoices.map((inv) => inv.clientName).filter((name): name is string => Boolean(name)))).sort(),
+    [invoices],
+  );
+
   const visibleInvoices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    if (!normalizedSearch) {
-      return invoices;
-    }
+    return invoices.filter((invoice) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        [
+          invoice.invoiceId,
+          invoice.id,
+          invoice.clientName,
+          invoice.project,
+          invoice.total,
+          invoice.amount,
+          invoice.status,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
+      const matchesClient = clientFilter === "All" || invoice.clientName === clientFilter;
+      const matchesDate = isDateWithinRange(invoice.issuedDate, dateRange);
 
-    return invoices.filter((invoice) =>
-      [
-        invoice.invoiceId,
-        invoice.id,
-        invoice.clientName,
-        invoice.project,
-        invoice.total,
-        invoice.amount,
-        invoice.status,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch),
-    );
-  }, [invoices, search]);
+      return matchesSearch && matchesClient && matchesDate;
+    });
+  }, [invoices, search, clientFilter, dateRange]);
 
   useEffect(() => {
     setPage(1);
-  }, [invoices, search]);
+  }, [invoices, search, clientFilter, dateRange]);
 
   const paginatedInvoices = useMemo(
     () => visibleInvoices.slice((page - 1) * pageSize, page * pageSize),
@@ -168,15 +188,22 @@ function AdminInvoices() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span>{visibleInvoices.length} showing</span>
             <ExportButton
-              data={visibleInvoices.map((inv) => ({
-                'Invoice ID': inv.invoiceId ?? inv.id,
-                Client: inv.clientName ?? '',
-                Project: inv.project,
-                Amount: inv.total ?? inv.amount,
-                Status: inv.status,
-                'Issued Date': inv.issuedDate ?? '',
-                'Due Date': inv.dueDate ?? '',
-              }))}
+              data={visibleInvoices.map((inv) => {
+                const taxonomy = describeLineItemTaxonomy(inv.lineItems, catalogById);
+
+                return {
+                  'Invoice ID': inv.invoiceId ?? inv.id,
+                  Client: inv.clientName ?? '',
+                  Project: inv.project,
+                  Amount: inv.total ?? inv.amount,
+                  Status: inv.status,
+                  'Issued Date': inv.issuedDate ?? '',
+                  'Due Date': inv.dueDate ?? '',
+                  Category: taxonomy.category,
+                  Subcategory: taxonomy.subcategory,
+                  Supplier: taxonomy.supplier,
+                };
+              })}
               filename="invoices"
               label="Export"
             />
@@ -192,6 +219,13 @@ function AdminInvoices() {
             value={search}
           />
         </label>
+        <ReportFilterBar
+          clientOptions={clientOptions}
+          clientValue={clientFilter}
+          dateRange={dateRange}
+          onClientChange={setClientFilter}
+          onDateRangeChange={setDateRange}
+        />
         <div className="table-responsive-wrapper">
           <div className="admin-record-table admin-record-table--invoices">
             <div className="admin-record-table__head">

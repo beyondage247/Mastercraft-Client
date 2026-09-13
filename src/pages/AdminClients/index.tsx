@@ -20,6 +20,8 @@ import {
   deleteClient,
   resendClientInvitation,
   getClients,
+  getOutstandingPayments,
+  getPayments,
   getProjectsForClient,
   getStaffUsers,
   reassignClient,
@@ -32,6 +34,7 @@ import {
 import type { ProjectListItem } from "../../data/portal";
 import { formatPortalDateOrFallback, PORTAL_DATE_FORMAT } from "../../utils/dateFormat";
 import { showRequestToast } from "../../utils/portalToast";
+import { buildClientPaymentTotals, formatMoney, getClientPaymentTotals } from "../../utils/clientPaymentTotals";
 import ExportButton from '../../components/ExportButton';
 
 type ClientFormState = {
@@ -132,6 +135,7 @@ function AdminClients() {
   const [isReassigning, setIsReassigning] = useState(false);
   const [page, setPage] = useState(1);
   const [clientList, setClientList] = useState<ClientRecord[]>([]);
+  const [paymentTotalsByClient, setPaymentTotalsByClient] = useState(() => buildClientPaymentTotals([], []));
   const [clientTab, setClientTab] = useState<"active" | "archived">("active");
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
@@ -175,6 +179,15 @@ function AdminClients() {
         }
       })
       .catch(() => undefined);
+
+    Promise.all([
+      getPayments().catch(() => ({ payments: [], metrics: [] })),
+      getOutstandingPayments().catch(() => []),
+    ]).then(([paymentData, outstandingData]) => {
+      if (isMounted) {
+        setPaymentTotalsByClient(buildClientPaymentTotals(paymentData.payments, outstandingData));
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -811,17 +824,23 @@ function AdminClients() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span>{clients.length} total</span>
             <ExportButton
-              data={clients.map((c) => ({
-                Name: c.name,
-                Company: c.company ?? '',
-                Email: c.email ?? '',
-                Phone: c.phone ?? c.phoneNumber ?? '',
-                'Contact Name': c.contactName ?? '',
-                'Additional Email': c.additionalEmail ?? '',
-                'Credit Type': c.clientCredit ?? '',
-                Created: c.createdAt ?? '',
-                Assignment: c.accountPartner?.name ?? '',
-              }))}
+              data={clients.map((c) => {
+                const totals = getClientPaymentTotals(paymentTotalsByClient, c.id);
+
+                return {
+                  Name: c.name,
+                  Company: c.company ?? '',
+                  Email: c.email ?? '',
+                  Phone: c.phone ?? c.phoneNumber ?? '',
+                  'Contact Name': c.contactName ?? '',
+                  'Additional Email': c.additionalEmail ?? '',
+                  'Credit Type': c.clientCredit ?? '',
+                  Created: c.createdAt ?? '',
+                  Assignment: c.accountPartner?.name ?? '',
+                  'Total Paid': formatMoney(totals.paid),
+                  'Amount Owed': formatMoney(totals.owed),
+                };
+              })}
               filename="clients"
               label="Export"
             />
@@ -858,11 +877,16 @@ function AdminClients() {
               <span>Phone</span>
               <span>Created</span>
               <span>Assignment</span>
+              <span>Paid</span>
+              <span>Owed</span>
               <span>Action</span>
             </div>
-            {visibleClients.map((client) => (
-              <article 
-                className="admin-client-table__row" 
+            {visibleClients.map((client) => {
+              const totals = getClientPaymentTotals(paymentTotalsByClient, client.id);
+
+              return (
+              <article
+                className="admin-client-table__row"
                 key={client.id}
                 onClick={() => openClientDetails(client)}
                 style={{ cursor: "pointer" }}
@@ -873,6 +897,8 @@ function AdminClients() {
                 <span>{client.phone || "Not set"}</span>
                 <span>{formatPortalDateOrFallback(client.createdAt)}</span>
                 <span>{staffAssignment(client)}</span>
+                <span>{formatMoney(totals.paid)}</span>
+                <span className={totals.owed > 0 ? "text-danger" : undefined}>{formatMoney(totals.owed)}</span>
                 <span onClick={(e) => e.stopPropagation()}>
                   <Dropdown menu={actionMenu(client)} placement="bottomRight">
                     <button className="table-action-button" type="button">
@@ -882,7 +908,8 @@ function AdminClients() {
                   </Dropdown>
                 </span>
               </article>
-            ))}
+              );
+            })}
           </div>
         </div>
         <Pagination
@@ -905,6 +932,7 @@ function AdminClients() {
         onMarkProjectCompleted={handleMarkProjectCompleted}
         onViewProject={setSelectedProject}
         open={viewClientOpen}
+        paymentTotals={selectedClient ? getClientPaymentTotals(paymentTotalsByClient, selectedClient.id) : undefined}
         projects={selectedClientProjects}
         staffAssignmentText={selectedClient ? staffAssignment(selectedClient) : "Unassigned"}
       />
