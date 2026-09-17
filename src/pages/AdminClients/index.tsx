@@ -6,12 +6,14 @@ import AdminProjectDetailModal from "../../components/AdminProjectDetailModal";
 import AdminClientDetailModal from "../../components/AdminClientDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminProjectStatusModal from "../../components/AdminProjectStatusModal";
+import BillingAddressFields from "../../components/BillingAddressFields";
 import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import {
   calculateFabricationProgress,
   calculateStageProgress,
+  isHalfDayIncrement,
   createClient,
   createProject,
   deleteProject,
@@ -27,6 +29,9 @@ import {
   reassignClient,
   updateClient,
   updateProjectStatus,
+  emptyBillingAddress,
+  formatBillingAddressLines,
+  type ClientBillingAddress,
   type ClientRecord,
   type ProjectStageInput,
   type StaffRecord,
@@ -37,7 +42,7 @@ import { showRequestToast } from "../../utils/portalToast";
 import { buildClientPaymentTotals, formatMoney, getClientPaymentTotals } from "../../utils/clientPaymentTotals";
 import ExportButton from '../../components/ExportButton';
 
-type ClientFormState = {
+type ClientFormState = ClientBillingAddress & {
   additionalEmail: string;
   assignmentId: string;
   clientCredit: "COD" | "CREDIT_ACCOUNT";
@@ -51,6 +56,7 @@ type ClientFormState = {
 const pageSize = 15;
 
 const initialForm: ClientFormState = {
+  ...emptyBillingAddress,
   additionalEmail: "",
   assignmentId: "",
   clientCredit: "COD",
@@ -77,20 +83,20 @@ type ProjectFormState = {
 type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
 
 type ProjectStageFormState = {
-  hoursBudgeted: string;
-  hoursSpent: string;
+  daysBudgeted: string;
+  daysSpent: string;
   startDate: string;
 };
 
 const initialProjectForm: ProjectFormState = {
-  buildAssemble: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
-  delivery: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
+  buildAssemble: { daysBudgeted: "", daysSpent: "0", startDate: "" },
+  delivery: { daysBudgeted: "", daysSpent: "0", startDate: "" },
   description: "",
   endDate: "",
-  finishing: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
-  install: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
+  finishing: { daysBudgeted: "", daysSpent: "0", startDate: "" },
+  install: { daysBudgeted: "", daysSpent: "0", startDate: "" },
   location: "",
-  mil: { hoursBudgeted: "", hoursSpent: "0", startDate: "" },
+  mil: { daysBudgeted: "", daysSpent: "0", startDate: "" },
   name: "",
   startDate: "",
 };
@@ -287,6 +293,11 @@ function AdminClients() {
     setEditForm({
       additionalEmail: client.additionalEmail || "",
       assignmentId: client.accountPartnerId || "",
+      billingAddress: client.billingAddress || "",
+      billingCity: client.billingCity || "",
+      billingCountry: client.billingCountry || "",
+      billingState: client.billingState || "",
+      billingZip: client.billingZip || "",
       clientCredit: client.clientCredit || "COD",
       company: client.company || "",
       contactName: client.contactName || "",
@@ -306,6 +317,11 @@ function AdminClients() {
       setIsEditing(true);
       const updated = await updateClient(selectedClient.id, {
         additionalEmail: editForm.additionalEmail,
+        billingAddress: editForm.billingAddress,
+        billingCity: editForm.billingCity,
+        billingCountry: editForm.billingCountry,
+        billingState: editForm.billingState,
+        billingZip: editForm.billingZip,
         clientCredit: editForm.clientCredit,
         company: editForm.company,
         contactName: editForm.contactName,
@@ -334,42 +350,42 @@ function AdminClients() {
   function stageInput(stage: ProjectStageKey): ProjectStageInput | undefined {
     const stageForm = projectForm[stage];
     const hasStageDetails =
-      Boolean(stageForm.hoursBudgeted.trim()) ||
+      Boolean(stageForm.daysBudgeted.trim()) ||
       Boolean(stageForm.startDate) ||
-      numberValue(stageForm.hoursSpent) > 0;
+      numberValue(stageForm.daysSpent) > 0;
 
     if (!hasStageDetails) {
       return undefined;
     }
 
     return {
-      hoursBudgeted: numberValue(stageForm.hoursBudgeted),
-      hoursSpent: numberValue(stageForm.hoursSpent),
+      daysBudgeted: numberValue(stageForm.daysBudgeted),
+      daysSpent: numberValue(stageForm.daysSpent),
       startDate: stageForm.startDate || projectForm.startDate,
     };
   }
 
   function stageProgressValue(stage: ProjectStageKey) {
     return calculateStageProgress(
-      numberValue(projectForm[stage].hoursBudgeted),
-      numberValue(projectForm[stage].hoursSpent),
+      numberValue(projectForm[stage].daysBudgeted),
+      numberValue(projectForm[stage].daysSpent),
     );
   }
 
   const fabricationProgress = calculateFabricationProgress({
     buildAssemble: {
-      hoursBudgeted: numberValue(projectForm.buildAssemble.hoursBudgeted),
-      hoursSpent: numberValue(projectForm.buildAssemble.hoursSpent),
+      daysBudgeted: numberValue(projectForm.buildAssemble.daysBudgeted),
+      daysSpent: numberValue(projectForm.buildAssemble.daysSpent),
       progress: stageProgressValue("buildAssemble"),
     },
     finishing: {
-      hoursBudgeted: numberValue(projectForm.finishing.hoursBudgeted),
-      hoursSpent: numberValue(projectForm.finishing.hoursSpent),
+      daysBudgeted: numberValue(projectForm.finishing.daysBudgeted),
+      daysSpent: numberValue(projectForm.finishing.daysSpent),
       progress: stageProgressValue("finishing"),
     },
     mil: {
-      hoursBudgeted: numberValue(projectForm.mil.hoursBudgeted),
-      hoursSpent: numberValue(projectForm.mil.hoursSpent),
+      daysBudgeted: numberValue(projectForm.mil.daysBudgeted),
+      daysSpent: numberValue(projectForm.mil.daysSpent),
       progress: stageProgressValue("mil"),
     },
   });
@@ -562,6 +578,11 @@ function AdminClients() {
       setIsSaving(true);
       const response = await createClient({
         additionalEmail,
+        billingAddress: form.billingAddress,
+        billingCity: form.billingCity,
+        billingCountry: form.billingCountry,
+        billingState: form.billingState,
+        billingZip: form.billingZip,
         clientCredit: form.clientCredit,
         company,
         contactName,
@@ -624,6 +645,16 @@ function AdminClients() {
 
     if (!projectName) {
       setFeedback("Project name is required.");
+      return;
+    }
+
+    const invalidDays = projectStageFields.some(({ key }) =>
+      !isHalfDayIncrement(numberValue(projectForm[key].daysBudgeted)) ||
+      !isHalfDayIncrement(numberValue(projectForm[key].daysSpent)),
+    );
+
+    if (invalidDays) {
+      setFeedback("Days must be entered in whole or half days (e.g. 0.5, 1, 1.5).");
       return;
     }
 
@@ -798,6 +829,12 @@ function AdminClients() {
             </div>
           </div>
 
+          <BillingAddressFields
+            idPrefix="create"
+            onChange={updateField}
+            values={form}
+          />
+
           <div className="admin-form-actions">
             <button
               className="primary-action"
@@ -835,6 +872,7 @@ function AdminClients() {
                   'Contact Name': c.contactName ?? '',
                   'Additional Email': c.additionalEmail ?? '',
                   'Credit Type': c.clientCredit ?? '',
+                  'Billing Address': formatBillingAddressLines(c).join(', '),
                   Created: c.createdAt ?? '',
                   Assignment: c.accountPartner?.name ?? '',
                   'Total Paid': formatMoney(totals.paid),
@@ -999,27 +1037,29 @@ function AdminClients() {
                 <legend>{stage.label}</legend>
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor={`${stage.key}Budgeted`}>Hours budgeted</label>
+                    <label htmlFor={`${stage.key}Budgeted`}>Days budgeted</label>
                     <input
                       id={`${stage.key}Budgeted`}
                       min="0"
+                      step="0.5"
                       onChange={(event) =>
-                        updateProjectStageField(stage.key, "hoursBudgeted", event.target.value)
+                        updateProjectStageField(stage.key, "daysBudgeted", event.target.value)
                       }
                       type="number"
-                      value={projectForm[stage.key].hoursBudgeted}
+                      value={projectForm[stage.key].daysBudgeted}
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor={`${stage.key}Spent`}>Hours spent</label>
+                    <label htmlFor={`${stage.key}Spent`}>Days spent</label>
                     <input
                       id={`${stage.key}Spent`}
                       min="0"
+                      step="0.5"
                       onChange={(event) =>
-                        updateProjectStageField(stage.key, "hoursSpent", event.target.value)
+                        updateProjectStageField(stage.key, "daysSpent", event.target.value)
                       }
                       type="number"
-                      value={projectForm[stage.key].hoursSpent}
+                      value={projectForm[stage.key].daysSpent}
                     />
                   </div>
                 </div>
@@ -1165,6 +1205,11 @@ function AdminClients() {
               </select>
             </div>
           </div>
+          <BillingAddressFields
+            idPrefix="edit"
+            onChange={(field, value) => setEditForm((f) => ({ ...f, [field]: value }))}
+            values={editForm}
+          />
           {editClientError ? (
             <p className="admin-feedback" style={{ color: "var(--danger, #dc2626)" }} aria-live="polite">
               {editClientError}

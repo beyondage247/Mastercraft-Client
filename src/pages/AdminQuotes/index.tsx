@@ -5,7 +5,9 @@ import AdminQuoteDetailModal from "../../components/AdminQuoteDetailModal";
 import AdminQuoteModal from "../../components/AdminQuoteModal";
 import AdminQuoteTable from "../../components/AdminQuoteTable";
 import PageHeader from "../../components/PageHeader";
-import { getQuotes, deleteQuote, reactivateQuote, approveQuote, getCatalogItems, type CatalogItem } from "../../services/portalApi";
+import { getQuotes, deleteQuote, reactivateQuote, approveQuote, declineQuote, getCatalogItems, getQuoteCategories, type CatalogItem, type QuoteCategory } from "../../services/portalApi";
+import QuoteCategoryManagerModal from "../../components/QuoteCategoryManagerModal";
+import { ALL_CATEGORIES_FILTER, matchesCategoryFilter } from "../../utils/categoryFilter";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 import ReportFilterBar from "../../components/ReportFilterBar";
@@ -22,6 +24,9 @@ function AdminQuotes() {
   const catalogById = useMemo(() => buildCatalogLookup(catalogItems), [catalogItems]);
   const [dateRange, setDateRange] = useState<PortalDateRange>(null);
   const [clientFilter, setClientFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES_FILTER);
+  const [quoteCategories, setQuoteCategories] = useState<QuoteCategory[]>([]);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(quotes.map((q) => q.clientName).filter((name): name is string => Boolean(name)))).sort(),
@@ -33,10 +38,11 @@ function AdminQuotes() {
       quotes.filter((q) => {
         const matchesClient = clientFilter === "All" || q.clientName === clientFilter;
         const matchesDate = isDateWithinRange(q.dateIssued || q.validUntil, dateRange);
+        const matchesCategory = matchesCategoryFilter(q.categoryId, categoryFilter);
 
-        return matchesClient && matchesDate;
+        return matchesClient && matchesDate && matchesCategory;
       }),
-    [quotes, clientFilter, dateRange],
+    [quotes, clientFilter, dateRange, categoryFilter],
   );
 
   function loadQuotes() {
@@ -75,7 +81,33 @@ function AdminQuotes() {
     getCatalogItems()
       .then(setCatalogItems)
       .catch(() => setCatalogItems([]));
+    getQuoteCategories()
+      .then(setQuoteCategories)
+      .catch(() => setQuoteCategories([]));
   }, []);
+
+  function handleCategoriesChange(next: QuoteCategory[]) {
+    const removedIds = new Set(
+      quoteCategories.filter((category) => !next.some((item) => item.id === category.id)).map((category) => category.id),
+    );
+
+    setQuoteCategories(next);
+
+    if (removedIds.size) {
+      // Deleted categories are detached server-side (onDelete: SetNull); mirror that locally.
+      setQuotes((current) =>
+        current.map((quote) =>
+          quote.categoryId && removedIds.has(quote.categoryId)
+            ? { ...quote, categoryId: undefined, categoryName: undefined }
+            : quote,
+        ),
+      );
+
+      if (removedIds.has(categoryFilter)) {
+        setCategoryFilter(ALL_CATEGORIES_FILTER);
+      }
+    }
+  }
 
   function handleQuoteSaved(savedQuote: QuoteListItem) {
     setQuotes((current) => {
@@ -137,6 +169,27 @@ function AdminQuotes() {
     });
   }
 
+  function handleDeclineQuote(quote: QuoteListItem) {
+    Modal.confirm({
+      title: "Decline quote?",
+      content: `Decline quote "${quote.title}"? The quote will be marked as rejected and its project as lost.`,
+      okText: "Decline",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        const toast = showRequestToast(`admin-quote-decline-${quote.id}`, "Declining quote...");
+        return declineQuote(quote.id)
+          .then(() => {
+            toast.success("Quote declined.");
+            setQuotes((current) =>
+              current.map((q) => (q.id === quote.id ? { ...q, status: "Rejected" } : q)),
+            );
+          })
+          .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to decline quote."));
+      },
+    });
+  }
+
   return (
     <div className="page-stack admin-page">
       <PageHeader subtitle="Quotes created for projects" title="Quotes" />
@@ -146,6 +199,9 @@ function AdminQuotes() {
           <h2>Quote List</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span>{filteredQuotes.length} total</span>
+            <button className="secondary-action-btn" onClick={() => setIsCategoryManagerOpen(true)} type="button">
+              Categories
+            </button>
             <ExportButton
               data={filteredQuotes.map((q) => {
                 const taxonomy = describeLineItemTaxonomy(q.lineItems, catalogById);
@@ -153,6 +209,7 @@ function AdminQuotes() {
                 return {
                   'Quote ID': q.uid,
                   Title: q.title,
+                  'Job Category': q.categoryName ?? '',
                   Client: q.clientName ?? '',
                   Project: q.projectName ?? q.description,
                   Amount: q.total ?? q.amount,
@@ -169,6 +226,9 @@ function AdminQuotes() {
           </div>
         </div>
         <ReportFilterBar
+          categoryOptions={quoteCategories}
+          categoryValue={categoryFilter}
+          onCategoryChange={setCategoryFilter}
           clientOptions={clientOptions}
           clientValue={clientFilter}
           dateRange={dateRange}
@@ -179,6 +239,7 @@ function AdminQuotes() {
           error={error}
           isLoading={isLoading}
           onApprove={handleApproveQuote}
+          onDecline={handleDeclineQuote}
           onDelete={handleDeleteQuote}
           onEdit={setEditingQuote}
           onReactivate={handleReactivateQuote}
@@ -187,6 +248,12 @@ function AdminQuotes() {
         />
       </section>
 
+      <QuoteCategoryManagerModal
+        categories={quoteCategories}
+        onCategoriesChange={handleCategoriesChange}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        open={isCategoryManagerOpen}
+      />
       <AdminQuoteDetailModal
         onClose={() => setViewingQuote(null)}
         open={Boolean(viewingQuote)}

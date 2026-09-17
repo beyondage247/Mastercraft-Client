@@ -27,17 +27,17 @@ export type ActivityItem = {
   time: string;
 };
 
-export type ProjectStatus = 'Pending' | 'Quoted' | 'Lost' | 'In Progress' | 'In Design' | 'In Fabrication' | 'In Production' | 'Completed';
+export type ProjectStatus = 'Pending' | 'Quoted' | 'Lost Business' | 'In Progress' | 'In Design' | 'In Fabrication' | 'In Production' | 'Completed';
 
-export type ProjectFilter = 'All' | 'Quoted' | 'Lost' | 'In Production' | 'Completed';
+export type ProjectFilter = 'All' | 'Quoted' | 'Lost Business' | 'In Production' | 'Completed';
 
 export type ProjectStageType = 'MIL' | 'BUILD_ASSEMBLE' | 'FINISHING' | 'DELIVERY' | 'INSTALL';
 
 export type ProjectStageItem = {
   id?: string;
   stage: ProjectStageType;
-  hoursBudgeted: number;
-  hoursSpent: number;
+  daysBudgeted: number;
+  daysSpent: number;
   progress: number;
   startDate?: string;
   startDateValue?: string;
@@ -161,6 +161,8 @@ export type QuotePaymentSchedule = {
 
 export type QuoteListItem = {
   amount: string;
+  categoryId?: string;
+  categoryName?: string;
   clientComment?: string;
   clientId?: string;
   clientName?: string;
@@ -199,7 +201,10 @@ export type InvoiceStatus = 'Paid' | 'Overdue' | 'Draft' | 'Approved';
 
 export type InvoiceItem = {
   amount: string;
+  categoryId?: string;
+  categoryName?: string;
   clientEmail?: string;
+  clientId?: string;
   clientName?: string;
   dueDate: string;
   id: string;
@@ -361,7 +366,7 @@ export const projectMetrics: Metric[] = [
 export const projectFilters: Array<{ label: string; value: ProjectFilter }> = [
   { label: 'All', value: 'All' },
   { label: 'Quoted', value: 'Quoted' },
-  { label: 'Lost', value: 'Lost' },
+  { label: 'Lost Business', value: 'Lost Business' },
   { label: 'In Production', value: 'In Production' },
   { label: 'Completed', value: 'Completed' },
 ];
@@ -695,6 +700,9 @@ export type LinkedProject = {
 };
 
 export type QuoteDetailInfo = {
+  billToAddressLines?: string[];
+  billToEmail?: string;
+  billToName?: string;
   specifications: string;
   lineItems: LineItem[];
   subtotal: string;

@@ -130,6 +130,19 @@ function QuoteDetail() {
         </button>
       </div>
 
+      {details.billToName || details.billToAddressLines?.length ? (
+        <div className="detail-panel billing-info-panel">
+          <div className="billing-info-grid">
+            <div className="billing-col">
+              <label>BILL TO</label>
+              <strong>{details.billToName}</strong>
+              {details.billToEmail ? <p>{details.billToEmail}</p> : null}
+              {details.billToAddressLines?.map((line) => <p key={line}>{line}</p>)}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="detail-panel">
         <h3>Project Specifications</h3>
         <p className="spec-text">{details.specifications}</p>

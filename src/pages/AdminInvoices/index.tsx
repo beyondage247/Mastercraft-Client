@@ -6,7 +6,8 @@ import PageHeader from "../../components/PageHeader";
 import { PortalIcon } from "../../components/PortalIcon";
 import StatusBadge from "../../components/StatusBadge";
 import type { InvoiceItem } from "../../data/portal";
-import { downloadInvoicePdf, getInvoices, deleteInvoice, getCatalogItems, type CatalogItem } from "../../services/portalApi";
+import { downloadInvoicePdf, getInvoices, deleteInvoice, getCatalogItems, getQuoteCategories, type CatalogItem, type QuoteCategory } from "../../services/portalApi";
+import { ALL_CATEGORIES_FILTER, matchesCategoryFilter } from "../../utils/categoryFilter";
 import { showRequestToast } from "../../utils/portalToast";
 import ExportButton from '../../components/ExportButton';
 import ReportFilterBar from "../../components/ReportFilterBar";
@@ -33,12 +34,17 @@ function AdminInvoices() {
   const catalogById = useMemo(() => buildCatalogLookup(catalogItems), [catalogItems]);
   const [dateRange, setDateRange] = useState<PortalDateRange>(null);
   const [clientFilter, setClientFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES_FILTER);
+  const [quoteCategories, setQuoteCategories] = useState<QuoteCategory[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     getCatalogItems()
       .then(setCatalogItems)
       .catch(() => setCatalogItems([]));
+    getQuoteCategories()
+      .then(setQuoteCategories)
+      .catch(() => setQuoteCategories([]));
   }, []);
 
   useEffect(() => {
@@ -153,6 +159,7 @@ function AdminInvoices() {
         [
           invoice.invoiceId,
           invoice.id,
+          invoice.categoryName,
           invoice.clientName,
           invoice.project,
           invoice.total,
@@ -164,14 +171,15 @@ function AdminInvoices() {
           .includes(normalizedSearch);
       const matchesClient = clientFilter === "All" || invoice.clientName === clientFilter;
       const matchesDate = isDateWithinRange(invoice.issuedDate, dateRange);
+      const matchesCategory = matchesCategoryFilter(invoice.categoryId, categoryFilter);
 
-      return matchesSearch && matchesClient && matchesDate;
+      return matchesSearch && matchesClient && matchesDate && matchesCategory;
     });
-  }, [invoices, search, clientFilter, dateRange]);
+  }, [invoices, search, clientFilter, dateRange, categoryFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [invoices, search, clientFilter, dateRange]);
+  }, [invoices, search, clientFilter, dateRange, categoryFilter]);
 
   const paginatedInvoices = useMemo(
     () => visibleInvoices.slice((page - 1) * pageSize, page * pageSize),
@@ -193,6 +201,7 @@ function AdminInvoices() {
 
                 return {
                   'Invoice ID': inv.invoiceId ?? inv.id,
+                  'Job Category': inv.categoryName ?? '',
                   Client: inv.clientName ?? '',
                   Project: inv.project,
                   Amount: inv.total ?? inv.amount,
@@ -220,6 +229,9 @@ function AdminInvoices() {
           />
         </label>
         <ReportFilterBar
+          categoryOptions={quoteCategories}
+          categoryValue={categoryFilter}
+          onCategoryChange={setCategoryFilter}
           clientOptions={clientOptions}
           clientValue={clientFilter}
           dateRange={dateRange}
@@ -248,7 +260,10 @@ function AdminInvoices() {
                   onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
                   style={{ cursor: "pointer" }}
                 >
-                  <strong>{invoice.invoiceId || invoice.id}</strong>
+                  <strong>
+                    {invoice.invoiceId || invoice.id}
+                    {invoice.categoryName ? <span className="record-category-tag">{invoice.categoryName}</span> : null}
+                  </strong>
                   <span>{invoice.clientName || "Not set"}</span>
                   <span>{invoice.project || "Not set"}</span>
                   <span>{invoice.total || invoice.amount}</span>

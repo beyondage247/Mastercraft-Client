@@ -13,6 +13,7 @@ type AdminQuoteTableProps = {
   error?: string;
   isLoading?: boolean;
   onApprove?: (quote: QuoteListItem) => void;
+  onDecline?: (quote: QuoteListItem) => void;
   onDelete?: (quote: QuoteListItem) => void;
   onEdit: (quote: QuoteListItem) => void;
   onReactivate?: (quote: QuoteListItem) => void;
@@ -32,6 +33,7 @@ function AdminQuoteTable({
   error,
   isLoading = false,
   onApprove,
+  onDecline,
   onDelete,
   onEdit,
   onReactivate,
@@ -50,6 +52,7 @@ function AdminQuoteTable({
     return quotes.filter((quote) =>
       [
         quote.title,
+        quote.categoryName,
         quote.clientName,
         quote.projectName,
         quote.description,
@@ -76,10 +79,12 @@ function AdminQuoteTable({
   function actionMenu(quote: QuoteListItem): MenuProps {
     const canReactivate = onReactivate && (quote.status === "Expired" || quote.status === "Rejected");
     const canApprove = onApprove && quote.status !== "Approved";
+    const canDecline = onDecline && quote.status !== "Approved" && quote.status !== "Rejected";
     return {
       items: [
         { key: "view", label: "View" },
         ...(canApprove ? [{ key: "approve", label: "Approve" }] : []),
+        ...(canDecline ? [{ key: "decline", label: "Decline" }] : []),
         { key: "edit", label: "Edit" },
         { key: "download", label: "Download PDF" },
         ...(canReactivate ? [{ key: "reactivate", label: "Reactivate" }] : []),
@@ -93,6 +98,11 @@ function AdminQuoteTable({
 
         if (key === "approve" && onApprove) {
           onApprove(quote);
+          return;
+        }
+
+        if (key === "decline" && onDecline) {
+          onDecline(quote);
           return;
         }
 
@@ -157,7 +167,10 @@ function AdminQuoteTable({
                 onClick={() => onView(quote)}
                 style={{ cursor: "pointer" }}
               >
-                <strong>{quote.title}</strong>
+                <strong>
+                  {quote.title}
+                  {quote.categoryName ? <span className="record-category-tag">{quote.categoryName}</span> : null}
+                </strong>
                 <span>{quote.clientName || '—'}</span>
                 <span>{quote.projectName || quote.description || "Not set"}</span>
                 <span>{quote.total || quote.amount}</span>

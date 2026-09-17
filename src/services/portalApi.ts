@@ -67,6 +67,11 @@ export type ClientRecord = {
     name?: string;
   };
   accountPartnerId?: string;
+  billingAddress?: string;
+  billingCity?: string;
+  billingCountry?: string;
+  billingState?: string;
+  billingZip?: string;
   clientId?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT";
   company?: string;
@@ -81,7 +86,34 @@ export type ClientRecord = {
   isArchived?: boolean;
 };
 
-export type ClientInviteInput = {
+export type ClientBillingAddress = {
+  billingAddress: string;
+  billingCity: string;
+  billingCountry: string;
+  billingState: string;
+  billingZip: string;
+};
+
+export const emptyBillingAddress: ClientBillingAddress = {
+  billingAddress: "",
+  billingCity: "",
+  billingCountry: "",
+  billingState: "",
+  billingZip: "",
+};
+
+// Formats a client's billing address as display lines for a "Bill To" block.
+export function formatBillingAddressLines(address: Partial<ClientBillingAddress>): string[] {
+  const cityLine = [address.billingCity, [address.billingState, address.billingZip].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+
+  return [address.billingAddress, cityLine, address.billingCountry]
+    .map((line) => line?.trim() ?? "")
+    .filter(Boolean);
+}
+
+export type ClientInviteInput = Partial<ClientBillingAddress> & {
   additionalEmail?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT";
   company?: string;
@@ -252,6 +284,11 @@ type BackendUserResponse = {
   additionalContact?: unknown;
   accountPartnerId?: unknown;
   accountPartner?: BackendProjectStaffResponse | null;
+  billingAddress?: string | null;
+  billingCity?: string | null;
+  billingCountry?: string | null;
+  billingState?: string | null;
+  billingZip?: string | null;
   clientItemId?: string;
   clientCredit?: "COD" | "CREDIT_ACCOUNT" | null;
   company?: unknown;
@@ -354,15 +391,15 @@ type BackendProjectUploadResponse = {
 type BackendProjectStageResponse = {
   id?: string;
   stage: ProjectStageType;
-  hoursBudgeted?: number;
-  hoursSpent?: number;
+  daysBudgeted?: number;
+  daysSpent?: number;
   progress?: number;
   startDate?: string | null;
 };
 
 export type ProjectStageInput = {
-  hoursBudgeted: number;
-  hoursSpent?: number;
+  daysBudgeted: number;
+  daysSpent?: number;
   startDate: string;
 };
 
@@ -411,6 +448,7 @@ type BackendProjectAttachmentResponse = {
 
 type BackendQuoteResponse = {
   amount?: string | number;
+  category?: { id: string; name: string } | null;
   clientComment?: unknown;
   description?: string;
   dateIssued?: string | null;
@@ -501,6 +539,8 @@ export type QuotePaymentScheduleInput = {
 
 export type CreateQuoteInput = {
   autoApprove?: boolean;
+  /** Job category (e.g. Residential). null clears it on update. */
+  categoryId?: string | null;
   dateIssued: string;
   discount?: number;
   lineItems: Array<{
@@ -834,6 +874,11 @@ function normalizeClientRecord(data: BackendUserResponse, fallbackName = ""): Cl
         }
       : undefined,
     accountPartnerId: normalizeString(data.accountPartnerId),
+    billingAddress: normalizeString(data.billingAddress),
+    billingCity: normalizeString(data.billingCity),
+    billingCountry: normalizeString(data.billingCountry),
+    billingState: normalizeString(data.billingState),
+    billingZip: normalizeString(data.billingZip),
     clientCredit: data.clientCredit ?? undefined,
     company: normalizeString(data.company),
     contactName: normalizeString(data.additionalContact ?? data.additionalName),
@@ -1078,7 +1123,7 @@ function normalizeProjectStatus(status: string) {
   }
 
   if (normalized.includes("lost")) {
-    return "Lost";
+    return "Lost Business";
   }
 
   if (normalized.includes("production")) {
@@ -1134,9 +1179,20 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-export function calculateStageProgress(hoursBudgeted?: number, hoursSpent?: number, fallbackProgress = 0) {
-  const budgeted = Number(hoursBudgeted) || 0;
-  const spent = Number(hoursSpent) || 0;
+// Stage time is tracked in whole or half days (e.g. 0.5, 1, 1.5).
+export function isHalfDayIncrement(value: number) {
+  return Number.isFinite(value) && value >= 0 && Number.isInteger(value * 2);
+}
+
+export function formatDays(value: number) {
+  const days = Number(value) || 0;
+
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+export function calculateStageProgress(daysBudgeted?: number, daysSpent?: number, fallbackProgress = 0) {
+  const budgeted = Number(daysBudgeted) || 0;
+  const spent = Number(daysSpent) || 0;
 
   if (budgeted <= 0) {
     return clampPercent(fallbackProgress);
@@ -1145,18 +1201,18 @@ export function calculateStageProgress(hoursBudgeted?: number, hoursSpent?: numb
   return clampPercent((spent / budgeted) * 100);
 }
 
-function stageProgress(stage?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">) {
+function stageProgress(stage?: Pick<ProjectStageItem, "daysBudgeted" | "daysSpent" | "progress">) {
   if (!stage) {
     return 0;
   }
 
-  return calculateStageProgress(stage.hoursBudgeted, stage.hoursSpent, stage.progress);
+  return calculateStageProgress(stage.daysBudgeted, stage.daysSpent, stage.progress);
 }
 
 export function calculateFabricationProgress(stages: {
-  buildAssemble?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
-  finishing?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
-  mil?: Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress">;
+  buildAssemble?: Pick<ProjectStageItem, "daysBudgeted" | "daysSpent" | "progress">;
+  finishing?: Pick<ProjectStageItem, "daysBudgeted" | "daysSpent" | "progress">;
+  mil?: Pick<ProjectStageItem, "daysBudgeted" | "daysSpent" | "progress">;
 }) {
   return clampPercent(
     (stageProgress(stages.mil) +
@@ -1195,14 +1251,14 @@ function projectProgress(
 }
 
 function normalizeProjectStage(stage: BackendProjectStageResponse): ProjectStageItem {
-  const hoursBudgeted = Number(stage.hoursBudgeted) || 0;
-  const hoursSpent = Number(stage.hoursSpent) || 0;
+  const daysBudgeted = Number(stage.daysBudgeted) || 0;
+  const daysSpent = Number(stage.daysSpent) || 0;
 
   return {
-    hoursBudgeted,
-    hoursSpent,
+    daysBudgeted,
+    daysSpent,
     id: stage.id,
-    progress: calculateStageProgress(hoursBudgeted, hoursSpent, Number(stage.progress) || 0),
+    progress: calculateStageProgress(daysBudgeted, daysSpent, Number(stage.progress) || 0),
     stage: stage.stage,
     startDate: formatProjectDate(stage.startDate),
     startDateValue: formatDateInputValue(stage.startDate),
@@ -1492,6 +1548,8 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
 
   return {
     amount: moneyText(quote.amount ?? quote.total),
+    categoryId: quote.category?.id,
+    categoryName: quote.category?.name,
     clientComment: normalizeString(quote.clientComment),
     clientId,
     dateIssued: formatProjectDate(quote.dateIssued),
@@ -1499,6 +1557,10 @@ function mapBackendQuote(quote: BackendQuoteResponse): QuoteListItem {
     id: quote.id,
     invoices: (quote.invoices ?? []).map((invoice) =>
       invoiceFromQuote(invoice, {
+        // Invoices inherit the job category of the quote they were generated from.
+        categoryId: quote.category?.id,
+        categoryName: quote.category?.name,
+        clientId,
         lineItems,
         paymentSchedule,
         projectId,
@@ -1794,9 +1856,9 @@ export function buildProjectMetrics(projectList: ProjectListItem[]) {
     { icon: "projects", label: "Quoted", tone: "danger", value: `${projectList.filter((project) => project.status === "Quoted").length}` },
     {
       icon: "projects",
-      label: "Lost",
+      label: "Lost Business",
       tone: "danger",
-      value: `${projectList.filter((project) => project.status === "Lost").length}`,
+      value: `${projectList.filter((project) => project.status === "Lost Business").length}`,
     },
     {
       icon: "projects",
@@ -1942,6 +2004,9 @@ function emptyPaymentResponse(): PaymentResponse {
 function invoiceFromQuote(
   invoice: BackendInvoiceResponse,
   quote: {
+    categoryId?: string;
+    categoryName?: string;
+    clientId?: string;
     clientName?: string;
     lineItems?: InvoiceItem["lineItems"];
     paymentSchedule?: QuoteListItem["paymentSchedule"];
@@ -1958,6 +2023,9 @@ function invoiceFromQuote(
 
   return {
     amount: total,
+    categoryId: quote.categoryId,
+    categoryName: quote.categoryName,
+    clientId: quote.clientId,
     clientName: quote.clientName,
     dueDate: quote.validUntil || "",
     id: invoice.id,
@@ -2089,13 +2157,13 @@ function toApiDate(value: string) {
 }
 
 function projectStagePayload(stage: ProjectStageInput) {
-  const hoursBudgeted = Number(stage.hoursBudgeted) || 0;
-  const hoursSpent = Number(stage.hoursSpent) || 0;
+  const daysBudgeted = Number(stage.daysBudgeted) || 0;
+  const daysSpent = Number(stage.daysSpent) || 0;
 
   return {
-    hoursBudgeted,
-    hoursSpent,
-    progress: calculateStageProgress(hoursBudgeted, hoursSpent),
+    daysBudgeted,
+    daysSpent,
+    progress: calculateStageProgress(daysBudgeted, daysSpent),
     startDate: toApiDate(stage.startDate),
   };
 }
@@ -2737,6 +2805,42 @@ export async function approveQuote(quoteId: string): Promise<void> {
   );
 }
 
+export type QuoteCategory = {
+  createdAt?: string;
+  id: string;
+  name: string;
+};
+
+export async function getQuoteCategories(): Promise<QuoteCategory[]> {
+  return portalRequest<QuoteCategory[]>("/categories", {}, true);
+}
+
+export async function createQuoteCategory(name: string): Promise<QuoteCategory> {
+  const response = await portalRequest<{ category: QuoteCategory; message: string }>(
+    "/categories",
+    { body: JSON.stringify({ name: name.trim() }), method: "POST" },
+    true,
+  );
+
+  return response.category;
+}
+
+export async function deleteQuoteCategory(id: string): Promise<void> {
+  await portalRequest(
+    `/categories/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  );
+}
+
+export async function declineQuote(quoteId: string): Promise<void> {
+  await portalRequest(
+    `/quotes/${encodeURIComponent(quoteId)}/decline`,
+    { method: "PATCH" },
+    true,
+  );
+}
+
 export function applyCommissionUpdate(
   commission: CommissionItem,
   input: { commissionAmountPaid?: number; percentageCommission?: number; status?: CommissionStatus },
@@ -3061,6 +3165,11 @@ export async function createClient(input: ClientInviteInput) {
     body: JSON.stringify({
       additionalContact: input.contactName || "",
       additionalEmail: input.additionalEmail || "",
+      billingAddress: input.billingAddress?.trim() || undefined,
+      billingCity: input.billingCity?.trim() || undefined,
+      billingCountry: input.billingCountry?.trim() || undefined,
+      billingState: input.billingState?.trim() || undefined,
+      billingZip: input.billingZip?.trim() || undefined,
       clientCredit: input.clientCredit || "COD",
       company: input.company || "",
       email: input.email,
@@ -3123,7 +3232,7 @@ export async function reassignClient(clientId: string, staffId: string) {
   }, true);
 }
 
-export type UpdateClientInput = {
+export type UpdateClientInput = Partial<ClientBillingAddress> & {
   name?: string;
   email?: string;
   phone?: string;
@@ -3143,6 +3252,11 @@ export async function updateClient(id: string, input: UpdateClientInput): Promis
       ...(input.contactName !== undefined && { additionalContact: input.contactName }),
       ...(input.additionalEmail !== undefined && { additionalEmail: input.additionalEmail }),
       ...(input.clientCredit !== undefined && { clientCredit: input.clientCredit }),
+      ...(input.billingAddress !== undefined && { billingAddress: input.billingAddress.trim() }),
+      ...(input.billingCity !== undefined && { billingCity: input.billingCity.trim() }),
+      ...(input.billingState !== undefined && { billingState: input.billingState.trim() }),
+      ...(input.billingZip !== undefined && { billingZip: input.billingZip.trim() }),
+      ...(input.billingCountry !== undefined && { billingCountry: input.billingCountry.trim() }),
     }),
     method: "PATCH",
   }, true);
@@ -3251,6 +3365,37 @@ export async function getProjectDetail(id: string): Promise<{ project: ProjectLi
   return { project, details };
 }
 
+type BillToInfo = {
+  addressLines: string[];
+  email: string;
+  name: string;
+};
+
+// Resolves the client's profile billing address for the "Bill To" block.
+// Staff read it from the client list; clients read their own profile.
+async function getClientBillTo(clientId?: string): Promise<BillToInfo | null> {
+  try {
+    const currentUser = getCurrentPortalUser();
+    const client = currentUser?.role === "client"
+      ? normalizeClientRecord(await portalRequest<BackendUserResponse>("/auth/me", {}, true))
+      : clientId
+        ? await getClientDetails(clientId)
+        : null;
+
+    if (!client) {
+      return null;
+    }
+
+    return {
+      addressLines: formatBillingAddressLines(client),
+      email: client.email || "",
+      name: client.company || client.name,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem | undefined, details: QuoteDetailInfo | undefined }> {
   let quote: QuoteListItem | undefined;
 
@@ -3265,7 +3410,12 @@ export async function getQuoteDetail(id: string): Promise<{ quote: QuoteListItem
     quote = quoteData.quotes.find((q) => q.id === id || q.uid === id);
   }
 
+  const billTo = quote ? await getClientBillTo(quote.clientId) : null;
+
   const details = quote ? {
+    billToAddressLines: billTo?.addressLines ?? [],
+    billToEmail: billTo?.email ?? "",
+    billToName: billTo?.name || quote.clientName || "",
     lineItems: quote.lineItems ?? [],
     linkedProject: {
       category: "Project",
@@ -3306,11 +3456,14 @@ export async function getInvoiceDetail(id: string): Promise<{ invoice: InvoiceIt
     }
   }
 
+  const billTo = invoice ? await getClientBillTo(invoice.clientId) : null;
+  const billToLines = billTo?.addressLines ?? [];
+
   const details = invoice ? {
-    billToAddress1: "",
-    billToAddress2: "",
-    billToEmail: invoice.clientEmail || "",
-    billToName: invoice.clientName || "Client",
+    billToAddress1: billToLines[0] ?? "",
+    billToAddress2: billToLines.slice(1).join(", "),
+    billToEmail: billTo?.email || invoice.clientEmail || "",
+    billToName: billTo?.name || invoice.clientName || "Client",
     lineItems: invoice.lineItems ?? [],
     linkedProject: {
       category: "Project",

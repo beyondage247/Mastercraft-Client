@@ -112,6 +112,10 @@ function AdminQuoteDetailModal({ onClose, open, quote }: AdminQuoteDetailModalPr
               <strong>{displayQuote.projectName || displayQuote.description || "Not set"}</strong>
             </div>
             <div>
+              <span>Category</span>
+              <strong>{displayQuote.categoryName || "Uncategorized"}</strong>
+            </div>
+            <div>
               <span>Date issued</span>
               <strong>{displayQuote.dateIssued || "Not set"}</strong>
             </div>

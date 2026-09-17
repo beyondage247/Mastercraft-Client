@@ -14,7 +14,7 @@ export function projectStatusTone(status: ProjectListItem["status"]): BadgeTone 
     return "warning";
   }
 
-  if (status === "Lost") {
+  if (status === "Lost Business") {
     return "danger";
   }
 

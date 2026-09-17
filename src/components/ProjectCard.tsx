@@ -10,7 +10,7 @@ const projectStatusTone = {
   'In Fabrication': 'danger',
   'In Progress': 'warning',
   'In Production': 'warning',
-  Lost: 'danger',
+  'Lost Business': 'danger',
   Pending: 'danger',
   Quoted: 'warning',
 } as const;

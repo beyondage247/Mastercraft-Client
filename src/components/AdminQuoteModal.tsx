@@ -7,10 +7,13 @@ import type { ProjectListItem, QuoteListItem } from "../data/portal";
 import {
   createQuote,
   getCatalogItems,
+  getQuoteCategories,
   updateQuote,
   type CatalogItem,
+  type QuoteCategory,
   type QuotePaymentScheduleInput,
 } from "../services/portalApi";
+import QuoteCategorySelect from "./QuoteCategorySelect";
 import { PORTAL_DATE_FORMAT } from "../utils/dateFormat";
 import { showRequestToast } from "../utils/portalToast";
 import { PortalIcon } from "./PortalIcon";
@@ -36,6 +39,7 @@ type QuoteLineDraft = {
 };
 
 type QuoteFormState = {
+  categoryId: string;
   dateIssued: string;
   discount: number;
   message: string;
@@ -216,7 +220,9 @@ function AdminQuoteModal({
 }: AdminQuoteModalProps) {
   const isEdit = mode === "edit" && quote;
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [quoteCategories, setQuoteCategories] = useState<QuoteCategory[]>([]);
   const [form, setForm] = useState<QuoteFormState>({
+    categoryId: "",
     dateIssued: dateValue(),
     discount: 0,
     message: "",
@@ -282,8 +288,32 @@ function AdminQuoteModal({
       return;
     }
 
+    let isMounted = true;
+    getQuoteCategories()
+      .then((categories) => {
+        if (isMounted) {
+          setQuoteCategories(categories);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setQuoteCategories([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
     if (isEdit) {
       setForm({
+        categoryId: quote.categoryId || "",
         dateIssued: dateInputValue(quote.dateIssued) || dateValue(),
         discount: 0,
         message: quote.message || "",
@@ -340,6 +370,7 @@ function AdminQuoteModal({
 
     if (project) {
       setForm({
+        categoryId: "",
         dateIssued: dateValue(),
         discount: 0,
         message: "",
@@ -906,6 +937,8 @@ function AdminQuoteModal({
           tax,
         };
       }),
+      // On edit, an empty selection explicitly clears the category.
+      categoryId: form.categoryId || (isEdit ? null : undefined),
       message: form.message.trim(),
       name: form.name.trim(),
       paymentSchedule: buildPaymentSchedule(),
@@ -993,6 +1026,20 @@ function AdminQuoteModal({
               id="quoteName"
               onChange={(event) => updateForm("name", event.target.value)}
               value={form.name}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="quoteCategory">Category</label>
+            <QuoteCategorySelect
+              categories={quoteCategories}
+              id="quoteCategory"
+              onCategoryCreated={(category) =>
+                setQuoteCategories((current) =>
+                  [...current, category].sort((a, b) => a.name.localeCompare(b.name)),
+                )
+              }
+              onChange={(categoryId) => updateForm("categoryId", categoryId)}
+              value={form.categoryId}
             />
           </div>
         </div>

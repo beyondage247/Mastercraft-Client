@@ -1,7 +1,7 @@
 import { Modal, Tabs } from "antd";
 import { useNavigate } from "react-router-dom";
 import AdminProjectTable from "./AdminProjectTable";
-import type { ClientRecord } from "../services/portalApi";
+import { formatBillingAddressLines, type ClientRecord } from "../services/portalApi";
 import type { ProjectListItem } from "../data/portal";
 import { formatMoney, type ClientPaymentTotals } from "../utils/clientPaymentTotals";
 
@@ -35,6 +35,7 @@ function AdminClientDetailModal({
   staffAssignmentText,
 }: AdminClientDetailModalProps) {
   const navigate = useNavigate();
+  const billingLines = client ? formatBillingAddressLines(client) : [];
 
   return (
     <Modal
@@ -95,6 +96,20 @@ function AdminClientDetailModal({
                   <div>
                     <span>Additional email</span>
                     <strong>{client.additionalEmail || "Not set"}</strong>
+                  </div>
+                  <div>
+                    <span>Billing address</span>
+                    <strong>
+                      {billingLines.length ? (
+                        <span className="bill-to-address">
+                          {billingLines.map((line) => (
+                            <span key={line}>{line}</span>
+                          ))}
+                        </span>
+                      ) : (
+                        "Not set"
+                      )}
+                    </strong>
                   </div>
                   <div>
                     <span>Credit</span>

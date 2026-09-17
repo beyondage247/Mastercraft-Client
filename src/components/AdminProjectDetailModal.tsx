@@ -1,7 +1,7 @@
 import { Modal, Tabs } from "antd";
 import { useEffect, useState } from "react";
 import type { ProjectListItem, ProjectStageItem, ProjectStageType, QuoteListItem } from "../data/portal";
-import { getQuotesForProject, approveQuote } from "../services/portalApi";
+import { getQuotesForProject, approveQuote, declineQuote, formatDays } from "../services/portalApi";
 import { projectStatusTone } from "../utils/projectStatus";
 import AdminQuoteDetailModal from "./AdminQuoteDetailModal";
 import AdminQuoteModal from "./AdminQuoteModal";
@@ -106,6 +106,24 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
     });
   }
 
+  function handleQuoteDeclined(quote: QuoteListItem) {
+    Modal.confirm({
+      title: "Decline quote?",
+      content: `Decline quote "${quote.title}"? The quote will be marked as rejected and its project as lost.`,
+      okText: "Decline",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () =>
+        declineQuote(quote.id)
+          .then(() => {
+            setQuotes((current) =>
+              current.map((q) => (q.id === quote.id ? { ...q, status: "Rejected" } : q)),
+            );
+          })
+          .catch(() => {}),
+    });
+  }
+
   function handleInvoiceDeleted() {
     // Reload quotes to reflect deleted invoice
     if (!project) return;
@@ -188,8 +206,8 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                         project.stages.map((stage) => (
                           <article className="admin-project-stage-table__row" key={stage.id || stage.stage}>
                             <strong>{stageLabel(stage)}</strong>
-                            <span>{stage.hoursBudgeted}h</span>
-                            <span>{stage.hoursSpent}h</span>
+                            <span>{formatDays(stage.daysBudgeted)}</span>
+                            <span>{formatDays(stage.daysSpent)}</span>
                             <span className="admin-project-progress-cell">
                               <strong>{stage.progress}%</strong>
                               <ProgressBar value={stage.progress} />
@@ -240,6 +258,7 @@ function AdminProjectDetailModal({ onClose, onProjectUpdated, open, project }: A
                     error={error}
                     isLoading={isLoadingQuotes}
                     onApprove={handleQuoteApproved}
+                    onDecline={handleQuoteDeclined}
                     onDelete={handleQuoteDeleted}
                     onEdit={setEditingQuote}
                     onView={setViewingQuote}

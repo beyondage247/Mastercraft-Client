@@ -5,6 +5,7 @@ import type { ProjectListItem, ProjectStageItem, ProjectStageType } from "../dat
 import {
   calculateFabricationProgress,
   calculateStageProgress,
+  isHalfDayIncrement,
   updateProjectStatus,
   type ProjectStageInput,
 } from "../services/portalApi";
@@ -14,8 +15,8 @@ import { showRequestToast } from "../utils/portalToast";
 type ProjectStageKey = "mil" | "buildAssemble" | "finishing" | "delivery" | "install";
 
 type StageFormState = {
-  hoursBudgeted: string;
-  hoursSpent: string;
+  daysBudgeted: string;
+  daysSpent: string;
   startDate: string;
 };
 
@@ -60,8 +61,8 @@ function portalDateText(date: dayjs.Dayjs | null) {
 
 function emptyStage(project?: ProjectListItem): StageFormState {
   return {
-    hoursBudgeted: "",
-    hoursSpent: "0",
+    daysBudgeted: "",
+    daysSpent: "0",
     startDate: project?.startDateValue || "",
   };
 }
@@ -74,8 +75,8 @@ function stageForm(project: ProjectListItem | null, stageType: ProjectStageType)
   }
 
   return {
-    hoursBudgeted: String(stage.hoursBudgeted || ""),
-    hoursSpent: String(stage.hoursSpent || 0),
+    daysBudgeted: String(stage.daysBudgeted || ""),
+    daysSpent: String(stage.daysSpent || 0),
     startDate: stage.startDateValue || project?.startDateValue || "",
   };
 }
@@ -96,20 +97,20 @@ function numberValue(value: string) {
 
 function toStageInput(stage: StageFormState): ProjectStageInput {
   return {
-    hoursBudgeted: numberValue(stage.hoursBudgeted),
-    hoursSpent: numberValue(stage.hoursSpent),
+    daysBudgeted: numberValue(stage.daysBudgeted),
+    daysSpent: numberValue(stage.daysSpent),
     startDate: stage.startDate,
   };
 }
 
-function toProgressStage(stage: StageFormState): Pick<ProjectStageItem, "hoursBudgeted" | "hoursSpent" | "progress"> {
-  const hoursBudgeted = numberValue(stage.hoursBudgeted);
-  const hoursSpent = numberValue(stage.hoursSpent);
+function toProgressStage(stage: StageFormState): Pick<ProjectStageItem, "daysBudgeted" | "daysSpent" | "progress"> {
+  const daysBudgeted = numberValue(stage.daysBudgeted);
+  const daysSpent = numberValue(stage.daysSpent);
 
   return {
-    hoursBudgeted,
-    hoursSpent,
-    progress: calculateStageProgress(hoursBudgeted, hoursSpent),
+    daysBudgeted,
+    daysSpent,
+    progress: calculateStageProgress(daysBudgeted, daysSpent),
   };
 }
 
@@ -156,8 +157,8 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
 
   function stageProgress(stage: ProjectStageKey) {
     return calculateStageProgress(
-      numberValue(form[stage].hoursBudgeted),
-      numberValue(form[stage].hoursSpent),
+      numberValue(form[stage].daysBudgeted),
+      numberValue(form[stage].daysSpent),
     );
   }
 
@@ -169,11 +170,22 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
     const missingStageValue = stageFields.some(({ key }) => {
       const stage = form[key];
 
-      return !numberValue(stage.hoursBudgeted) || !stage.startDate;
+      return !numberValue(stage.daysBudgeted) || !stage.startDate;
     });
 
     if (missingStageValue) {
-      setFeedback("Budgeted hours and start date are required for every stage.");
+      setFeedback("Budgeted days and start date are required for every stage.");
+      return;
+    }
+
+    const invalidDays = stageFields.some(({ key }) => {
+      const stage = form[key];
+
+      return !isHalfDayIncrement(numberValue(stage.daysBudgeted)) || !isHalfDayIncrement(numberValue(stage.daysSpent));
+    });
+
+    if (invalidDays) {
+      setFeedback("Days must be entered in whole or half days (e.g. 0.5, 1, 1.5).");
       return;
     }
 
@@ -237,23 +249,25 @@ function AdminProjectStatusModal({ onClose, onSaved, open, project }: AdminProje
               <legend>{stage.label}</legend>
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor={`${stage.key}EditBudgeted`}>Hours budgeted</label>
+                  <label htmlFor={`${stage.key}EditBudgeted`}>Days budgeted</label>
                   <input
                     id={`${stage.key}EditBudgeted`}
                     min="0"
-                    onChange={(event) => updateStage(stage.key, "hoursBudgeted", event.target.value)}
+                    step="0.5"
+                    onChange={(event) => updateStage(stage.key, "daysBudgeted", event.target.value)}
                     type="number"
-                    value={form[stage.key].hoursBudgeted}
+                    value={form[stage.key].daysBudgeted}
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor={`${stage.key}EditSpent`}>Hours spent</label>
+                  <label htmlFor={`${stage.key}EditSpent`}>Days spent</label>
                   <input
                     id={`${stage.key}EditSpent`}
                     min="0"
-                    onChange={(event) => updateStage(stage.key, "hoursSpent", event.target.value)}
+                    step="0.5"
+                    onChange={(event) => updateStage(stage.key, "daysSpent", event.target.value)}
                     type="number"
-                    value={form[stage.key].hoursSpent}
+                    value={form[stage.key].daysSpent}
                   />
                 </div>
               </div>
